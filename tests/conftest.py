@@ -34,10 +34,9 @@ def test_db_path():
 
 
 @pytest.fixture()
-def client(test_db_path):
-    from api import deps as api_deps
-    from api import main as api_main
-
+def db_conn(test_db_path):
+    """client와 같은 커넥션. 라우터를 거치지 않고 DB 상태를 직접 만들거나 확인해야 하는
+    테스트(예: 토큰 만료 시각을 과거로 돌리기)에서 client와 함께 받아 쓴다."""
     # FastAPI가 동기 라우트를 스레드풀 워커에서 실행하기 때문에, fixture를 만든 스레드와
     # 실제 요청을 처리하는 스레드가 다르다 - check_same_thread=False로 풀어준다.
     # 테스트 하나당 요청을 순차적으로만 보내므로 동시 접근 걱정은 없다.
@@ -47,9 +46,18 @@ def client(test_db_path):
     # 끝나면 그 트랜잭션 전체를 한 번에 롤백해 다음 테스트로 오염을 넘기지 않는다.
     conn = sqlite3.connect(test_db_path, check_same_thread=False, isolation_level=None)
     conn.execute("BEGIN")
+    yield conn
+    conn.rollback()
+    conn.close()
+
+
+@pytest.fixture()
+def client(db_conn):
+    from api import deps as api_deps
+    from api import main as api_main
 
     def override_get_db():
-        cur = conn.cursor()
+        cur = db_conn.cursor()
         try:
             yield cur
         finally:
@@ -59,5 +67,3 @@ def client(test_db_path):
     with TestClient(api_main.app) as c:
         yield c
     api_main.app.dependency_overrides.clear()
-    conn.rollback()
-    conn.close()

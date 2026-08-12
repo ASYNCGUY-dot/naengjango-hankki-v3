@@ -183,11 +183,13 @@ CREATE TABLE user_partner_keys (
 );
 
 -- 토큰 기반 인가 (2026-07-19, api/auth_token.py). 토큰 원문이 아니라 sha256 해시만 저장한다.
+-- expires_at은 V3 Phase 1에서 추가했다(migration/004_auth_token_expiry.sql과 같은 모양).
 CREATE TABLE auth_tokens (
     token_hash TEXT PRIMARY KEY,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TEXT,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- 최소 시드 데이터: recommendation/review/safety/price 라우터 테스트용 승인된 레시피 1개.
