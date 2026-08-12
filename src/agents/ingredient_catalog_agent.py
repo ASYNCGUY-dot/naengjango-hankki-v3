@@ -22,7 +22,6 @@ Ingredient Catalog Agent [확장] - 식품영양성분DB 전체를 로컬 DB로 
 """
 
 import os
-import re
 import json
 import time
 import sqlite3
