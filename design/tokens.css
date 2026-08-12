@@ -1,0 +1,181 @@
+/* 냉장고 한끼 V3 - 디자인 토큰 (Phase 2, 2026-08-12)
+ *
+ * Phase 2 종료 조건 1번("디자인 토큰이 코드로 존재하고 하드코딩된 값이 없다")의 산출물이다.
+ * React 구현은 Phase 3이므로 여기서는 값만 정의한다. 프론트가 생기면 이 파일을 그대로 가져다 쓴다.
+ *
+ * 색을 고른 근거
+ * - 액센트는 새로 만들지 않았다. assets/manifest.json의 theme_color와 logo.svg에 이미
+ *   #3f7d55가 있었다. 다만 이 값을 연초록 표면 위에 올리면 명암비가 4.46:1로 AA(4.5)에
+ *   0.04 모자라서, 1% 어둡게 한 #3e7b54로 조정했다. 눈에는 같은 색이고 통과한다.
+ *   로고 SVG는 그대로 뒀다 - WCAG는 로고타입을 명암비 대상에서 제외한다.
+ * - 의미색(경고·오류)은 표면용과 텍스트용을 나눴다. 브랜드의 주황 #f2a53c는 흰 배경에서
+ *   2.02:1이라 아이콘 기준(3:1)조차 못 넘긴다. 그래서 채움/배경으로만 쓰고, 같은 의미의
+ *   글자가 필요하면 어둡게 한 변형을 쓴다. 이걸 안 나누면 "브랜드 색인데 읽을 수 없는 글자"가 된다.
+ * - 표면은 중립으로 유지한다. 레시피 사진 1,146장의 배경이 분홍·빨강·청록으로 제각각이라,
+ *   앱 배경까지 색을 넣으면 부딪힌다. 색은 사진이 담당하고 UI는 액센트만 아껴 쓴다.
+ *
+ * 모든 조합의 명암비는 tests/test_design_tokens.py가 검증한다. 값을 바꾸면 그 테스트가 잡는다.
+ */
+
+:root {
+  /* ---------- 표면 ---------- */
+  --color-surface-base: #fdfdfb;      /* 화면 바탕 */
+  --color-surface-raised: #ffffff;    /* 카드·시트 */
+  --color-surface-sunken: #f1f1ec;    /* 입력 필드·비활성 영역 */
+  --color-surface-accent: #eef6ee;    /* 선택된 칩, 액센트 강조 영역 */
+
+  /* ---------- 텍스트 ---------- */
+  --color-text-primary: #1a1a17;      /* 제목·본문 */
+  --color-text-secondary: #5c5c55;    /* 보조 설명·메타 정보 */
+  --color-text-on-accent: #fdfdfb;    /* 액센트 배경 위 글자 */
+  --color-text-on-fill: #1a1a17;      /* 의미색 채움(뱃지) 위 글자 - 밝은 채움이라 어두운 글자 */
+
+  /* ---------- 액센트 ---------- */
+  --color-accent: #3e7b54;            /* CTA 배경, 선택 상태 */
+  --color-accent-strong: #2f5d40;     /* 눌림·호버 */
+  --color-accent-text: #336547;       /* 액센트 표면(연초록) 위에 올리는 글자·링크 */
+
+  /* ---------- 의미색: 표면용(채움)과 텍스트용을 분리한다 ---------- */
+  --color-warning-fill: #f2a53c;      /* 뱃지·아이콘 채움 (글자로 쓰지 말 것) */
+  --color-warning-text: #8a5e22;      /* 경고 문구 */
+  --color-danger-fill: #e0574a;       /* 삭제 아이콘·뱃지 채움 */
+  --color-danger-text: #b8443a;       /* 오류 문구 */
+  --color-success-fill: #6fae62;      /* 성공 뱃지 채움 */
+  --color-success-text: #336547;      /* 성공 문구 (액센트와 같은 계열) */
+
+  /* ---------- 테두리·구분선 ---------- */
+  --color-border: #d9d9d1;            /* 카드 테두리·구분선 (장식용) */
+  --color-border-strong: #6b6b63;     /* 입력 필드 테두리 (UI 요소라 3:1 필요) */
+  --color-focus-ring: #2f5d40;        /* 키보드 포커스 링 */
+
+  /* ---------- 타이포그래피 ----------
+   * Pretendard를 쓴다. V2에서 이미 도입했고, 레퍼런스로 본 iOS UI 키트들의
+   * SF Pro/Inter 계열은 한글 글자꼴이 없어 그대로 쓸 수 없다.
+   * 행간이 라틴 기준보다 넉넉하다 - 한글은 같은 크기에서 글자가 네모꼴로 꽉 차서
+   * 1.4 정도면 답답하게 읽힌다. 본문 1.6을 기준으로 잡았다. */
+  --font-family-base: Pretendard, "Pretendard Variable", -apple-system,
+    BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+
+  --font-size-xs: 0.75rem;    /* 12px - 뱃지·캡션 */
+  --font-size-sm: 0.875rem;   /* 14px - 메타 정보 */
+  --font-size-base: 1rem;     /* 16px - 본문 */
+  --font-size-lg: 1.125rem;   /* 18px - 카드 제목 */
+  --font-size-xl: 1.375rem;   /* 22px - 섹션 제목 */
+  --font-size-2xl: 1.75rem;   /* 28px - 화면 제목 */
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.35;  /* 제목 */
+  --line-height-base: 1.6;    /* 본문 (한글 기준) */
+  --line-height-loose: 1.75;  /* 조리 단계처럼 긴 글 */
+
+  --letter-spacing-tight: -0.01em;  /* 큰 제목에서 한글이 벌어져 보이는 것 보정 */
+
+  /* ---------- 간격 (4px 배수) ---------- */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px - 화면 좌우 기본 여백 */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+
+  /* ---------- 모서리 ---------- */
+  --radius-sm: 0.5rem;    /* 8px - 입력 필드·작은 뱃지 */
+  --radius-md: 0.75rem;   /* 12px - 카드 */
+  --radius-lg: 1rem;      /* 16px - 시트·모달 */
+  --radius-pill: 999px;   /* 칩·버튼 */
+
+  /* ---------- 그림자 ----------
+   * 중립 표면 위에서 카드를 띄우는 용도로만 쓴다. 사진이 이미 시각적으로 무거워서
+   * 그림자를 세게 주면 화면이 탁해진다. */
+  --shadow-card: 0 1px 2px rgba(26, 26, 23, 0.06), 0 2px 8px rgba(26, 26, 23, 0.04);
+  --shadow-raised: 0 4px 16px rgba(26, 26, 23, 0.10);
+
+  /* ---------- 레이아웃 ----------
+   * 카드 비율이 1:1인 이유: 레시피 이미지 1,146장이 전부 320x320이다. 와이드 히어로로
+   * 늘리면 2배 화면에서 흐려지고, 2열 격자의 정사각 카드로 쓰면 화면 픽셀과 거의 1:1로 맞는다. */
+  --recipe-card-aspect: 1 / 1;
+  --recipe-grid-columns: 2;
+  --touch-target-min: 2.75rem;  /* 44px - V2에서 이미 적용한 기준 */
+  --content-max-width: 32rem;   /* 512px - 모바일 우선, 태블릿에서 과하게 늘어나지 않게 */
+
+  /* ---------- 모션 ---------- */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* 다크 모드 (Phase 2 종료 조건 3번)
+ *
+ * 액센트를 그대로 쓸 수 없다. #3e7b54는 어두운 바탕에서 읽히지 않으므로 브랜드의 밝은
+ * 초록 계열로 올린다. 그러면 액센트 버튼 위 글자도 흰색이 아니라 어두운 색이어야 한다 -
+ * 밝은 초록 위에 흰 글자를 올리면 그쪽이 오히려 미달이다.
+ *
+ * 아래 두 블록은 값이 같아야 한다(시스템 설정 따름 / 사용자가 명시적으로 선택).
+ * 어긋나면 tests/test_design_tokens.py가 잡는다. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-surface-base: #14140f;
+    --color-surface-raised: #1f1f1a;
+    --color-surface-sunken: #0e0e0a;
+    --color-surface-accent: #223026;
+
+    --color-text-primary: #f4f4ef;
+    --color-text-secondary: #b0b0a6;
+    --color-text-on-accent: #12200f;
+    --color-text-on-fill: #1a1a17;
+
+    --color-accent: #8fc47f;
+    --color-accent-strong: #a9d69b;
+    --color-accent-text: #9fce90;
+
+    --color-warning-fill: #f2a53c;
+    --color-warning-text: #edb055;
+    --color-danger-fill: #e0574a;
+    --color-danger-text: #f08d83;
+    --color-success-fill: #6fae62;
+    --color-success-text: #9fce90;
+
+    --color-border: #35352d;
+    --color-border-strong: #8c8c81;
+    --color-focus-ring: #a9d69b;
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+    --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-surface-base: #14140f;
+  --color-surface-raised: #1f1f1a;
+  --color-surface-sunken: #0e0e0a;
+  --color-surface-accent: #223026;
+
+  --color-text-primary: #f4f4ef;
+  --color-text-secondary: #b0b0a6;
+  --color-text-on-accent: #12200f;
+  --color-text-on-fill: #1a1a17;
+
+  --color-accent: #8fc47f;
+  --color-accent-strong: #a9d69b;
+  --color-accent-text: #9fce90;
+
+  --color-warning-fill: #f2a53c;
+  --color-warning-text: #edb055;
+  --color-danger-fill: #e0574a;
+  --color-danger-text: #f08d83;
+  --color-success-fill: #6fae62;
+  --color-success-text: #9fce90;
+
+  --color-border: #35352d;
+  --color-border-strong: #8c8c81;
+  --color-focus-ring: #a9d69b;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.55);
+}
