@@ -1,0 +1,188 @@
+"""
+V1의 recommendation_agent.py 로직을 HTTP 엔드포인트로 감싸는 얇은 래퍼.
+get_user_profile -> get_candidate_recipes -> score_by_ingredients 순서는 그대로 유지한다.
+
+목업 대비 디자인 재검토(2026-07-18)에서 추천 카드에 4대 영양소(칼로리/단백질/지방/탄수화물)
+요약을 보여주기로 해서, get_candidate_recipes가 이미 SELECT해오는 nutrients_json을
+(agent 함수는 건드리지 않고) 이 라우터 계층에서만 파싱해 개별 필드로 노출한다.
+
+2026-07-19 추가: 추천 화면 개편 - 지금까지는 이 엔드포인트가 항상 DB의 보유 재료(pantry)를
+그대로 읽어서 계산했는데, "이번 추천에만 쓸 재료를 그때그때 직접 구성하고 싶다"는 요청으로
+호출부(프론트)가 넘긴 ingredients 목록을 그대로 쓰도록 바꿨다. pantry 자동 조회는 제거했다 -
+"냉장고에서 불러오기"는 이제 프론트가 pantry_items를 읽어 이 목록에 채워 넣는 방식으로
+바뀌었으므로, 서버가 이중으로 pantry를 조회할 필요가 없다.
+"""
+
+import json
+import sqlite3
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from pydantic import BaseModel
+
+from api.auth_token import get_current_user_id, require_self
+from api.deps import get_db
+from src.agents import recommendation_agent
+
+router = APIRouter(prefix="/recommendation", tags=["recommendation"])
+
+
+def _parse_nutrients(nutrients_json: str | None) -> dict:
+    if not nutrients_json:
+        return {}
+    try:
+        raw = json.loads(nutrients_json)
+    except (ValueError, TypeError):
+        return {}
+    parsed = {}
+    for key in ("energy_kcal", "protein_g", "fat_g", "carbs_g"):
+        value = raw.get(key)
+        try:
+            parsed[key] = float(value) if value is not None else None
+        except (ValueError, TypeError):
+            parsed[key] = None
+    return parsed
+
+
+class RecommendationItem(BaseModel):
+    id: int
+    menu_name: str
+    category: str | None
+    calorie: float | None
+    nutrition_group: str
+    image_url: str | None
+    youtube_url: str | None
+    ingredient_overlap: int
+    coverage_ratio: float
+    qualifies: bool
+    has_protein_match: bool
+    energy_kcal: float | None = None
+    protein_g: float | None = None
+    fat_g: float | None = None
+    carbs_g: float | None = None
+
+
+class RecipeDetail(BaseModel):
+    id: int
+    menu_name: str
+    cook_method: str | None
+    category: str | None
+    calorie: float | None
+    nutrition_group: str
+    nutrients_json: str | None
+    steps_json: str | None
+    youtube_url: str | None
+    image_url: str | None
+
+
+# "/demo"는 "/{user_id}"(user_id: int)보다 먼저 등록해야 한다 - 뒤에 두면 "demo"가
+# user_id 자리에 매칭 시도되다 int 변환에 실패해 422가 난다(#req5의 popular과 같은 문제).
+@router.get("/demo", response_model=list[RecommendationItem])
+def recommend_demo(
+    ingredients: list[str] = Query(default=[]),
+    allergy: str = "",
+    cur: sqlite3.Cursor = Depends(get_db),
+):
+    """로그인 없이 추천 로직만 체험하는 데모용 엔드포인트(2026-08-10).
+
+    실제 서비스는 회원가입과 5단계 온보딩을 거쳐야 추천 화면에 닿는다. 포트폴리오
+    링크를 받은 사람이 그 과정 없이 핵심 기능을 바로 볼 수 있도록 인가 없이 열어둔다.
+    프로필은 DB에서 읽지 않고 쿼리로 받은 알레르기만으로 즉석에서 만든다 - 원본
+    로직이 프로필에서 실제로 참조하는 값이 알레르기 하나뿐이라 가능하다.
+
+    공개 엔드포인트이므로 개인 데이터(pantry/즐겨찾기 등)는 일절 건드리지 않고,
+    남용 시 서버 부하가 커지지 않도록 재료 개수와 결과 개수를 상한으로 묶는다.
+    """
+    user_ingredients = [name.strip() for name in ingredients if name.strip()][:20]
+    profile = {"allergy": (allergy or "").strip()}
+
+    candidates = recommendation_agent.get_candidate_recipes(cur, profile)
+    scored = recommendation_agent.score_by_ingredients(cur, candidates, user_ingredients)
+
+    top = scored[:5]
+    for item in top:
+        item.update(_parse_nutrients(item.get("nutrients_json")))
+    return top
+
+
+@router.get("/{user_id}", response_model=list[RecommendationItem])
+def recommend(
+    user_id: int,
+    limit: int = 10,
+    ingredients: list[str] = Query(default=[]),
+    cur: sqlite3.Cursor = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id),
+):
+    require_self(user_id, current_user_id)
+    profile = recommendation_agent.get_user_profile(cur, user_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 user_id입니다.")
+
+    user_ingredients = [name.strip() for name in ingredients if name.strip()]
+
+    candidates = recommendation_agent.get_candidate_recipes(cur, profile)
+    scored = recommendation_agent.score_by_ingredients(cur, candidates, user_ingredients)
+
+    top = scored[:limit]
+    for item in top:
+        item.update(_parse_nutrients(item.get("nutrients_json")))
+    return top
+
+
+@router.get("/{user_id}/alternative/{recipe_id}", response_model=RecommendationItem)
+def get_alternative(
+    user_id: int,
+    recipe_id: int,
+    cur: sqlite3.Cursor = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id),
+):
+    """"이 메뉴가 싫다면?" 버튼(2026-07-21, #req6) - recipe_id의 영양군과 같으면서
+    칼로리가 가장 비슷한 다른 레시피를 재료와 무관하게 하나 골라준다."""
+    require_self(user_id, current_user_id)
+    profile = recommendation_agent.get_user_profile(cur, user_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 user_id입니다.")
+
+    current = recommendation_agent.get_recipe_by_id(cur, recipe_id)
+    if current is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 recipe_id입니다.")
+
+    alternative = recommendation_agent.get_alternative_recipe(
+        cur, profile, recipe_id, current["nutrition_group"]
+    )
+    if alternative is None:
+        raise HTTPException(status_code=404, detail="대체할 만한 레시피를 찾지 못했습니다.")
+
+    alternative.update(_parse_nutrients(alternative.get("nutrients_json")))
+    # RecommendationItem이 요구하는 필드(ingredient_overlap 등)는 재료 무관 추천이라 의미가
+    # 없으니 0/False 기본값으로 채운다 - 프론트는 이 응답을 별도의 간단한 카드로 보여준다.
+    alternative.setdefault("ingredient_overlap", 0)
+    alternative.setdefault("coverage_ratio", 0.0)
+    alternative.setdefault("qualifies", False)
+    alternative.setdefault("has_protein_match", False)
+    return alternative
+
+
+class RecipeSummary(BaseModel):
+    id: int
+    menu_name: str
+    category: str | None
+    calorie: float | None
+
+
+# "/recipes/search"는 "/recipes/{recipe_id}"보다 먼저 등록해야 한다 - 안 그러면 "search"가
+# recipe_id 자리에 매칭 시도되다 int 변환에 실패해 422가 난다(#req5에서 popular 엔드포인트로
+# 겪은 것과 같은 문제, api/main.py 참고).
+@router.get("/recipes/search", response_model=list[RecipeSummary])
+def search_recipes(keyword: str = "", limit: int = 5, cur: sqlite3.Cursor = Depends(get_db)):
+    """홈 화면 "이 달의 제철 재료" 옆에 관련 레시피를 보여줄 때 쓴다(2026-07-21, #req7).
+    프로필/알레르기 필터 없는 공개 조회라 recommend()와 달리 인가를 요구하지 않는다."""
+    return recommendation_agent.search_all_recipes(cur, keyword=keyword, limit=limit)
+
+
+@router.get("/recipes/{recipe_id}", response_model=RecipeDetail)
+def get_recipe(recipe_id: int, cur: sqlite3.Cursor = Depends(get_db)):
+    recipe = recommendation_agent.get_recipe_by_id(cur, recipe_id)
+    if recipe is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 recipe_id입니다.")
+    return recipe

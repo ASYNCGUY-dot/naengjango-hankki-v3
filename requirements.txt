@@ -1,0 +1,9 @@
+requests
+python-dotenv
+langgraph
+openai
+cryptography
+reflex
+fastapi
+uvicorn
+psycopg2-binary

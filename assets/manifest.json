@@ -1,0 +1,13 @@
+{
+  "name": "냉장고 한끼",
+  "short_name": "냉장고한끼",
+  "description": "AI가 제안하는 건강한 오늘의 식단",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fdfdfb",
+  "theme_color": "#3f7d55",
+  "lang": "ko",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

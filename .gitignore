@@ -1,0 +1,17 @@
+*.py[cod]
+.web
+.states
+*.db
+# 허깅페이스 Space 데모용 경량 사본(3.2MB, 공개 레시피만)은 예외로 커밋한다.
+# Space 저장소에 반드시 함께 올라가야 앱이 동작하고, 개인정보는 들어있지 않다.
+!hf_space/data/demo.db
+assets/external/
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+.web/
+*.db-journal
+*.log
+backup/

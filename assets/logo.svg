@@ -1,0 +1,48 @@
+<svg viewBox="0 0 260 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- 원형 덩굴 테두리: 왼쪽 위에서 시작해 아래로 돌아 말풍선 꼬리 쪽까지 이어짐 -->
+  <path d="M118 22
+           C64 26, 22 72, 22 130
+           C22 190, 68 238, 128 240
+           C172 241, 208 218, 222 182
+           C230 160, 228 130, 210 108"
+        fill="none" stroke="#6fae62" stroke-width="7" stroke-linecap="round"/>
+  <!-- 덩굴 끝 잎사귀 (말풍선 꼬리 근처) -->
+  <path d="M210 108 C218 100, 230 98, 238 106 C230 112, 218 114, 210 108 Z" fill="#6fae62"/>
+  <path d="M210 108 C208 98, 214 88, 224 86 C224 98, 218 106, 210 108 Z" fill="#8fc47f"/>
+
+  <g>
+    <path d="M85 45 L165 45 Q180 45 180 60 L180 205 Q180 220 165 220 L95 220 Q80 220 80 205 L80 60 Q80 45 95 45 Z"
+          fill="#fdfdfb" stroke="#3f7d55" stroke-width="6"/>
+    <line x1="80" y1="115" x2="180" y2="115" stroke="#3f7d55" stroke-width="6"/>
+    <line x1="98" y1="65" x2="98" y2="82" stroke="#3f7d55" stroke-width="7" stroke-linecap="round"/>
+    <line x1="98" y1="135" x2="98" y2="152" stroke="#3f7d55" stroke-width="7" stroke-linecap="round"/>
+    <rect x="86" y="182" width="88" height="30" rx="6" fill="#fdfdfb" stroke="#3f7d55" stroke-width="5"/>
+    <line x1="115" y1="197" x2="145" y2="197" stroke="#3f7d55" stroke-width="5" stroke-linecap="round"/>
+    <path d="M105 122 Q100 150 108 172 L140 172 Q148 150 143 122 Z" fill="#5faa63"/>
+    <circle cx="150" cy="140" r="16" fill="#e0574a"/>
+    <path d="M150 124 Q154 118 160 122" stroke="#3f7d55" stroke-width="4" fill="none"/>
+    <path d="M160 128 Q158 152 168 168 L140 168 Q148 150 146 130 Z" fill="#f2a53c"/>
+  </g>
+  <g>
+    <path d="M155 20 Q210 5 235 45 Q250 75 220 95 L225 112 L200 92 Q160 100 145 65 Q140 40 155 20 Z"
+          fill="#fdfdfb" stroke="#3f7d55" stroke-width="5"/>
+    <path d="M178 55 Q178 40 192 40 Q206 40 206 55 L206 62 L178 62 Z" fill="#fdfdfb" stroke="#3f7d55" stroke-width="4"/>
+    <line x1="176" y1="62" x2="208" y2="62" stroke="#3f7d55" stroke-width="4" stroke-linecap="round"/>
+    <!-- 반짝임 (별 모양) -->
+    <path d="M228 28 L231 35 L238 38 L231 41 L228 48 L225 41 L218 38 L225 35 Z" fill="#f2a53c"/>
+    <path d="M238 48 L240 52 L244 54 L240 56 L238 60 L236 56 L232 54 L236 52 Z" fill="#f2a53c"/>
+  </g>
+  <!-- 워드마크 앞 잎사귀 장식 -->
+  <g transform="translate(38, 238)">
+    <path d="M0 20 C-2 10, 4 2, 12 0 C12 10, 8 18, 0 20 Z" fill="#6fae62"/>
+    <path d="M4 20 C6 12, 12 6, 20 6 C18 14, 12 20, 4 20 Z" fill="#8fc47f"/>
+  </g>
+  <text x="130" y="258" text-anchor="middle" font-family="Pretendard, 'Malgun Gothic', sans-serif" font-weight="700" font-size="34">
+    <tspan fill="#2f5d40">냉장고</tspan>
+    <tspan fill="#2f5d40"> </tspan>
+    <tspan fill="#e8892c">한끼</tspan>
+  </text>
+  <text x="130" y="286" text-anchor="middle" font-family="Pretendard, 'Malgun Gothic', sans-serif" font-size="18" fill="#63635c">
+    <tspan fill="#3f7d55" font-weight="700">AI</tspan>가 제안하는 건강한 오늘의 식단
+  </text>
+</svg>
