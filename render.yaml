@@ -19,29 +19,8 @@ services:
       - key: ADMIN_SECRET
         sync: false
 
-  # Reflex 프론트엔드의 Python 백엔드(2026-08-12 추가).
-  # Reflex Cloud 배포가 서비스측 장애로 막혀서(DEPLOY_ISSUE_2026-08-11.md 참고)
-  # 프론트는 Vercel 정적 호스팅, 이 백엔드는 Render로 옮긴다. Reflex는 브라우저와
-  # websocket으로 상태를 주고받기 때문에 상시 실행되는 Python 프로세스가 필요하고,
-  # 서버리스인 Vercel에는 이 부분을 올릴 수 없다.
-  # 로컬 실측 결과 backend-only 실행 시 약 110MB라 무료 티어(512MB)에 들어간다.
-  - type: web
-    name: naengjango-hankki-v2-reflex
-    runtime: python
-    plan: free
-    # reflex init은 .web 디렉터리를 만든다. 저장소에는 커밋되지 않으므로(.gitignore)
-    # 클린 체크아웃에서 백엔드를 띄우려면 빌드 단계에서 한 번 생성해줘야 한다.
-    buildCommand: pip install -r requirements.txt && reflex init --loglevel error
-    startCommand: reflex run --env prod --backend-only --backend-port $PORT
-    envVars:
-      - key: POSTGRES_URL
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      # 이 앱의 화면 코드가 호출하는 FastAPI 백엔드 주소(위 naengjango-hankki-v2-api).
-      - key: API_BASE
-        value: https://naengjango-hankki-v2-api.onrender.com
-      # 프론트(Vercel)가 접속할 이 서비스의 공개 주소. Reflex가 config의 api_url을
-      # 같은 이름의 환경변수로 덮어쓴다.
-      - key: API_URL
-        value: https://naengjango-hankki-v2-reflex.onrender.com
+# V3에서 Reflex 백엔드 서비스(naengjango-hankki-v2-reflex)를 이 블루프린트에서 뺐다.
+# 프론트가 React(Vite)로 바뀌면서 상시 실행되는 Python 프로세스가 더는 필요 없다 -
+# 빌드된 정적 파일을 Render 정적 사이트로 올리고, 이 FastAPI만 호출한다.
+# 서비스 이름은 살아 있는 Render 서비스와 연결돼 있어서 일부러 v2 그대로 두었다.
+# 바꾸면 새 서비스가 생기고 기존 주소가 끊긴다.

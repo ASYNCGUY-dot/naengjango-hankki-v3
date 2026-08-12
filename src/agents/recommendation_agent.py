@@ -7,6 +7,7 @@ Recommendation Agent - 후보 추리기
 import json
 import re
 import sqlite3
+from functools import lru_cache
 
 from tagging_agent import clean_ingredient_name
 
@@ -49,15 +50,28 @@ TUNA_GROUP = {
 INGREDIENT_GROUPS: list[set[str]] = [PORK_GROUP, BEEF_GROUP, TUNA_GROUP]
 
 
-def _belongs_to_group(name: str, group: set[str]) -> bool:
-    """이 재료명 안에 그룹의 부위 키워드가 하나라도 포함돼 있는지 (부분일치 - "돼지고기(삼겹살"
-    처럼 태그가 지저분해도 "삼겹살"이 들어있으면 인정하기 위함)."""
-    return any(member in name for member in group)
+@lru_cache(maxsize=8192)
+def _group_membership(name: str) -> int:
+    """이 재료명이 속한 부위 그룹들을 비트마스크로 돌려준다(0비트=돼지, 1비트=소, 2비트=참치).
+    그룹 판단은 부분일치다 - "돼지고기(삼겹살"처럼 태그가 지저분해도 "삼겹살"이 들어있으면
+    인정하기 위함.
+
+    성능(2026-08 Phase 1): 원래는 재료명 쌍을 비교할 때마다 그룹 세 개(부위명 100여 개)를
+    양쪽 다 훑었다. 실측에서 이 부분 문자열 검사가 추천 한 번에 2,071만 번 돌아 추천 시간의
+    75%를 차지했다 - 같은 재료명이 1,148개 레시피에 걸쳐 계속 다시 들어오는데 매번 새로
+    계산했기 때문이다. 재료명 하나당 한 번만 계산해서 캐시한다. 판단 규칙 자체는 그대로다.
+    사용자 입력도 이 함수를 타므로 캐시 크기는 묶어둔다(512MB 인스턴스에서 무한 증가 방지).
+    """
+    mask = 0
+    for i, group in enumerate(INGREDIENT_GROUPS):
+        if any(member in name for member in group):
+            mask |= 1 << i
+    return mask
 
 
 def _same_ingredient_group(a: str, b: str) -> bool:
     """a와 b가 같은 부위 그룹(돼지고기/소고기/참치)에 속하는지 - 서로 대체 가능한 재료로 본다."""
-    return any(_belongs_to_group(a, group) and _belongs_to_group(b, group) for group in INGREDIENT_GROUPS)
+    return bool(_group_membership(a) & _group_membership(b))
 
 
 # 2026-07 9차 개정(#76): 겹침 "개수"만 보면, 두부·양배추·깻잎처럼 흔한 채소/두부 4개가 겹치는
@@ -143,8 +157,14 @@ STAPLE_SEASONINGS = {
 USER_RECIPE_MIN_LIKES = 100
 
 
+@lru_cache(maxsize=8192)
 def is_staple(name: str) -> bool:
-    """부분 일치로 확인한다 (예: "저염간장"도 "간장"이 포함돼 있으면 조미료로 취급)."""
+    """부분 일치로 확인한다 (예: "저염간장"도 "간장"이 포함돼 있으면 조미료로 취급).
+
+    성능(2026-08 Phase 1): 추천 한 번에 조미료 16개와의 부분 문자열 비교가 109만 번
+    돌았다 - 재료명이 레시피마다 반복해서 들어오기 때문이다. _group_membership()과 같은
+    이유로 재료명당 한 번만 계산해서 캐시한다.
+    """
     return any(staple in name for staple in STAPLE_SEASONINGS)
 
 
@@ -152,6 +172,7 @@ def normalize_ingredient(name: str) -> str:
     return SYNONYM_MAP.get(name, name)
 
 
+@lru_cache(maxsize=65536)
 def ingredients_match(a: str, b: str) -> bool:
     """
     두 재료명(둘 다 normalize_ingredient()를 거친 값이어야 함)이 "같은 재료"로 볼 수 있는지
@@ -170,6 +191,10 @@ def ingredients_match(a: str, b: str) -> bool:
     2026-07 8차 개정(#74): 부분일치로도 못 잡는 경우가 하나 더 있다 - "삼겹살"과 "돼지고기"
     처럼 아예 다른 단어인 부위명. 이런 건 PORK_GROUP/BEEF_GROUP/TUNA_GROUP 같은 그룹으로
     따로 관리하고, 같은 그룹에 속하면(대체 가능한 같은 고기/생선으로 보고) 매칭으로 인정한다.
+
+    성능(2026-08 Phase 1): 추천 한 번에 30만 번 호출된다(보유 재료 x 레시피 재료 x 후보
+    1,144개). 그런데 실제로 등장하는 재료명 쌍의 가짓수는 그보다 훨씬 적어서 같은 쌍을
+    계속 다시 계산하고 있었다. 판단이 두 문자열에만 의존하는 순수 함수라 그대로 캐시한다.
     """
     if a == b:
         return True
