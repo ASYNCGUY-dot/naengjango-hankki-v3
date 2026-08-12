@@ -15,7 +15,10 @@ CREATE TABLE users (
     supplements TEXT,
     household_size INTEGER,
     novelty_pref TEXT
-, username TEXT, password_hash TEXT, cooking_tools TEXT, is_admin INTEGER DEFAULT 0, medical_conditions TEXT);
+-- username NOT NULL + UNIQUE, password_hash NOT NULL은 V3 Phase 1에서 추가했다
+-- (migration/005_users_username_required.sql과 같은 모양). UNIQUE가 없던 V2에서는
+-- signup()의 "확인 후 INSERT"가 경합에 취약했다.
+, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, cooking_tools TEXT, is_admin INTEGER DEFAULT 0, medical_conditions TEXT);
 
 -- sqlite_sequence는 AUTOINCREMENT 컬럼이 있으면 sqlite가 알아서 만들어주는 내부
 -- 테이블이라 여기서 직접 CREATE하면 안 된다(위 users 테이블의 AUTOINCREMENT가

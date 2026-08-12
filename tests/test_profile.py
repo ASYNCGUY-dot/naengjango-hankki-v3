@@ -1,4 +1,8 @@
-"""/profile/{user_id} GET·POST·PUT를 검증한다 - 로그인 후 온보딩 완료 여부 판단에 쓰이는 핵심 경로."""
+"""/profile/{user_id} GET·PUT를 검증한다 - 로그인 후 온보딩 완료 여부 판단에 쓰이는 핵심 경로.
+
+POST ""는 V3 Phase 1(2026-08-12)에서 없앴다. 인증 없이 users 행을 새로 만들던
+엔드포인트였고, 운영 DB의 빈 계정 34개가 전부 이 경로로 생겼다.
+"""
 
 PROFILE_PAYLOAD = {
     "gender": "여성",
@@ -67,3 +71,18 @@ def test_put_other_users_profile_returns_403(client):
     _, headers = _signup(client, "u_profile_4")
     res = client.put("/profile/999999999", json=PROFILE_PAYLOAD, headers=headers)
     assert res.status_code == 403
+
+
+def test_anonymous_profile_creation_is_gone(client, db_conn):
+    """인증 없이 계정을 만들 수 있던 경로가 실제로 닫혔는지 확인한다 (V3 Phase 1).
+
+    이 엔드포인트를 지운 것이 users.username NOT NULL의 전제다 - 열려 있으면
+    username 없는 행이 계속 생겨서 제약을 걸 수 없다.
+    """
+    before = db_conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+
+    res = client.post("/profile", json=PROFILE_PAYLOAD)
+    assert res.status_code != 200
+
+    after = db_conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    assert after == before, "인증 없는 요청으로 계정이 생기면 안 된다"

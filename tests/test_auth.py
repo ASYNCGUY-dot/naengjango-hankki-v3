@@ -6,6 +6,10 @@
 실패 카운트에 영향을 주지 않게 한다.
 """
 
+import sqlite3
+
+import pytest
+
 from api.routers import auth as auth_router
 
 
@@ -57,6 +61,29 @@ def test_duplicate_signup_returns_409(client):
     client.post("/auth/signup", json={"username": "u_auth_2", "password": "pw123456"})
     res = client.post("/auth/signup", json={"username": "u_auth_2", "password": "differentpw123"})
     assert res.status_code == 409
+
+
+def test_username_is_unique_at_the_database_level(client, db_conn):
+    """라우터의 사전 확인이 아니라 DB 제약으로도 막혀야 한다 (V3 Phase 1).
+
+    signup()은 SELECT로 중복을 본 뒤 INSERT하므로, 그 사이에 다른 요청이 끼어들면
+    확인을 통과한 둘이 모두 INSERT에 도달할 수 있다. 라우터를 우회해 직접 INSERT해서
+    제약 자체가 살아 있는지 확인한다.
+    """
+    client.post("/auth/signup", json={"username": "u_unique_db", "password": "pw123456"})
+    with pytest.raises(sqlite3.IntegrityError):
+        db_conn.execute(
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+            ("u_unique_db", "any$hash"),
+        )
+
+
+def test_username_cannot_be_null_at_the_database_level(db_conn):
+    """username 없이 users 행이 생기던 경로(POST /profile)를 없앤 것과 짝을 이루는 제약."""
+    with pytest.raises(sqlite3.IntegrityError):
+        db_conn.execute(
+            "INSERT INTO users (gender, password_hash) VALUES (?, ?)", ("F", "any$hash")
+        )
 
 
 def test_signup_with_short_password_returns_422(client):

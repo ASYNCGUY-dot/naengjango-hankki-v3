@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from api import auth_token
-from api.deps import get_db
+from api.deps import INTEGRITY_ERRORS, get_db
 from src.agents import auth_agent
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -80,7 +80,14 @@ def signup(body: SignupRequest, cur: sqlite3.Cursor = Depends(get_db)):
             status_code=422,
             detail=f"비밀번호는 최소 {MIN_PASSWORD_LENGTH}자 이상이어야 합니다.",
         )
-    user_id = auth_agent.signup(cur, body.username, body.password)
+    # auth_agent.signup()은 SELECT로 중복을 확인한 뒤 INSERT한다. 그 사이에 같은
+    # 아이디로 다른 요청이 끼어들면 확인은 통과하고 INSERT에서 UNIQUE 제약에 걸린다
+    # (V3에서 users.username에 UNIQUE를 걸었다 - migration/005). 경합으로 진 쪽도
+    # 결과는 "이미 존재하는 아이디"이므로 같은 409로 답한다.
+    try:
+        user_id = auth_agent.signup(cur, body.username, body.password)
+    except INTEGRITY_ERRORS:
+        raise HTTPException(status_code=409, detail="이미 존재하는 아이디입니다.")
     if user_id is None:
         raise HTTPException(status_code=409, detail="이미 존재하는 아이디입니다.")
     return SignupResponse(user_id=user_id, token=auth_token.issue_token(cur, user_id))

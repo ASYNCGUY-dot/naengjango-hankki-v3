@@ -15,6 +15,7 @@ import 시점에 바로 크래시났다. tests/conftest.py 참고.
 """
 
 import os
+import sqlite3
 from collections.abc import Generator
 
 import psycopg2
@@ -24,6 +25,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 POSTGRES_URL = os.getenv("POSTGRES_URL")
+
+# UNIQUE 같은 제약 위반은 드라이버마다 다른 예외 클래스로 온다(테스트는 sqlite,
+# 운영은 Postgres). 라우터가 한 번에 잡을 수 있도록 여기서 묶는다 - 두 드라이버의
+# 차이를 흡수하는 것이 이 파일의 역할이다.
+INTEGRITY_ERRORS = (sqlite3.IntegrityError, psycopg2.IntegrityError)
 
 
 class SqliteStyleCursor(psycopg2.extensions.cursor):

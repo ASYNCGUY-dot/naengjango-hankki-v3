@@ -4,9 +4,8 @@ Profile Agent - 1단계
 - 아직 Streamlit 연결 전이라, 프로필은 하드코딩된 딕셔너리로 테스트한다.
 """
 
-import sqlite3
-
-DB_PATH = "data/app.db"
+# save_user_profile()을 없애면서 이 모듈은 DB에 직접 연결하지 않게 됐다
+# (sqlite3 import와 DB_PATH도 그래서 함께 뺐다). 커서는 호출부에서 받는다.
 
 # users 테이블에 실제로 있는 컬럼과 맞춰서 필수 항목을 정의
 # medical_conditions(병력정보)는 선택 입력(체크 안 해도 "없음"으로 취급)이라 REQUIRED_FIELDS에는
@@ -27,27 +26,12 @@ def validate_profile(profile: dict) -> list[str]:
     return missing
 
 
-def save_user_profile(cur, profile: dict) -> int:
-    """검증된 프로필을 users 테이블에 저장하고 새로 생긴 user_id를 반환한다."""
-    cur.execute("""
-        INSERT INTO users (gender, age_group, allergy, health_goal, purpose,
-                            cooking_level, supplements, household_size, novelty_pref, cooking_tools,
-                            medical_conditions)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        profile["gender"],
-        profile["age_group"],
-        profile["allergy"],          # 예: "새우,땅콩" 처럼 콤마로 구분된 문자열
-        profile["health_goal"],
-        profile["purpose"],
-        profile["cooking_level"],
-        profile["supplements"],
-        profile["household_size"],
-        profile["novelty_pref"],
-        profile["cooking_tools"],    # 예: "가스레인지,전자레인지" 처럼 콤마로 구분된 문자열
-        profile.get("medical_conditions", ""),  # 예: "고혈압,당뇨" (없으면 빈 문자열)
-    ))
-    return cur.lastrowid
+# save_user_profile()은 V3 Phase 1(2026-08-12)에서 없앴다. 프로필만 받아 users 행을
+# 새로 만드는 함수였는데, username/password_hash 없이 행이 생기는 유일한 경로였다.
+# 운영 DB에 쌓인 43개 계정 중 34개가 이 경로로 생긴 빈 행이었다. V3는 가입으로 계정을
+# 먼저 만들고 그 계정에 프로필을 붙이므로(update_user_profile), 새 행을 만드는 쪽은
+# auth_agent.signup() 하나로 일원화한다. 자세한 배경은
+# migration/005_users_username_required.sql 참고.
 
 
 def update_user_profile(cur, user_id: int, profile: dict):
@@ -92,14 +76,12 @@ if __name__ == "__main__":
         "cooking_tools": "가스레인지,전자레인지",
     }
 
+    # save_user_profile()을 없앤 뒤로 이 자기점검은 DB를 건드리지 않는다. 저장은 이미
+    # 존재하는 계정을 대상으로만 하므로(update_user_profile), user_id 없이 단독 실행하는
+    # 스크립트에서는 검증 부분만 확인하는 게 맞다.
     missing = validate_profile(test_profile)
     if missing:
         print(f"프로필에 필수 항목이 빠졌습니다: {missing}")
     else:
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        user_id = save_user_profile(cur, test_profile)
-        conn.commit()
-        conn.close()
-        print(f"프로필 저장 완료. user_id = {user_id}")
+        print("프로필 검증 통과")
         print(test_profile)

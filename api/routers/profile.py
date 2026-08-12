@@ -1,6 +1,10 @@
 """
 V1의 profile_agent.py 로직을 HTTP 엔드포인트로 감싸는 얇은 래퍼.
-validate_profile/save_user_profile/update_user_profile은 수정하지 않고 그대로 가져다 쓴다.
+validate_profile/update_user_profile은 수정하지 않고 그대로 가져다 쓴다.
+
+V3 Phase 1(2026-08-12)에서 POST ""(인증 없이 users 행을 새로 만들던 엔드포인트)를
+없앴다. 프로필은 이제 가입으로 이미 만들어진 계정에 PUT으로 붙인다 - 이유는
+migration/005_users_username_required.sql에 정리했다.
 """
 
 import sqlite3
@@ -28,10 +32,6 @@ class ProfileRequest(BaseModel):
     novelty_pref: str
     cooking_tools: str
     medical_conditions: str = ""
-
-
-class ProfileResponse(BaseModel):
-    user_id: int
 
 
 class ProfileGetResponse(BaseModel):
@@ -63,16 +63,6 @@ def get_profile(
         has_profile=profile["gender"] is not None,
         **{k: v for k, v in profile.items() if k != "id"},
     )
-
-
-@router.post("", response_model=ProfileResponse)
-def create_profile(body: ProfileRequest, cur: sqlite3.Cursor = Depends(get_db)):
-    profile = body.model_dump()
-    missing = profile_agent.validate_profile(profile)
-    if missing:
-        raise HTTPException(status_code=422, detail=f"필수 항목 누락: {missing}")
-    user_id = profile_agent.save_user_profile(cur, profile)
-    return ProfileResponse(user_id=user_id)
 
 
 @router.put("/{user_id}")
