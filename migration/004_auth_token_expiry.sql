@@ -16,6 +16,16 @@
 -- (오프셋 포함)다. 형식이 섞이면 ORDER BY created_at 문자열 정렬이 어긋나므로, 기존
 -- 행을 지우는 것이 형식 통일을 겸한다.
 
+-- auth_tokens는 001_schema.sql에 없다. V2에서 운영 DB에 직접 만들어졌고 마이그레이션
+-- 파일에는 반영되지 않아서, 빈 DB에 001부터 순서대로 적용하면 아래 ALTER가 "테이블
+-- 없음"으로 실패한다(CI의 Postgres 잡에서 이 공백이 드러났다). 여기서 V2 시점의 모양을
+-- 만들어두고 그 아래에서 V3 모양으로 올린다. 운영 DB에는 이미 있으므로 이 문장은 무해하다.
+CREATE TABLE IF NOT EXISTS auth_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER,
+    created_at TEXT
+);
+
 ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS expires_at TEXT;
 
 DELETE FROM auth_tokens;

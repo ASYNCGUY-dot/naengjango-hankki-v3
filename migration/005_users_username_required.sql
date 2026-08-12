@@ -38,9 +38,17 @@ WHERE username IS NULL
 -- 조건식을 잘못 써서 전부 지우는 사고를 막기 위한 것이다.
 DO $$
 DECLARE
+    total INT;
     survivors INT;
     admins_left INT;
 BEGIN
+    SELECT COUNT(*) INTO total FROM users;
+    -- 빈 DB(CI가 001부터 순서대로 재생하는 경우)에는 지울 것도 지킬 것도 없다.
+    -- 이 경우까지 예외로 막으면 마이그레이션 체인 자체가 재생되지 않는다.
+    IF total = 0 THEN
+        RETURN;
+    END IF;
+
     SELECT COUNT(*) INTO survivors
     FROM users WHERE id NOT IN (SELECT id FROM doomed_users);
 
