@@ -54,6 +54,40 @@ jobs:
       - name: pytest 실행
         run: pytest tests/ -v
 
+  # 프론트엔드(Vite + React + TypeScript). V2는 프론트 테스트 도구가 아예 없어서
+  # 4,047줄의 커버리지가 0%였다. V3는 스캐폴딩 단계부터 붙여둔다.
+  # 타입 검사를 따로 돌리는 이유: Vite는 빌드할 때 타입을 검사하지 않고 표기만 벗겨낸다.
+  frontend-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: 코드 가져오기
+        uses: actions/checkout@v4
+
+      - name: Node 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 타입 검사
+        run: npm run typecheck
+
+      - name: 린트
+        run: npm run lint
+
+      - name: 테스트
+        run: npm test
+
+      - name: 빌드
+        run: npm run build
+
   # 위 check 잡은 전부 sqlite로 돈다. 빠르고 .env 없이 재현되지만, 운영은 Postgres라서
   # 그 사이의 괴리가 테스트를 통과한 채 프로덕션에 나갈 수 있다. 실제로 V2에서 그랬다 -
   # psycopg2가 SQL 안의 리터럴 %를 플레이스홀더로 오인해 터졌는데 로컬 테스트는 전부

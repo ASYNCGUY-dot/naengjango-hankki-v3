@@ -1,0 +1,47 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  background: var(--color-surface-base);
+}
+
+.content {
+  flex: 1;
+  padding-bottom: var(--space-4);
+}
+
+.tabbar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  background: var(--color-surface-raised);
+  border-top: 1px solid var(--color-border);
+  /* 홈 인디케이터가 있는 기기에서 탭이 가려지지 않게 한다. */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.tab {
+  flex: 1;
+  min-height: var(--touch-target-min);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15em;
+  padding: var(--space-2) 0;
+  text-decoration: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.active {
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.icon {
+  font-size: var(--font-size-lg);
+  line-height: 1;
+}
