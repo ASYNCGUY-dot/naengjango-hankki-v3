@@ -22,7 +22,7 @@ from pydantic import BaseModel
 
 from api.auth_token import get_current_user_id, require_self
 from api.deps import get_db
-from src.agents import recommendation_agent
+from src.agents import portion_agent, recommendation_agent
 
 router = APIRouter(prefix="/recommendation", tags=["recommendation"])
 
@@ -62,6 +62,14 @@ class RecommendationItem(BaseModel):
     carbs_g: float | None = None
 
 
+class RecipeIngredient(BaseModel):
+    name: str
+    # 수량이 없는 행이 있다. 원본 데이터에 "주재료"·"장식" 같은 구획 제목이 재료처럼
+    # 섞여 있어서, 화면은 amount가 없는 행을 소제목으로 그린다.
+    amount: float | None
+    unit: str | None
+
+
 class RecipeDetail(BaseModel):
     id: int
     menu_name: str
@@ -73,6 +81,9 @@ class RecipeDetail(BaseModel):
     steps_json: str | None
     youtube_url: str | None
     image_url: str | None
+    # 인가 없이도 재료를 볼 수 있어야 한다(2026-08-13). get_recipe() 주석 참고.
+    ingredients: list[RecipeIngredient] = []
+    base_servings: int | None = None
 
 
 # "/demo"는 "/{user_id}"(user_id: int)보다 먼저 등록해야 한다 - 뒤에 두면 "demo"가
@@ -211,4 +222,18 @@ def get_recipe(recipe_id: int, cur: sqlite3.Cursor = Depends(get_db)):
     recipe = recommendation_agent.get_recipe_by_id(cur, recipe_id)
     if recipe is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 recipe_id입니다.")
+
+    # 재료 목록을 함께 준다(2026-08-13). 지금까지 재료를 주는 엔드포인트는 인가가
+    # 필요했는데(가구원 수에 맞춰 환산하느라 프로필을 읽는다), 그러면 레시피 링크를
+    # 공유받은 사람이 재료를 못 본다. 재료 없는 레시피는 레시피가 아니고, 링크 공유가
+    # 되는 것이 React 전환의 핵심 이득이었다.
+    #
+    # 여기서는 환산하지 않은 원본 수량만 준다. 가구원 수 환산은 개인화라
+    # /recipes/{id}/ingredients(인가 필요)에 그대로 남는다.
+    base_servings, items = portion_agent.get_recipe_ingredients(cur, recipe_id)
+    recipe["base_servings"] = base_servings
+    recipe["ingredients"] = [
+        {"name": item["name"], "amount": item["amount"], "unit": item["unit"]}
+        for item in items
+    ]
     return recipe

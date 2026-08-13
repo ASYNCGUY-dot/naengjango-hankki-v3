@@ -1362,6 +1362,17 @@
       },
       "RecipeDetail": {
         "properties": {
+          "base_servings": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Servings"
+          },
           "calorie": {
             "anyOf": [
               {
@@ -1409,6 +1420,14 @@
               }
             ],
             "title": "Image Url"
+          },
+          "ingredients": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RecipeIngredient"
+            },
+            "title": "Ingredients",
+            "type": "array"
           },
           "menu_name": {
             "title": "Menu Name",
@@ -1465,6 +1484,43 @@
           "image_url"
         ],
         "title": "RecipeDetail",
+        "type": "object"
+      },
+      "RecipeIngredient": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "name",
+          "amount",
+          "unit"
+        ],
+        "title": "RecipeIngredient",
         "type": "object"
       },
       "RecipeSubmitRequest": {

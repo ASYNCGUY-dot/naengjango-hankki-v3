@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 import { renderWithProviders } from './test/renderWithProviders'
@@ -10,6 +10,8 @@ function renderAt(route: string) {
 }
 
 describe('라우팅', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   // V2는 화면 전체가 라우트 하나(/demo)였고 탭 전환을 State로만 처리했다.
   // 그래서 상세를 링크로 공유할 수 없었고 뒤로가기도 안 됐다. 여기서 그게 실제로
   // 고쳐졌는지 확인한다.
@@ -25,10 +27,38 @@ describe('라우팅', () => {
     expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
   })
 
-  it('레시피 상세는 주소의 id를 읽는다 — 링크로 공유되는 화면이 된다', () => {
+  it('레시피 상세는 주소의 id를 읽는다 — 링크로 공유되는 화면이 된다', async () => {
+    // 주소의 67이 실제로 요청에 실려 나가는지까지 본다. 화면만 뜨고 엉뚱한 레시피를
+    // 부르면 링크 공유가 성립하지 않는다.
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            id: 67,
+            menu_name: '블랙빈 곤약국수',
+            cook_method: null,
+            category: null,
+            calorie: null,
+            nutrition_group: '단백질',
+            nutrients_json: null,
+            steps_json: null,
+            youtube_url: null,
+            image_url: null,
+            ingredients: [],
+            base_servings: null,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    )
+
     renderAt('/recipe/67')
-    expect(screen.getByRole('heading', { level: 1, name: '레시피 상세' })).toBeInTheDocument()
-    expect(screen.getByText(/67/)).toBeInTheDocument()
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '블랙빈 곤약국수' }),
+    ).toBeInTheDocument()
+    expect(new URL(fetchMock.mock.calls[0][0] as string).pathname).toBe(
+      '/recommendation/recipes/67',
+    )
   })
 
   it('없는 주소는 홈으로 보낸다', () => {

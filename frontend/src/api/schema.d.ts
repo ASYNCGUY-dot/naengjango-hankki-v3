@@ -1295,6 +1295,8 @@ export interface components {
         };
         /** RecipeDetail */
         RecipeDetail: {
+            /** Base Servings */
+            base_servings?: number | null;
             /** Calorie */
             calorie: number | null;
             /** Category */
@@ -1305,6 +1307,11 @@ export interface components {
             id: number;
             /** Image Url */
             image_url: string | null;
+            /**
+             * Ingredients
+             * @default []
+             */
+            ingredients: components["schemas"]["RecipeIngredient"][];
             /** Menu Name */
             menu_name: string;
             /** Nutrients Json */
@@ -1315,6 +1322,15 @@ export interface components {
             steps_json: string | null;
             /** Youtube Url */
             youtube_url: string | null;
+        };
+        /** RecipeIngredient */
+        RecipeIngredient: {
+            /** Amount */
+            amount: number | null;
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string | null;
         };
         /** RecipeSubmitRequest */
         RecipeSubmitRequest: {
