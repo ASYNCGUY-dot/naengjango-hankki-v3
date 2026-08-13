@@ -18,7 +18,31 @@ CREATE TABLE users (
 -- username NOT NULL + UNIQUE, password_hash NOT NULL은 V3 Phase 1에서 추가했다
 -- (migration/005_users_username_required.sql과 같은 모양). UNIQUE가 없던 V2에서는
 -- signup()의 "확인 후 INSERT"가 경합에 취약했다.
-, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, cooking_tools TEXT, is_admin INTEGER DEFAULT 0, medical_conditions TEXT);
+, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, cooking_tools TEXT, is_admin INTEGER DEFAULT 0, medical_conditions TEXT
+-- 계정 정보 확장 (migration/006). email은 초기화 대상을 특정하므로 중복 불가.
+-- sqlite의 UNIQUE도 Postgres와 같이 NULL은 서로 다른 값으로 본다.
+, name TEXT, phone TEXT, email TEXT UNIQUE, created_at TEXT);
+
+-- 개인정보 수집 동의 기록 (migration/006). 증빙이 목적이라 덮어쓰지 않고 이력으로 쌓는다.
+CREATE TABLE user_consents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    consent_key TEXT NOT NULL,
+    version TEXT NOT NULL,
+    agreed BOOLEAN NOT NULL,
+    agreed_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 비밀번호 초기화 토큰 (migration/006). 원문이 아니라 sha256 해시만 저장한다.
+CREATE TABLE password_reset_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
 -- sqlite_sequence는 AUTOINCREMENT 컬럼이 있으면 sqlite가 알아서 만들어주는 내부
 -- 테이블이라 여기서 직접 CREATE하면 안 된다(위 users 테이블의 AUTOINCREMENT가

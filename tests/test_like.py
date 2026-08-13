@@ -1,12 +1,15 @@
 """
 /recommendation/recipes/{id}/like, /like/toggle, /popular를 검증한다.
 
+
 seed.sql의 승인된 레시피 3개(1: 두부조림, 2: 재료수량정보없는레시피, 3: 파프리카볶음)를 쓴다.
 """
 
+from helpers import signup_body
+
 
 def _signup(client, username: str) -> tuple[int, dict]:
-    res = client.post("/auth/signup", json={"username": username, "password": "pw123456"})
+    res = client.post("/auth/signup", json=signup_body(username))
     data = res.json()
     return data["user_id"], {"Authorization": f"Bearer {data['token']}"}
 

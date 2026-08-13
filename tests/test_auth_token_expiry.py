@@ -13,10 +13,11 @@ V2에는 만료가 없어서 한 번 발급된 토큰이 영구히 유효했다.
 from datetime import timedelta
 
 from api.auth_token import TOKEN_SLIDE_THRESHOLD, TOKEN_TTL, _hash_token, _now
+from helpers import signup_body
 
 
 def _signup(client, username):
-    res = client.post("/auth/signup", json={"username": username, "password": "pw123456"})
+    res = client.post("/auth/signup", json=signup_body(username))
     assert res.status_code == 200
     return res.json()
 

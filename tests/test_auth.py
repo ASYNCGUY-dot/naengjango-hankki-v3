@@ -11,10 +11,11 @@ import sqlite3
 import pytest
 
 from api.routers import auth as auth_router
+from helpers import signup_body
 
 
 def test_signup_then_login_succeeds(client):
-    signup_res = client.post("/auth/signup", json={"username": "u_auth_1", "password": "pw123456"})
+    signup_res = client.post("/auth/signup", json=signup_body("u_auth_1"))
     assert signup_res.status_code == 200
     user_id = signup_res.json()["user_id"]
     assert signup_res.json()["token"]  # 가입 즉시 토큰이 발급돼야 한다 (#63)
@@ -27,8 +28,8 @@ def test_signup_then_login_succeeds(client):
 
 def test_token_authorizes_own_data_and_rejects_others(client):
     """토큰 인가(#63)의 핵심 계약: 토큰 없으면 401, 남의 user_id면 403, 본인이면 200."""
-    a = client.post("/auth/signup", json={"username": "u_authz_a", "password": "pw123456"}).json()
-    b = client.post("/auth/signup", json={"username": "u_authz_b", "password": "pw123456"}).json()
+    a = client.post("/auth/signup", json=signup_body("u_authz_a")).json()
+    b = client.post("/auth/signup", json=signup_body("u_authz_b")).json()
     headers_a = {"Authorization": f"Bearer {a['token']}"}
 
     no_token = client.get(f"/profile/{a['user_id']}")
@@ -45,7 +46,7 @@ def test_token_authorizes_own_data_and_rejects_others(client):
 
 
 def test_logout_revokes_token(client):
-    data = client.post("/auth/signup", json={"username": "u_logout_1", "password": "pw123456"}).json()
+    data = client.post("/auth/signup", json=signup_body("u_logout_1")).json()
     headers = {"Authorization": f"Bearer {data['token']}"}
 
     assert client.get(f"/profile/{data['user_id']}", headers=headers).status_code == 200
@@ -58,8 +59,8 @@ def test_logout_revokes_token(client):
 
 
 def test_duplicate_signup_returns_409(client):
-    client.post("/auth/signup", json={"username": "u_auth_2", "password": "pw123456"})
-    res = client.post("/auth/signup", json={"username": "u_auth_2", "password": "differentpw123"})
+    client.post("/auth/signup", json=signup_body("u_auth_2"))
+    res = client.post("/auth/signup", json=signup_body("u_auth_2", password="differentpw123"))
     assert res.status_code == 409
 
 
@@ -70,7 +71,7 @@ def test_username_is_unique_at_the_database_level(client, db_conn):
     확인을 통과한 둘이 모두 INSERT에 도달할 수 있다. 라우터를 우회해 직접 INSERT해서
     제약 자체가 살아 있는지 확인한다.
     """
-    client.post("/auth/signup", json={"username": "u_unique_db", "password": "pw123456"})
+    client.post("/auth/signup", json=signup_body("u_unique_db"))
     with pytest.raises(sqlite3.IntegrityError):
         db_conn.execute(
             "INSERT INTO users (username, password_hash) VALUES (?, ?)",
@@ -87,16 +88,16 @@ def test_username_cannot_be_null_at_the_database_level(db_conn):
 
 
 def test_signup_with_short_password_returns_422(client):
-    res = client.post("/auth/signup", json={"username": "u_auth_shortpw", "password": "abc123"})
+    res = client.post("/auth/signup", json=signup_body("u_auth_shortpw", password="abc123"))
     assert res.status_code == 422
 
     # 짧은 비밀번호로 거부된 아이디는 실제로 생성되지 않아야 한다 - 이후 정상 비밀번호로 가입 가능
-    retry_res = client.post("/auth/signup", json={"username": "u_auth_shortpw", "password": "abc123456"})
+    retry_res = client.post("/auth/signup", json=signup_body("u_auth_shortpw", password="abc123456"))
     assert retry_res.status_code == 200
 
 
 def test_wrong_password_returns_401(client):
-    client.post("/auth/signup", json={"username": "u_auth_3", "password": "correct123"})
+    client.post("/auth/signup", json=signup_body("u_auth_3", password="correct123"))
     res = client.post("/auth/login", json={"username": "u_auth_3", "password": "wrong"})
     assert res.status_code == 401
 
@@ -108,7 +109,7 @@ def test_login_nonexistent_user_returns_401(client):
 
 def test_login_lockout_after_max_failed_attempts(client):
     username = "u_auth_lockout_1"
-    client.post("/auth/signup", json={"username": username, "password": "correct123"})
+    client.post("/auth/signup", json=signup_body(username, password="correct123"))
 
     for _ in range(auth_router.MAX_LOGIN_ATTEMPTS):
         res = client.post("/auth/login", json={"username": username, "password": "wrong"})
@@ -126,7 +127,7 @@ def test_login_lockout_after_max_failed_attempts(client):
 
 def test_successful_login_resets_failed_attempt_counter(client):
     username = "u_auth_reset_1"
-    client.post("/auth/signup", json={"username": username, "password": "correct123"})
+    client.post("/auth/signup", json=signup_body(username, password="correct123"))
 
     client.post("/auth/login", json={"username": username, "password": "wrong"})
     client.post("/auth/login", json={"username": username, "password": "wrong"})

@@ -4,8 +4,10 @@
 """
 
 
+from helpers import signup_body
+
 def _signup(client, username: str) -> tuple[int, dict]:
-    res = client.post("/auth/signup", json={"username": username, "password": "pw123456"})
+    res = client.post("/auth/signup", json=signup_body(username))
     data = res.json()
     return data["user_id"], {"Authorization": f"Bearer {data['token']}"}
 

@@ -1,9 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { MIN_PASSWORD_LENGTH } from '../api/auth'
+import {
+  AGE_GROUP_OPTIONS,
+  GENDER_OPTIONS,
+  MIN_PASSWORD_LENGTH,
+  type SignupBody,
+} from '../api/auth'
 import { ApiError, TimeoutError } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/context'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
 import styles from './AuthPage.module.css'
 
@@ -26,36 +31,84 @@ const COPY = {
   },
 } as const
 
+const EMPTY_SIGNUP = {
+  username: '',
+  password: '',
+  name: '',
+  phone: '',
+  email: '',
+  gender: '',
+  age_group: '',
+}
+
 export default function AuthPage({ mode }: { mode: Mode }) {
   const copy = COPY[mode]
   const navigate = useNavigate()
   const auth = useAuth()
 
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [form, setForm] = useState(EMPTY_SIGNUP)
+  const [agreedTerms, setAgreedTerms] = useState(false)
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false)
+  const [agreedMarketing, setAgreedMarketing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const isSlow = useSlowRequestHint(isPending)
+
+  const set = (key: keyof typeof EMPTY_SIGNUP) => (value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }))
+
+  function validate(): string | null {
+    // 백엔드도 같은 것들을 검사하지만, 여기서 먼저 걸러야 콜드스타트 30초를 기다린 끝에
+    // "비밀번호가 짧습니다"를 보는 일이 없다.
+    if (form.password.length < MIN_PASSWORD_LENGTH) {
+      return `비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`
+    }
+    if (mode === 'login') return null
+
+    if (!form.name.trim()) return '이름을 입력해주세요.'
+    if (!form.phone.trim()) return '연락처를 입력해주세요.'
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
+      return '이메일 형식이 올바르지 않습니다.'
+    }
+    if (!form.gender) return '성별을 선택해주세요.'
+    if (!form.age_group) return '연령대를 선택해주세요.'
+    if (!agreedTerms || !agreedPrivacy) {
+      return '이용약관과 개인정보 수집·이용에 동의해야 가입할 수 있습니다.'
+    }
+    return null
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (isPending) return
 
     setError(null)
-
-    // 백엔드도 같은 길이를 검사하지만, 여기서 먼저 걸러야 콜드스타트 30초를 기다린 끝에
-    // "비밀번호가 짧습니다"를 보는 일이 없다.
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`)
+    const problem = validate()
+    if (problem !== null) {
+      setError(problem)
       return
     }
 
     setIsPending(true)
     try {
       if (mode === 'login') {
-        await auth.login(username.trim(), password)
+        await auth.login(form.username.trim(), form.password)
       } else {
-        await auth.signup(username.trim(), password)
+        const body: SignupBody = {
+          username: form.username.trim(),
+          password: form.password,
+          name: form.name.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          gender: form.gender,
+          age_group: form.age_group,
+          consents: {
+            terms_of_service: agreedTerms,
+            privacy: agreedPrivacy,
+            marketing: agreedMarketing,
+          },
+        }
+        await auth.signup(body)
       }
       navigate('/', { replace: true })
     } catch (caught) {
@@ -97,41 +150,74 @@ export default function AuthPage({ mode }: { mode: Mode }) {
       )}
 
       <form onSubmit={handleSubmit} noValidate>
-        <div className={styles.field}>
-          <label htmlFor="username">아이디</label>
-          <input
-            id="username"
-            name="username"
-            autoComplete="username"
-            placeholder="아이디를 입력하세요"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-        </div>
+        <Field id="username" label="아이디" value={form.username} onChange={set('username')}
+          autoComplete="username" placeholder="아이디를 입력하세요" />
 
-        <div className={styles.field}>
-          <label htmlFor="password">비밀번호</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            placeholder={`${MIN_PASSWORD_LENGTH}자 이상`}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            aria-describedby="password-hint"
-            required
-          />
-          <span className={styles.hint} id="password-hint">
-            {MIN_PASSWORD_LENGTH}자 이상 입력해주세요
-          </span>
-        </div>
+        <Field id="password" label="비밀번호" value={form.password} onChange={set('password')}
+          type="password"
+          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+          placeholder={`${MIN_PASSWORD_LENGTH}자 이상`}
+          hint={`${MIN_PASSWORD_LENGTH}자 이상 입력해주세요`} />
+
+        {mode === 'signup' && (
+          <>
+            <Field id="name" label="이름" value={form.name} onChange={set('name')}
+              autoComplete="name" placeholder="이름을 입력하세요" />
+
+            <Field id="phone" label="연락처" value={form.phone} onChange={set('phone')}
+              type="tel" autoComplete="tel" placeholder="010-0000-0000" />
+
+            <Field id="email" label="이메일" value={form.email} onChange={set('email')}
+              type="email" autoComplete="email" placeholder="name@example.com"
+              hint="비밀번호를 잊었을 때 초기화 링크를 받을 주소예요" />
+
+            <div className={styles.field}>
+              <label htmlFor="gender">성별</label>
+              <select id="gender" value={form.gender} onChange={(e) => set('gender')(e.target.value)}>
+                <option value="">선택하세요</option>
+                {GENDER_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="age_group">연령대</label>
+              <select id="age_group" value={form.age_group}
+                onChange={(e) => set('age_group')(e.target.value)}>
+                <option value="">선택하세요</option>
+                {AGE_GROUP_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+
+            <fieldset className={styles.consents}>
+              <legend>약관 동의</legend>
+              <Checkbox id="agree-terms" checked={agreedTerms} onChange={setAgreedTerms}
+                label="(필수) 이용약관에 동의합니다" />
+              <Checkbox id="agree-privacy" checked={agreedPrivacy} onChange={setAgreedPrivacy}
+                label="(필수) 개인정보 수집·이용에 동의합니다" />
+              <Checkbox id="agree-marketing" checked={agreedMarketing} onChange={setAgreedMarketing}
+                label="(선택) 마케팅 정보 수신에 동의합니다" />
+              <p className={styles.hint}>
+                수집 항목: 아이디, 이름, 연락처, 이메일, 성별, 연령대. 서비스 이용과 계정
+                관리를 위해 쓰이며, 회원 탈퇴 시 지웁니다.
+              </p>
+            </fieldset>
+          </>
+        )}
 
         <button className={styles.cta} type="submit" disabled={isPending}>
           {isPending ? copy.pending : copy.submit}
         </button>
       </form>
+
+      {mode === 'login' && (
+        <p className={styles.foot}>
+          <Link to="/forgot-password">비밀번호를 잊으셨나요?</Link>
+        </p>
+      )}
 
       <p className={styles.foot}>
         {copy.footQuestion} <Link to={copy.footTo}>{copy.footLink}</Link>
@@ -144,5 +230,57 @@ export default function AuthPage({ mode }: { mode: Mode }) {
         </Link>
       </div>
     </main>
+  )
+}
+
+function Field(props: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  type?: string
+  autoComplete?: string
+  placeholder?: string
+  hint?: string
+}) {
+  const hintId = props.hint ? `${props.id}-hint` : undefined
+  return (
+    <div className={styles.field}>
+      <label htmlFor={props.id}>{props.label}</label>
+      <input
+        id={props.id}
+        name={props.id}
+        type={props.type ?? 'text'}
+        autoComplete={props.autoComplete}
+        placeholder={props.placeholder}
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+        aria-describedby={hintId}
+      />
+      {props.hint && (
+        <span className={styles.hint} id={hintId}>
+          {props.hint}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function Checkbox(props: {
+  id: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  label: string
+}) {
+  return (
+    <label className={styles.checkbox} htmlFor={props.id}>
+      <input
+        id={props.id}
+        type="checkbox"
+        checked={props.checked}
+        onChange={(e) => props.onChange(e.target.checked)}
+      />
+      {props.label}
+    </label>
   )
 }

@@ -161,6 +161,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Password Reset */
+        post: operations["confirm_password_reset_auth_password_reset_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password-reset/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Password Reset
+         * @description 초기화 링크를 메일로 보낸다.
+         *
+         *     가입된 이메일이든 아니든 항상 같은 응답을 준다. 여기서 404를 주면 "이 주소는
+         *     가입돼 있다/없다"를 확인하는 도구가 된다. 메일 발송이 실패해도 마찬가지다.
+         */
+        post: operations["request_password_reset_auth_password_reset_request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/signup": {
         parameters: {
             query?: never;
@@ -802,6 +842,27 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Consents
+         * @description 개인정보 수집 동의. 필수 둘은 True여야 가입이 된다.
+         */
+        Consents: {
+            /**
+             * Marketing
+             * @default false
+             */
+            marketing: boolean;
+            /**
+             * Privacy
+             * @default false
+             */
+            privacy: boolean;
+            /**
+             * Terms Of Service
+             * @default false
+             */
+            terms_of_service: boolean;
+        };
         /** Coverage */
         Coverage: {
             /** Coverage Pct */
@@ -1036,6 +1097,27 @@ export interface components {
             expiry_date?: string | null;
             /** Name */
             name: string;
+        };
+        /** PasswordResetConfirmRequest */
+        PasswordResetConfirmRequest: {
+            /** New Password */
+            new_password: string;
+            /** Token */
+            token: string;
+        };
+        /** PasswordResetRequest */
+        PasswordResetRequest: {
+            /** Email */
+            email: string;
+        };
+        /**
+         * PasswordResetRequestResponse
+         * @description 계정이 있든 없든 같은 응답을 준다 - 어떤 이메일이 가입돼 있는지 알아내는
+         *     통로가 되면 안 되기 때문이다.
+         */
+        PasswordResetRequestResponse: {
+            /** Requested */
+            requested: boolean;
         };
         /** PendingIngredient */
         PendingIngredient: {
@@ -1353,8 +1435,19 @@ export interface components {
         };
         /** SignupRequest */
         SignupRequest: {
+            /** Age Group */
+            age_group: string;
+            consents: components["schemas"]["Consents"];
+            /** Email */
+            email: string;
+            /** Gender */
+            gender: string;
+            /** Name */
+            name: string;
             /** Password */
             password: string;
+            /** Phone */
+            phone: string;
             /** Username */
             username: string;
         };
@@ -1736,6 +1829,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_password_reset_auth_password_reset_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_password_reset_auth_password_reset_request_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordResetRequestResponse"];
                 };
             };
             /** @description Validation Error */

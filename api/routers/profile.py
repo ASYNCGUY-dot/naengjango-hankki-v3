@@ -60,7 +60,11 @@ def get_profile(
     if profile is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 user_id입니다.")
     return ProfileGetResponse(
-        has_profile=profile["gender"] is not None,
+        # 온보딩을 마쳤는지의 판단 기준을 gender에서 health_goal로 옮겼다(2026-08-13).
+        # 성별·연령대가 가입 단계로 올라가면서 gender는 가입 직후부터 채워져 있어,
+        # 그걸로 판단하면 온보딩을 안 한 사람도 "마쳤다"가 된다.
+        # health_goal은 온보딩에서만 채워지는 필수 항목이라 지금은 이쪽이 맞다.
+        has_profile=profile["health_goal"] is not None,
         **{k: v for k, v in profile.items() if k != "id"},
     )
 

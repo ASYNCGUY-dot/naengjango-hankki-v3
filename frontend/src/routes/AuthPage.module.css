@@ -50,12 +50,43 @@
   font-weight: var(--font-weight-medium);
 }
 
-.field input {
+.field input,
+.field select {
   min-height: var(--touch-target-min);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
+}
+
+/* 약관 동의 묶음 */
+.consents {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.consents legend {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  padding: 0 var(--space-2);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* 체크박스는 작아도 라벨 전체가 누르는 영역이라 44px를 여기서 확보한다. */
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.checkbox input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--color-accent);
 }
 
 .hint {

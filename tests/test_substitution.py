@@ -1,17 +1,20 @@
 """
 /recommendation/recipes/{id}/substitution을 검증한다.
 
+
 특히 이번에 substitution_agent.py의 SUBSTITUTES 딕셔너리에 새로 추가한 항목(파프리카/피망 등,
 "아쉬운 점" 리포트에서 지적했던 대체재 커버리지 부족을 보완한 것)이 실제로 라우터 응답까지
 이어지는지 확인한다. seed.sql의 "파프리카볶음"(재료 태그: 파프리카 1개)을 기준으로 쓴다.
 """
+
+from helpers import signup_body
 
 RECIPE_TOFU = 1        # "두부조림" (재료: 두부, 양파)
 RECIPE_PAPRIKA = 3      # "파프리카볶음" (재료: 파프리카)
 
 
 def _signup(client, username: str) -> tuple[int, dict]:
-    res = client.post("/auth/signup", json={"username": username, "password": "pw123456"})
+    res = client.post("/auth/signup", json=signup_body(username))
     data = res.json()
     return data["user_id"], {"Authorization": f"Bearer {data['token']}"}
 

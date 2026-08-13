@@ -1,8 +1,11 @@
 """/profile/{user_id} GET·PUT를 검증한다 - 로그인 후 온보딩 완료 여부 판단에 쓰이는 핵심 경로.
 
+
 POST ""는 V3 Phase 1(2026-08-12)에서 없앴다. 인증 없이 users 행을 새로 만들던
 엔드포인트였고, 운영 DB의 빈 계정 34개가 전부 이 경로로 생겼다.
 """
+
+from helpers import signup_body
 
 PROFILE_PAYLOAD = {
     "gender": "여성",
@@ -21,16 +24,26 @@ PROFILE_PAYLOAD = {
 
 def _signup(client, username: str) -> tuple[int, dict]:
     """(user_id, 인증 헤더)를 돌려준다 - 토큰 인가(#63) 이후 모든 유저 스코프 요청에 헤더가 필요하다."""
-    res = client.post("/auth/signup", json={"username": username, "password": "pw123456"})
+    res = client.post("/auth/signup", json=signup_body(username))
     data = res.json()
     return data["user_id"], {"Authorization": f"Bearer {data['token']}"}
 
 
 def test_get_profile_before_completion_has_profile_false(client):
+    """가입만 하고 온보딩을 안 했으면 has_profile은 False여야 한다.
+
+    가입 단계에서 성별·연령대를 받게 되면서(2026-08-13) 이 판단 기준이 한 번 어긋났다.
+    gender로 판단하던 시절에는 가입 직후부터 True가 됐다. 지금은 온보딩에서만 채워지는
+    health_goal을 본다.
+    """
     user_id, headers = _signup(client, "u_profile_1")
     res = client.get(f"/profile/{user_id}", headers=headers)
     assert res.status_code == 200
     assert res.json()["has_profile"] is False
+
+    # 가입에서 받은 항목은 이미 채워져 있어야 한다 - 온보딩 완료와는 별개다.
+    assert res.json()["gender"] == "여성"
+    assert res.json()["age_group"] == "20대"
 
 
 def test_get_profile_without_token_returns_401(client):

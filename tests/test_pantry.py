@@ -1,13 +1,16 @@
 """
 /pantry/{user_id} GET·POST·PUT·DELETE를 검증한다.
 
+
 냉장고 화면 개편(2026-07-19)에서 추가한 PUT(유통기한만 수정)이 핵심이고,
 기존에 테스트가 없던 pantry 기본 흐름(추가→조회→삭제)도 함께 고정한다.
 """
 
+from helpers import signup_body
+
 
 def _signup(client, username: str) -> tuple[int, dict]:
-    res = client.post("/auth/signup", json={"username": username, "password": "pw123456"})
+    res = client.post("/auth/signup", json=signup_body(username))
     data = res.json()
     return data["user_id"], {"Authorization": f"Bearer {data['token']}"}
 

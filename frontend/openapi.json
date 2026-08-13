@@ -1,6 +1,28 @@
 {
   "components": {
     "schemas": {
+      "Consents": {
+        "description": "개인정보 수집 동의. 필수 둘은 True여야 가입이 된다.",
+        "properties": {
+          "marketing": {
+            "default": false,
+            "title": "Marketing",
+            "type": "boolean"
+          },
+          "privacy": {
+            "default": false,
+            "title": "Privacy",
+            "type": "boolean"
+          },
+          "terms_of_service": {
+            "default": false,
+            "title": "Terms Of Service",
+            "type": "boolean"
+          }
+        },
+        "title": "Consents",
+        "type": "object"
+      },
       "Coverage": {
         "properties": {
           "coverage_pct": {
@@ -768,6 +790,51 @@
           "name"
         ],
         "title": "PantryItemRequest",
+        "type": "object"
+      },
+      "PasswordResetConfirmRequest": {
+        "properties": {
+          "new_password": {
+            "title": "New Password",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "PasswordResetConfirmRequest",
+        "type": "object"
+      },
+      "PasswordResetRequest": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest",
+        "type": "object"
+      },
+      "PasswordResetRequestResponse": {
+        "description": "계정이 있든 없든 같은 응답을 준다 - 어떤 이메일이 가입돼 있는지 알아내는\n통로가 되면 안 되기 때문이다.",
+        "properties": {
+          "requested": {
+            "title": "Requested",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requested"
+        ],
+        "title": "PasswordResetRequestResponse",
         "type": "object"
       },
       "PendingIngredient": {
@@ -1871,18 +1938,53 @@
       },
       "SignupRequest": {
         "properties": {
+          "age_group": {
+            "minLength": 1,
+            "title": "Age Group",
+            "type": "string"
+          },
+          "consents": {
+            "$ref": "#/components/schemas/Consents"
+          },
+          "email": {
+            "minLength": 1,
+            "title": "Email",
+            "type": "string"
+          },
+          "gender": {
+            "minLength": 1,
+            "title": "Gender",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
           "password": {
             "title": "Password",
             "type": "string"
           },
+          "phone": {
+            "minLength": 1,
+            "title": "Phone",
+            "type": "string"
+          },
           "username": {
+            "minLength": 1,
             "title": "Username",
             "type": "string"
           }
         },
         "required": [
           "username",
-          "password"
+          "password",
+          "name",
+          "phone",
+          "email",
+          "gender",
+          "age_group",
+          "consents"
         ],
         "title": "SignupRequest",
         "type": "object"
@@ -2683,6 +2785,87 @@
           }
         },
         "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/password-reset/confirm": {
+      "post": {
+        "operationId": "confirm_password_reset_auth_password_reset_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Password Reset",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/password-reset/request": {
+      "post": {
+        "description": "초기화 링크를 메일로 보낸다.\n\n가입된 이메일이든 아니든 항상 같은 응답을 준다. 여기서 404를 주면 \"이 주소는\n가입돼 있다/없다\"를 확인하는 도구가 된다. 메일 발송이 실패해도 마찬가지다.",
+        "operationId": "request_password_reset_auth_password_reset_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordResetRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Password Reset",
         "tags": [
           "auth"
         ]

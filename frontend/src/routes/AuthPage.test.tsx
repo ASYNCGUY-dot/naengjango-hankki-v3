@@ -19,6 +19,31 @@ async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>, pw = 'pw1
   await user.click(screen.getByRole('button', { name: '로그인' }))
 }
 
+/** 가입 폼을 채운다. 검증하려는 항목만 옵션으로 비우거나 바꾼다. */
+async function fillSignupForm(
+  user: ReturnType<typeof userEvent.setup>,
+  options: { skip?: string; email?: string; agreePrivacy?: boolean } = {},
+) {
+  const entries: [string, string][] = [
+    ['아이디', 'newbie'],
+    ['비밀번호', 'pw123456'],
+    ['이름', '최지수'],
+    ['연락처', '010-1234-5678'],
+    ['이메일', options.email ?? 'newbie@example.com'],
+  ]
+  for (const [label, value] of entries) {
+    if (options.skip === label) continue
+    await user.type(screen.getByLabelText(label), value)
+  }
+  await user.selectOptions(screen.getByLabelText('성별'), '여성')
+  await user.selectOptions(screen.getByLabelText('연령대'), '20대')
+
+  await user.click(screen.getByLabelText(/이용약관/))
+  if (options.agreePrivacy !== false) {
+    await user.click(screen.getByLabelText(/개인정보/))
+  }
+}
+
 describe('로그인 화면', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -114,19 +139,77 @@ describe('로그인 화면', () => {
 
   it('회원가입 화면은 가입 후 바로 로그인 상태가 된다', async () => {
     const user = userEvent.setup()
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ user_id: 42, token: 'tok-new' }),
-    )
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ user_id: 42, token: 'tok-new' }))
     renderWithProviders(<App />, { route: '/signup' })
 
-    await user.type(screen.getByLabelText('아이디'), 'newbie')
-    await user.type(screen.getByLabelText('비밀번호'), 'pw123456')
+    await fillSignupForm(user)
     await user.click(screen.getByRole('button', { name: '회원가입' }))
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: '오늘 뭐 먹지?' })).toBeInTheDocument()
     })
     expect(tokenStore.get()).toBe('tok-new')
+
+    // 서버가 요구하는 항목이 실제로 실려 나가는지 본다. 폼만 보고 통과시키면
+    // 필드를 화면에만 만들어두고 안 보내는 실수를 못 잡는다.
+    const sent = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
+    expect(sent).toMatchObject({
+      username: 'newbie',
+      name: '최지수',
+      phone: '010-1234-5678',
+      email: 'newbie@example.com',
+      gender: '여성',
+      age_group: '20대',
+      consents: { terms_of_service: true, privacy: true, marketing: false },
+    })
+  })
+
+  it('필수 동의를 안 하면 서버에 보내지 않는다', async () => {
+    // 콜드스타트가 30초라, 서버까지 보내고 거부당하면 30초를 버린다.
+    const user = userEvent.setup()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({}))
+    renderWithProviders(<App />, { route: '/signup' })
+
+    await fillSignupForm(user, { agreePrivacy: false })
+    await user.click(screen.getByRole('button', { name: '회원가입' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('동의')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['이름', '이름을 입력해주세요.'],
+    ['연락처', '연락처를 입력해주세요.'],
+  ])('%s이(가) 비면 막는다', async (label, message) => {
+    const user = userEvent.setup()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({}))
+    renderWithProviders(<App />, { route: '/signup' })
+
+    await fillSignupForm(user, { skip: label })
+    await user.click(screen.getByRole('button', { name: '회원가입' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('이메일 형식이 틀리면 막는다', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({}))
+    renderWithProviders(<App />, { route: '/signup' })
+
+    await fillSignupForm(user, { email: '골뱅이없음' })
+    await user.click(screen.getByRole('button', { name: '회원가입' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('이메일 형식')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('로그인 화면에는 회원가입 전용 항목이 없다', () => {
+    renderWithProviders(<App />, { route: '/login' })
+    expect(screen.queryByLabelText('이메일')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('연락처')).not.toBeInTheDocument()
   })
 
   it('로그인 없이 둘러보기로 홈에 갈 수 있다', async () => {

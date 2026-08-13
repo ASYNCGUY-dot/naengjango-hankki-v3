@@ -4,6 +4,7 @@ import AppLayout from './components/AppLayout'
 import AuthPage from './routes/AuthPage'
 import HomePage from './routes/HomePage'
 import PantryPage from './routes/PantryPage'
+import { ForgotPasswordPage, ResetPasswordPage } from './routes/PasswordResetPage'
 import RecipeDetailPage from './routes/RecipeDetailPage'
 import RecommendPage from './routes/RecommendPage'
 
@@ -21,6 +22,10 @@ export default function App() {
           주소를 나눈 이유: 회원가입 링크를 그대로 공유할 수 있고 뒤로가기가 자연스럽다. */}
       <Route path="/login" element={<AuthPage mode="login" />} />
       <Route path="/signup" element={<AuthPage mode="signup" />} />
+      {/* 비밀번호 "찾기"는 없다 - 단방향 해시라 서버도 모른다. 초기화만 가능하다.
+          /reset-password는 메일의 링크로 들어오는 자리라 주소에 token을 달고 온다. */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/pantry" element={<PantryPage />} />

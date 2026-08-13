@@ -17,6 +17,7 @@ import requests
 
 from api.routers import price as price_router
 from src.agents import price_agent
+from helpers import signup_body
 
 RECIPE_ID = 1  # seed.sql "두부조림" (재료: 두부 200g, 양파 50g)
 RECIPE_WITHOUT_INGREDIENTS_ID = 2
@@ -34,7 +35,7 @@ def _reset_prices_cache():
 
 
 def _signup(client, username: str) -> tuple[int, dict]:
-    res = client.post("/auth/signup", json={"username": username, "password": "pw123456"})
+    res = client.post("/auth/signup", json=signup_body(username))
     data = res.json()
     return data["user_id"], {"Authorization": f"Bearer {data['token']}"}
 

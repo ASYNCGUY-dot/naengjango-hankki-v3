@@ -16,6 +16,7 @@ promote만 예외로 관리자 판정 대신 ADMIN_SECRET 코드를 확인한다
 import pytest
 
 from src.agents import auth_agent
+from helpers import signup_body
 
 ADMIN_CODE = "test-admin-code-1234"
 
@@ -31,7 +32,7 @@ ADMIN_GATED_ENDPOINTS = [
 
 
 def _signup(client, username):
-    res = client.post("/auth/signup", json={"username": username, "password": "pw123456"})
+    res = client.post("/auth/signup", json=signup_body(username))
     assert res.status_code == 200
     data = res.json()
     return data["user_id"], {"Authorization": f"Bearer {data['token']}"}

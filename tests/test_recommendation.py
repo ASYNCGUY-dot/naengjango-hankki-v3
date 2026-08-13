@@ -5,6 +5,7 @@
 여기서는 라우터 계층의 계약(404 처리, 응답 모양, 이번 세션에 추가한 영양소 필드 파싱과
 재료 목록 엔드포인트)만 확인한다.
 
+
 seed.sql의 레시피 1개("두부조림", 재료: 두부/양파)를 기준으로, 보유 재료에 "두부"가 있으면
 자격(qualifies)을 얻도록 설계했다(메뉴명에 "두부"가 그대로 들어있어 core_ingredients로 잡힘).
 
@@ -12,6 +13,8 @@ seed.sql의 레시피 1개("두부조림", 재료: 두부/양파)를 기준으�
 조회하지 않고, 쿼리 파라미터 ingredients로 넘긴 목록만 그대로 쓴다 - 그래서 아래 테스트는
 pantry에 재료를 넣어두더라도 추천 호출 시 ingredients를 명시적으로 함께 넘긴다.
 """
+
+from helpers import signup_body
 
 PROFILE_PAYLOAD = {
     "gender": "여성",
@@ -31,7 +34,7 @@ RECIPE_ID = 1  # seed.sql에 미리 넣어둔 "두부조림"
 
 
 def _signup_with_pantry(client, username: str, pantry_names: list[str]) -> tuple[int, dict]:
-    data = client.post("/auth/signup", json={"username": username, "password": "pw123456"}).json()
+    data = client.post("/auth/signup", json=signup_body(username)).json()
     user_id = data["user_id"]
     headers = {"Authorization": f"Bearer {data['token']}"}
     client.put(f"/profile/{user_id}", json=PROFILE_PAYLOAD, headers=headers)

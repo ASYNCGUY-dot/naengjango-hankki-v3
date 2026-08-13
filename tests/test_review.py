@@ -8,6 +8,7 @@ _call_openai_summary를 monkeypatch로 대체해서 호출 여부/캐싱 로직�
 """
 
 from src.agents import review_agent
+from helpers import signup_body
 
 RECIPE_ID = 1  # seed.sql "두부조림"
 
@@ -18,7 +19,7 @@ TINY_PNG_DATA_URI = (
 
 
 def _signup(client, username: str) -> tuple[int, dict]:
-    res = client.post("/auth/signup", json={"username": username, "password": "pw123456"})
+    res = client.post("/auth/signup", json=signup_body(username))
     data = res.json()
     return data["user_id"], {"Authorization": f"Bearer {data['token']}"}
 

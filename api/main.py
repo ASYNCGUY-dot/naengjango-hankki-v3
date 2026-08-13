@@ -34,7 +34,12 @@ app = FastAPI(title="냉장고 한끼 API")
 #
 # 허용 주소는 환경변수로 넣는다. "*"로 열지 않는 이유는, 인증 토큰을 다루는 API라
 # 아무 페이지나 사용자의 브라우저를 통해 호출하게 둘 이유가 없기 때문이다.
-_DEFAULT_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+# Vite 기본 포트는 5173인데 다른 프로젝트가 쓰고 있으면 5174로 밀린다. 둘 다 허용해서
+# 개발자가 포트를 신경 쓰지 않게 한다(로컬 주소라 열어도 위험이 없다).
+_DEFAULT_ORIGINS = (
+    "http://localhost:5173,http://127.0.0.1:5173,"
+    "http://localhost:5174,http://127.0.0.1:5174"
+)
 ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CORS_ALLOW_ORIGINS", _DEFAULT_ORIGINS).split(",")
