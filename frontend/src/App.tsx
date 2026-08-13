@@ -1,8 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import AppLayout from './components/AppLayout'
+import AuthPage from './routes/AuthPage'
 import HomePage from './routes/HomePage'
-import LoginPage from './routes/LoginPage'
 import PantryPage from './routes/PantryPage'
 import RecipeDetailPage from './routes/RecipeDetailPage'
 import RecommendPage from './routes/RecommendPage'
@@ -17,7 +17,10 @@ import RecommendPage from './routes/RecommendPage'
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      {/* 로그인·회원가입은 하단 탭바가 없는 화면이라 AppLayout 밖에 둔다.
+          주소를 나눈 이유: 회원가입 링크를 그대로 공유할 수 있고 뒤로가기가 자연스럽다. */}
+      <Route path="/login" element={<AuthPage mode="login" />} />
+      <Route path="/signup" element={<AuthPage mode="signup" />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/pantry" element={<PantryPage />} />

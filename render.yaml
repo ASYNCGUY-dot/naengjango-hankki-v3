@@ -18,6 +18,11 @@ services:
         sync: false
       - key: ADMIN_SECRET
         sync: false
+      # 브라우저가 이 API를 직접 부르려면 허용 주소를 알려줘야 한다(V3에서 추가).
+      # V2는 Reflex가 서버 쪽에서 불러서 필요 없었다. 정적 사이트 주소가 정해지면
+      # 그 값으로 바꾼다.
+      - key: CORS_ALLOW_ORIGINS
+        value: https://naengjango-hankki-v3-web.onrender.com
 
   # V3 프론트엔드. Vite 빌드 결과(정적 파일)를 Render 정적 사이트로 올린다.
   #

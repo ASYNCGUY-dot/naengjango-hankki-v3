@@ -1,4 +1,7 @@
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.routers import (
     admin,
@@ -21,7 +24,31 @@ from api.routers import (
     user_recipe,
 )
 
-app = FastAPI(title="냉장고 한끼 V2 API")
+app = FastAPI(title="냉장고 한끼 API")
+
+# CORS (2026-08-13, V3에서 추가)
+#
+# V2에는 이 설정이 없었고 그래도 동작했다. Reflex 프론트가 서버 쪽 Python에서 이 API를
+# 불렀기 때문에 브라우저의 교차 출처 검사를 거치지 않았다. V3는 브라우저가 직접 부르는
+# SPA라 이게 없으면 모든 요청이 preflight에서 막힌다(실제로 로그인에서 막혔다).
+#
+# 허용 주소는 환경변수로 넣는다. "*"로 열지 않는 이유는, 인증 토큰을 다루는 API라
+# 아무 페이지나 사용자의 브라우저를 통해 호출하게 둘 이유가 없기 때문이다.
+_DEFAULT_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOW_ORIGINS", _DEFAULT_ORIGINS).split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    # 토큰을 Authorization 헤더로 보내고 쿠키를 쓰지 않으므로 자격증명 공유가 필요 없다.
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 app.include_router(admin.router)
 app.include_router(auth.router)

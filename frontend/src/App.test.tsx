@@ -1,16 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
 import App from './App'
+import { renderWithProviders } from './test/renderWithProviders'
 
-function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>,
-  )
+function renderAt(route: string) {
+  return renderWithProviders(<App />, { route })
 }
 
 describe('라우팅', () => {
@@ -23,8 +19,9 @@ describe('라우팅', () => {
     ['/pantry', '내 냉장고'],
     ['/recommend', '추천 결과'],
     ['/login', '냉장고 한끼'],
-  ])('%s 주소가 해당 화면을 연다', (path, heading) => {
-    renderAt(path)
+    ['/signup', '냉장고 한끼'],
+  ])('%s 주소가 해당 화면을 연다', (route, heading) => {
+    renderAt(route)
     expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
   })
 
@@ -54,5 +51,16 @@ describe('라우팅', () => {
     expect(screen.getByRole('heading', { level: 1, name: '내 냉장고' })).toBeInTheDocument()
     // aria-current는 보조기기가 "지금 여기"를 읽어주는 근거다.
     expect(screen.getByRole('link', { name: '냉장고' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('로그인과 회원가입 사이를 링크로 오간다', async () => {
+    const user = userEvent.setup()
+    renderAt('/login')
+
+    await user.click(screen.getByRole('link', { name: '회원가입' }))
+    expect(screen.getByRole('button', { name: '회원가입' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: '로그인' }))
+    expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument()
   })
 })
