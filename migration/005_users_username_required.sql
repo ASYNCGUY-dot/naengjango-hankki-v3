@@ -31,7 +31,10 @@ WHERE username IS NULL
    OR username IN (
         'testuser01', 'test', 'gaptest0718', 'design_verify_20260726',
         'verify_ui_v2_20260721', 'prod_verify_20260721', 'design2_verify_local',
-        '최지목'
+        '최지목',
+        -- V3 화면을 실제 DB로 끝까지 태워보려고 만든 계정(2026-08-13). 냉장고 재료도
+        -- 함께 들어 있으므로 이 마이그레이션의 자식 행 삭제가 같이 치운다.
+        'e2e_verify_20260813'
       );
 
 -- 안전장치: 관리자 계정이 삭제 대상에 들어갔거나 남는 계정이 없으면 즉시 중단한다.

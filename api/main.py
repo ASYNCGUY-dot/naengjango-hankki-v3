@@ -1,7 +1,9 @@
+import logging
 import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from api.routers import (
     admin,
@@ -45,6 +47,29 @@ ALLOWED_ORIGINS = [
     for origin in os.getenv("CORS_ALLOW_ORIGINS", _DEFAULT_ORIGINS).split(",")
     if origin.strip()
 ]
+
+# 처리되지 않은 예외를 여기서 잡는다 (2026-08-13).
+#
+# 안 잡으면 Starlette의 기본 처리기가 CORS 미들웨어 바깥에서 응답을 만들어, 500 응답에
+# CORS 헤더가 붙지 않는다. 그러면 브라우저는 이걸 "CORS 차단"으로 보고하고 화면에는
+# "연결에 실패했습니다"만 뜬다. 실제로 겪었다 - 원인은 DB 컬럼 누락이었는데 프론트에서는
+# CORS 문제로 보여서 한참 엉뚱한 곳을 봤다.
+#
+# 이 데코레이터가 CORSMiddleware 추가보다 먼저 와야 한다. Starlette은 나중에 추가한
+# 미들웨어를 바깥에 두므로, 이 순서라야 CORS가 바깥에서 헤더를 붙일 수 있다.
+@app.middleware("http")
+async def catch_unhandled_errors(request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:
+        # 서버 로그에는 원인을 그대로 남긴다. 응답에는 담지 않는다 - 내부 구조가
+        # 사용자에게 새어나갈 이유가 없다.
+        logging.getLogger("api").exception("처리되지 않은 오류: %s %s", request.method, request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "서버에서 문제가 발생했습니다. 잠시 후 다시 시도해주세요."},
+        )
+
 
 app.add_middleware(
     CORSMiddleware,
