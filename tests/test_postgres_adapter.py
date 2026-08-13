@@ -38,13 +38,10 @@ pytestmark = pytest.mark.skipif(
 
 MIGRATION_DIR = Path(__file__).resolve().parent.parent / "migration"
 
-# 002는 sqlite 원본에서 데이터를 옮기는 파이썬 스크립트라 스키마 재생에는 필요 없다.
-MIGRATIONS = [
-    "001_schema.sql",
-    "003_add_indexes.sql",
-    "004_auth_token_expiry.sql",
-    "005_users_username_required.sql",
-]
+# 목록을 손으로 관리하지 않는다. 실제로 006을 추가하고도 여기 넣는 것을 잊어서, CI가
+# 그 파일을 한 번도 검사하지 않은 채로 지나갔다. 디렉터리에서 읽으면 빠뜨릴 수 없다.
+# 002는 sqlite 원본에서 데이터를 옮기는 파이썬 스크립트라 .sql만 모으면 자연히 빠진다.
+MIGRATIONS = sorted(path.name for path in MIGRATION_DIR.glob("*.sql"))
 
 DISPOSABLE_HOSTS = {"localhost", "127.0.0.1", "::1", "postgres"}
 
@@ -111,6 +108,50 @@ def test_migration_chain_replays_on_an_empty_database(pg_conn):
     user_columns = dict(cur.fetchall())
     assert user_columns == {"password_hash": "NO", "username": "NO"}
     cur.close()
+
+
+def test_every_migration_file_is_replayed(pg_conn):
+    """migration/의 .sql이 하나라도 빠지면 그 파일은 검증 없이 운영에 적용된다."""
+    on_disk = sorted(path.name for path in MIGRATION_DIR.glob("*.sql"))
+    assert MIGRATIONS == on_disk
+    assert len(MIGRATIONS) >= 5
+
+
+def test_account_fields_exist_after_migration_006(pg_conn):
+    """006이 실제로 적용됐는지 - 이름·연락처·이메일·가입시각과 동의/초기화 테이블."""
+    cur = pg_conn.cursor()
+    cur.execute("""
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='users'
+          AND column_name IN ('name','phone','email','created_at')
+    """)
+    assert {row[0] for row in cur.fetchall()} == {"name", "phone", "email", "created_at"}
+
+    cur.execute("""
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema='public' AND table_name IN ('user_consents','password_reset_tokens')
+    """)
+    assert {row[0] for row in cur.fetchall()} == {"user_consents", "password_reset_tokens"}
+    cur.close()
+
+
+def test_email_is_unique_case_insensitively(pg_conn):
+    """대소문자만 다른 주소를 다른 사람으로 보면 초기화 대상을 특정할 수 없다."""
+    cur = pg_conn.cursor()
+    try:
+        cur.execute(
+            "INSERT INTO users (username, password_hash, email) "
+            "VALUES ('u_ci_a','x$y','Dup@Example.com')"
+        )
+        with pytest.raises(psycopg2.errors.UniqueViolation):
+            cur.execute(
+                "INSERT INTO users (username, password_hash, email) "
+                "VALUES ('u_ci_b','x$y','dup@example.com')"
+            )
+    finally:
+        # pg_conn은 autocommit이라 남긴 행이 다음 테스트까지 간다.
+        cur.execute("DELETE FROM users WHERE username IN ('u_ci_a','u_ci_b')")
+        cur.close()
 
 
 def test_username_unique_constraint_exists(pg_conn):
