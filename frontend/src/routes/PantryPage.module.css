@@ -1,0 +1,223 @@
+.appbar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.appbar h1 {
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.appbar .count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.addForm {
+  display: flex;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.addForm input {
+  flex: 1;
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+}
+
+.addButton {
+  flex: 0 0 auto;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.addButton:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
+
+.addButton:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.name {
+  flex: 1;
+  font-weight: var(--font-weight-medium);
+  /* 재료명이 길어도 줄바꿈되게 둔다. 잘라내면 무슨 재료인지 알 수 없다. */
+  word-break: break-word;
+}
+
+.expiry {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* 임박·지남은 텍스트용 토큰을 쓴다. 채움색(--color-warning-fill)은 흰 배경에서
+   2.02:1이라 글자로 쓸 수 없다(design/tokens.css 참고). */
+.expirySoon {
+  color: var(--color-warning-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.expiryPast {
+  color: var(--color-danger-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.dateInput {
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-base);
+  font-size: var(--font-size-xs);
+}
+
+.iconButton {
+  flex: 0 0 auto;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-danger-fill);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--color-surface-sunken);
+}
+
+.sheet {
+  position: sticky;
+  bottom: 0;
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-raised);
+  border-top: 1px solid var(--color-border);
+}
+
+.summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.cta:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
+
+.cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.notice,
+.error,
+.empty {
+  margin: var(--space-3) var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.notice {
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.notice small {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  margin-top: var(--space-1);
+}
+
+.error {
+  background: var(--color-surface-sunken);
+  color: var(--color-danger-text);
+  font-weight: var(--font-weight-medium);
+}
+
+.empty {
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: none;
+}
+
+.guest {
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+
+.guest p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-6);
+}
+
+.skeleton {
+  height: 3.5rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
