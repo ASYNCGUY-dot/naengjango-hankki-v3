@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "CategoryCount": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category",
+          "count"
+        ],
+        "title": "CategoryCount",
+        "type": "object"
+      },
       "Consents": {
         "description": "개인정보 수집 동의. 필수 둘은 True여야 가입이 된다.",
         "properties": {
@@ -1534,6 +1552,17 @@
             "title": "Id",
             "type": "integer"
           },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "menu_name": {
             "title": "Menu Name",
             "type": "string"
@@ -1543,7 +1572,8 @@
           "id",
           "menu_name",
           "category",
-          "calorie"
+          "calorie",
+          "image_url"
         ],
         "title": "RecipeSummary",
         "type": "object"
@@ -4382,6 +4412,32 @@
         ]
       }
     },
+    "/recommendation/recipes/categories": {
+      "get": {
+        "description": "분류 필터 칩에 쓸 목록. 이름을 화면에 하드코딩하지 않으려고 실제 데이터에서 뽑는다.\n개수를 함께 주는 이유는, 결과가 적은 분류를 화면이 미리 알 수 있어서다.",
+        "operationId": "list_categories_recommendation_recipes_categories_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryCount"
+                  },
+                  "title": "Response List Categories Recommendation Recipes Categories Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Categories",
+        "tags": [
+          "recommendation"
+        ]
+      }
+    },
     "/recommendation/recipes/popular": {
       "get": {
         "description": "즐겨찾기 화면의 \"요즘 인기 있는 레시피\" 섹션(2026-07-21, #req5) - 로그인 여부와\n무관하게 볼 수 있는 공개 정보라 인가를 요구하지 않는다(search_all_recipes와 동일한 방침).",
@@ -4432,7 +4488,7 @@
     },
     "/recommendation/recipes/search": {
       "get": {
-        "description": "홈 화면 \"이 달의 제철 재료\" 옆에 관련 레시피를 보여줄 때 쓴다(2026-07-21, #req7).\n프로필/알레르기 필터 없는 공개 조회라 recommend()와 달리 인가를 요구하지 않는다.",
+        "description": "레시피 목록 조회. 프로필/알레르기 필터 없는 공개 조회라 인가를 요구하지 않는다.\n\ncategory와 offset은 에이전트가 이미 지원하던 것을 여기서 열어준 것이다(2026-08-13).\n홈 화면의 분류 칩과 \"더 보기\"가 이걸 쓴다. 응답이 limit보다 적게 오면 마지막 쪽이다.",
         "operationId": "search_recipes_recommendation_recipes_search_get",
         "parameters": [
           {
@@ -4447,11 +4503,37 @@
           },
           {
             "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
-              "default": 5,
+              "default": 20,
               "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
               "type": "integer"
             }
           }

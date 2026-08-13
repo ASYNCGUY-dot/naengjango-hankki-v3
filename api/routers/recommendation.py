@@ -168,16 +168,42 @@ class RecipeSummary(BaseModel):
     menu_name: str
     category: str | None
     calorie: float | None
+    # 목록 카드가 사진 중심이라 여기서 함께 준다(2026-08-13). 없으면 화면이 레시피마다
+    # 상세를 한 번씩 더 불러야 한다. 원본이 http라 표시할 때 https로 바꿔 쓴다.
+    image_url: str | None
 
 
-# "/recipes/search"는 "/recipes/{recipe_id}"보다 먼저 등록해야 한다 - 안 그러면 "search"가
-# recipe_id 자리에 매칭 시도되다 int 변환에 실패해 422가 난다(#req5에서 popular 엔드포인트로
-# 겪은 것과 같은 문제, api/main.py 참고).
+class CategoryCount(BaseModel):
+    category: str
+    count: int
+
+
+# "/recipes/categories"와 "/recipes/search"는 "/recipes/{recipe_id}"보다 먼저 등록해야 한다 -
+# 안 그러면 "categories"가 recipe_id 자리에 매칭 시도되다 int 변환에 실패해 422가 난다
+# (#req5에서 popular 엔드포인트로 겪은 것과 같은 문제, api/main.py 참고).
+@router.get("/recipes/categories", response_model=list[CategoryCount])
+def list_categories(cur: sqlite3.Cursor = Depends(get_db)):
+    """분류 필터 칩에 쓸 목록. 이름을 화면에 하드코딩하지 않으려고 실제 데이터에서 뽑는다.
+    개수를 함께 주는 이유는, 결과가 적은 분류를 화면이 미리 알 수 있어서다."""
+    return recommendation_agent.get_recipe_categories_with_counts(cur)
+
+
 @router.get("/recipes/search", response_model=list[RecipeSummary])
-def search_recipes(keyword: str = "", limit: int = 5, cur: sqlite3.Cursor = Depends(get_db)):
-    """홈 화면 "이 달의 제철 재료" 옆에 관련 레시피를 보여줄 때 쓴다(2026-07-21, #req7).
-    프로필/알레르기 필터 없는 공개 조회라 recommend()와 달리 인가를 요구하지 않는다."""
-    return recommendation_agent.search_all_recipes(cur, keyword=keyword, limit=limit)
+def search_recipes(
+    keyword: str = "",
+    category: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+    cur: sqlite3.Cursor = Depends(get_db),
+):
+    """레시피 목록 조회. 프로필/알레르기 필터 없는 공개 조회라 인가를 요구하지 않는다.
+
+    category와 offset은 에이전트가 이미 지원하던 것을 여기서 열어준 것이다(2026-08-13).
+    홈 화면의 분류 칩과 "더 보기"가 이걸 쓴다. 응답이 limit보다 적게 오면 마지막 쪽이다.
+    """
+    return recommendation_agent.search_all_recipes(
+        cur, keyword=keyword, limit=limit, offset=offset, category=category
+    )
 
 
 @router.get("/recipes/{recipe_id}", response_model=RecipeDetail)

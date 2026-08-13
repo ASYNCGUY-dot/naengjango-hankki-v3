@@ -512,6 +512,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recommendation/recipes/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Categories
+         * @description 분류 필터 칩에 쓸 목록. 이름을 화면에 하드코딩하지 않으려고 실제 데이터에서 뽑는다.
+         *     개수를 함께 주는 이유는, 결과가 적은 분류를 화면이 미리 알 수 있어서다.
+         */
+        get: operations["list_categories_recommendation_recipes_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recommendation/recipes/popular": {
         parameters: {
             query?: never;
@@ -542,8 +563,10 @@ export interface paths {
         };
         /**
          * Search Recipes
-         * @description 홈 화면 "이 달의 제철 재료" 옆에 관련 레시피를 보여줄 때 쓴다(2026-07-21, #req7).
-         *     프로필/알레르기 필터 없는 공개 조회라 recommend()와 달리 인가를 요구하지 않는다.
+         * @description 레시피 목록 조회. 프로필/알레르기 필터 없는 공개 조회라 인가를 요구하지 않는다.
+         *
+         *     category와 offset은 에이전트가 이미 지원하던 것을 여기서 열어준 것이다(2026-08-13).
+         *     홈 화면의 분류 칩과 "더 보기"가 이걸 쓴다. 응답이 limit보다 적게 오면 마지막 쪽이다.
          */
         get: operations["search_recipes_recommendation_recipes_search_get"];
         put?: never;
@@ -842,6 +865,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** CategoryCount */
+        CategoryCount: {
+            /** Category */
+            category: string;
+            /** Count */
+            count: number;
+        };
         /**
          * Consents
          * @description 개인정보 수집 동의. 필수 둘은 True여야 가입이 된다.
@@ -1314,6 +1344,8 @@ export interface components {
             category: string | null;
             /** Id */
             id: number;
+            /** Image Url */
+            image_url: string | null;
             /** Menu Name */
             menu_name: string;
         };
@@ -2750,6 +2782,26 @@ export interface operations {
             };
         };
     };
+    list_categories_recommendation_recipes_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryCount"][];
+                };
+            };
+        };
+    };
     get_popular_recipes_recommendation_recipes_popular_get: {
         parameters: {
             query?: {
@@ -2785,7 +2837,9 @@ export interface operations {
         parameters: {
             query?: {
                 keyword?: string;
+                category?: string | null;
                 limit?: number;
+                offset?: number;
             };
             header?: never;
             path?: never;

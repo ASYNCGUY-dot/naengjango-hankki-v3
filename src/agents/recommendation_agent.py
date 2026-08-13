@@ -420,13 +420,19 @@ def search_all_recipes(
         params.append(category)
     where_sql = " AND ".join(conditions)
 
+    # image_url을 함께 가져온다(2026-08-13). 목록 카드가 사진 중심인데 이 조회가 사진을
+    # 안 주면, 화면이 레시피마다 상세를 한 번씩 더 불러야 한다 - 카드 20개면 요청 20번이고
+    # 콜드스타트가 있는 무료 서버에서는 감당이 안 된다.
     cur.execute(
-        f"SELECT id, menu_name, category, calorie FROM recipes WHERE {where_sql} "
+        f"SELECT id, menu_name, category, calorie, image_url FROM recipes WHERE {where_sql} "
         f"ORDER BY menu_name LIMIT ? OFFSET ?",
         (*params, limit, offset)
     )
     rows = cur.fetchall()
-    return [{"id": r[0], "menu_name": r[1], "category": r[2], "calorie": r[3]} for r in rows]
+    return [
+        {"id": r[0], "menu_name": r[1], "category": r[2], "calorie": r[3], "image_url": r[4]}
+        for r in rows
+    ]
 
 
 def count_all_recipes(cur, keyword: str = "", category: str | None = None) -> int:
@@ -442,6 +448,20 @@ def count_all_recipes(cur, keyword: str = "", category: str | None = None) -> in
 
     cur.execute(f"SELECT COUNT(*) FROM recipes WHERE {where_sql}", params)
     return cur.fetchone()[0]
+
+
+def get_recipe_categories_with_counts(cur) -> list[dict]:
+    """분류와 그 분류의 레시피 수를 많이 쓰이는 순으로 돌려준다.
+
+    개수를 함께 주는 이유는 화면이 "결과가 적은 분류"를 미리 알 수 있어서다. 실제 분포가
+    고르지 않다 - 반찬이 574개인데 기타는 37개다(2026-08-13 기준).
+    """
+    cur.execute(
+        "SELECT category, COUNT(*) AS c FROM recipes "
+        "WHERE status = 'approved' AND category IS NOT NULL AND category != '' "
+        "GROUP BY category ORDER BY c DESC"
+    )
+    return [{"category": row[0], "count": row[1]} for row in cur.fetchall()]
 
 
 def get_recipe_categories(cur) -> list[str]:
