@@ -19,8 +19,31 @@ services:
       - key: ADMIN_SECRET
         sync: false
 
+  # V3 프론트엔드. Vite 빌드 결과(정적 파일)를 Render 정적 사이트로 올린다.
+  #
+  # 정적 사이트를 쓰는 이유: Render 무료 웹 서비스는 15분 유휴 후 중단되고 재시작에
+  # 1분쯤 걸리는데, 정적 사이트는 CDN에서 서빙돼 스핀다운이 없다. 프론트를 SSR로 올리면
+  # 백엔드 콜드스타트(실측 34.6초) 동안 사용자가 빈 화면만 보게 된다. 정적 SPA는 셸이
+  # 즉시 뜨고 그 위에 "서버 깨우는 중"을 띄울 수 있다.
+  #
+  # 주의: VITE_API_BASE를 반드시 지정한다. 없으면 프론트가 코드의 기본값(V2 백엔드)을
+  # 보게 되는데, 그쪽에는 V3의 인증 변경이 반영돼 있지 않다.
+  - type: web
+    name: naengjango-hankki-v3-web
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_BASE
+        value: https://naengjango-hankki-v2-api.onrender.com
+    routes:
+      # SPA라 서버에 없는 경로(/recipe/67 등)도 index.html로 보내야 한다.
+      # 이게 없으면 주소를 직접 입력하거나 새로고침할 때 404가 난다.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
 # V3에서 Reflex 백엔드 서비스(naengjango-hankki-v2-reflex)를 이 블루프린트에서 뺐다.
-# 프론트가 React(Vite)로 바뀌면서 상시 실행되는 Python 프로세스가 더는 필요 없다 -
-# 빌드된 정적 파일을 Render 정적 사이트로 올리고, 이 FastAPI만 호출한다.
-# 서비스 이름은 살아 있는 Render 서비스와 연결돼 있어서 일부러 v2 그대로 두었다.
+# 프론트가 React(Vite)로 바뀌면서 상시 실행되는 Python 프로세스가 더는 필요 없다.
+# FastAPI 서비스 이름은 살아 있는 Render 서비스와 연결돼 있어서 일부러 v2 그대로 두었다.
 # 바꾸면 새 서비스가 생기고 기존 주소가 끊긴다.

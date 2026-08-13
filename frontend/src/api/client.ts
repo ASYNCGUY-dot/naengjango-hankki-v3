@@ -85,7 +85,13 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   // 호출부가 준 signal(화면 언마운트 등)과 타임아웃을 함께 본다.
-  signal?.addEventListener('abort', () => controller.abort(), { once: true })
+  // 이미 중단된 signal이 들어오면 abort 이벤트가 다시 오지 않으므로 지금 바로 중단한다 -
+  // 이 확인이 없으면 이미 떠난 화면을 위해 요청이 그대로 나간다.
+  if (signal?.aborted) {
+    controller.abort()
+  } else {
+    signal?.addEventListener('abort', () => controller.abort(), { once: true })
+  }
 
   const headers: Record<string, string> = {}
   const token = tokenStore.get()

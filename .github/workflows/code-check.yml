@@ -21,11 +21,11 @@ jobs:
     steps:
       # 1) 저장소 코드를 runner로 가져온다
       - name: 코드 가져오기
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 2) 파이썬 설치 (지수님 로컬 가상환경과 맞춰 3.12 사용)
       - name: 파이썬 3.12 설치
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "pip"
@@ -54,6 +54,17 @@ jobs:
       - name: pytest 실행
         run: pytest tests/ -v
 
+      # 7) 프론트가 쓰는 API 명세가 지금 코드와 같은지 확인한다.
+      #    백엔드 라우트를 고치고 frontend/openapi.json을 안 갱신하면, 프론트의 타입은
+      #    사라진 엔드포인트를 계속 있다고 믿는다(실제로 POST /profile에서 겪었다).
+      - name: API 명세가 코드와 일치하는지
+        run: |
+          python scripts/dump_openapi.py
+          git diff --exit-code frontend/openapi.json || {
+            echo "::error::백엔드가 바뀌었는데 frontend/openapi.json이 낡았다. scripts/dump_openapi.py를 돌리고 frontend에서 npm run gen:api를 실행할 것."
+            exit 1
+          }
+
   # 프론트엔드(Vite + React + TypeScript). V2는 프론트 테스트 도구가 아예 없어서
   # 4,047줄의 커버리지가 0%였다. V3는 스캐폴딩 단계부터 붙여둔다.
   # 타입 검사를 따로 돌리는 이유: Vite는 빌드할 때 타입을 검사하지 않고 표기만 벗겨낸다.
@@ -64,10 +75,10 @@ jobs:
         working-directory: frontend
     steps:
       - name: 코드 가져오기
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Node 설치
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "24"
           cache: "npm"
@@ -75,6 +86,15 @@ jobs:
 
       - name: 의존성 설치
         run: npm ci
+
+      # 명세는 맞는데 타입을 다시 안 만든 경우를 잡는다.
+      - name: 생성 타입이 명세와 일치하는지
+        run: |
+          npm run gen:api
+          git diff --exit-code src/api/schema.d.ts || {
+            echo "::error::openapi.json이 바뀌었는데 schema.d.ts가 낡았다. frontend에서 npm run gen:api를 실행할 것."
+            exit 1
+          }
 
       - name: 타입 검사
         run: npm run typecheck
@@ -116,10 +136,10 @@ jobs:
           --health-retries 5
     steps:
       - name: 코드 가져오기
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 파이썬 3.12 설치
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "pip"

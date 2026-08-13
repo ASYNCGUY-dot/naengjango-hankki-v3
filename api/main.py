@@ -45,7 +45,10 @@ app.include_router(price.router)
 app.include_router(nutrition.router)
 app.include_router(seasonal.router)
 app.include_router(shopping.router)
-app.include_router(like.router)
+# like.router는 위(recommendation.router 앞)에서 이미 등록했다. 여기에도 있던 중복 등록을
+# V3에서 제거했다 - 순서 문제를 고치며 앞쪽에 추가하고 원래 줄을 안 지운 흔적이었다.
+# 기능상 첫 등록이 이겨서 동작은 했지만, OpenAPI 명세에 같은 오퍼레이션이 두 번 실려
+# 생성 타입의 이름이 어그러졌다(로컬에서 명세를 뽑으며 경고로 드러났다).
 app.include_router(ingredient_submission.router)
 
 
