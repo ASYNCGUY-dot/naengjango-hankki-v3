@@ -1,11 +1,25 @@
 import logging
 import os
+from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
 
-from api.routers import (
+# .env를 파일 위치 기준으로 먼저 읽는다 (2026-08-13).
+#
+# 다른 모듈들은 load_dotenv()를 인자 없이 부르는데, 그건 실행 디렉터리에서 .env를 찾는다.
+# uvicorn을 저장소 밖에서 띄우면(--app-dir로 지정하는 경우) 못 찾고, POSTGRES_URL이 비어
+# psycopg2가 기본값인 localhost:5432에 붙으려다 실패한다. 실제로 겪었고, 증상이
+# "연결 거부"라 원인이 .env라는 걸 알아채기 어려웠다.
+#
+# 여기서 먼저 채워두면 이후 모듈의 load_dotenv()는 덮어쓰지 않으므로(기본 동작) 그대로 둬도 된다.
+# 이 import는 api.routers보다 위에 있어야 한다 - deps.py가 import 시점에 값을 읽는다.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+
+from api.routers import (  # noqa: E402
     admin,
     auth,
     favorite,

@@ -259,7 +259,11 @@ def get_candidate_recipes(cur, profile: dict) -> list[dict]:
     좋아요 개수·알레르기 태그·영양군 태그를 한 번씩만 조회해서 딕셔너리로 인덱싱해두고
     루프 안에서는 그 딕셔너리만 참조한다. 필터링/제외 판단 로직 자체는 그대로다.
     """
-    user_allergies = set(a.strip() for a in profile.get("allergy", "").split(",") if a.strip())
+    # .get(키, 기본값)은 키가 없을 때만 기본값을 준다. allergy 컬럼은 있는데 값이 NULL이면
+    # None이 그대로 나와 .split()에서 터진다(2026-08-13에 실제로 터졌다). 가입만 하고
+    # 온보딩을 안 한 사용자가 정확히 이 상태라, 지인 테스트에서 전원이 첫 추천에서 만났을
+    # 버그다. V2에서는 프로필을 만들 때 항상 값을 넣어서 드러나지 않았다.
+    user_allergies = set(a.strip() for a in (profile.get("allergy") or "").split(",") if a.strip())
 
     cur.execute(
         "SELECT id, menu_name, cook_method, category, calorie, nutrients_json, "

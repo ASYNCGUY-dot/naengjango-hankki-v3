@@ -1,0 +1,115 @@
+.appbar {
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+
+.appbar h1 {
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.basis {
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  /* 재료가 많으면 줄바꿈된다. 잘라내면 무엇을 기준으로 골랐는지 알 수 없다. */
+  word-break: break-word;
+}
+
+.basisLabel {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-right: var(--space-1);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--recipe-grid-columns), 1fr);
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  list-style: none;
+}
+
+.skeleton {
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  aspect-ratio: 3 / 4;
+}
+
+.notice {
+  margin: var(--space-3) var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
+  font-size: var(--font-size-sm);
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.notice small {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  margin-top: var(--space-1);
+}
+
+.error {
+  margin: var(--space-3) var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-danger-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.empty {
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.empty p {
+  margin-bottom: var(--space-6);
+}
+
+.guest {
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+
+.guest p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-6);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target-min);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+}
+
+.cta:hover {
+  background: var(--color-accent-strong);
+}
+
+.footnote {
+  padding: var(--space-4);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  text-align: center;
+}

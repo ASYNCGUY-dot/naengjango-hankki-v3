@@ -55,6 +55,14 @@ _pool: psycopg2.pool.ThreadedConnectionPool | None = None
 def get_pool() -> psycopg2.pool.ThreadedConnectionPool:
     global _pool
     if _pool is None:
+        # POSTGRES_URL이 비면 psycopg2가 기본값인 localhost:5432로 붙으려 하고, 오류는
+        # "연결 거부"로 나온다. 그러면 원인이 .env를 못 읽은 것이라는 걸 알아채기 어렵다.
+        # 실제로 그렇게 한참 헤맸으므로 여기서 무엇이 없는지 그대로 말해준다.
+        if not POSTGRES_URL:
+            raise RuntimeError(
+                "POSTGRES_URL이 비어 있습니다. .env를 읽지 못했을 가능성이 큽니다 "
+                "(uvicorn을 저장소 밖에서 띄우면 인자 없는 load_dotenv()가 .env를 못 찾습니다)."
+            )
         _pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=10, dsn=POSTGRES_URL)
     return _pool
 

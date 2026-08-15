@@ -57,3 +57,33 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
+
+/* 추천 화면에서 "재료 N개 활용"을 보여주는 자리.
+   채움색 위 글자는 --color-text-on-fill을 쓴다. 브랜드 채움색은 밝아서 흰 글자를
+   올리면 읽히지 않는다(design/tokens.css 참고). */
+.badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15em var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.good {
+  background: var(--color-success-fill);
+  color: var(--color-text-on-fill);
+}
+
+.weak {
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
+}
+
+/* 자격 미달(qualifies=false)인 추천. 겹치는 재료가 너무 적거나 메뉴명의 핵심 재료가
+   없는 경우라, 사용자가 "왜 이게 떴지"라고 느끼지 않게 구분해준다. */
+.poor {
+  background: var(--color-warning-fill);
+  color: var(--color-text-on-fill);
+}
