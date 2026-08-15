@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import AuthPage from './routes/AuthPage'
 import HomePage from './routes/HomePage'
+import MyPage from './routes/MyPage'
 import PantryPage from './routes/PantryPage'
 import { ForgotPasswordPage, ResetPasswordPage } from './routes/PasswordResetPage'
 import RecipeDetailPage from './routes/RecipeDetailPage'
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/pantry" element={<PantryPage />} />
         <Route path="/recommend" element={<RecommendPage />} />
         <Route path="/recipe/:recipeId" element={<RecipeDetailPage />} />
+        <Route path="/my" element={<MyPage />} />
       </Route>
       {/* 없는 주소는 홈으로. 지인 테스트에서 오타 링크를 받아도 빈 화면을 보지 않게 한다. */}
       <Route path="*" element={<Navigate to="/" replace />} />

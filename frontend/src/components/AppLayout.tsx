@@ -7,7 +7,9 @@ const TABS = [
   { to: '/', label: '홈', icon: '🏠', end: true },
   { to: '/pantry', label: '냉장고', icon: '🧊', end: false },
   { to: '/recommend', label: '추천', icon: '✨', end: false },
-  { to: '/login', label: '마이', icon: '👤', end: false },
+  // 로그인 화면이 아니라 마이 화면을 가리킨다. 예전에는 /login이라, 이미 로그인한
+  // 사람이 눌러도 로그인 화면이 떴다.
+  { to: '/my', label: '마이', icon: '👤', end: false },
 ]
 
 export default function AppLayout() {

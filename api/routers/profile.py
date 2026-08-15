@@ -36,6 +36,9 @@ class ProfileRequest(BaseModel):
 
 class ProfileGetResponse(BaseModel):
     has_profile: bool
+    # 마이 화면이 "누구로 로그인했는지"를 보여주는 데 쓴다(2026-08-13).
+    username: str | None = None
+    name: str | None = None
     gender: str | None = None
     age_group: str | None = None
     allergy: str | None = None

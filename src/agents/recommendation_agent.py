@@ -205,10 +205,12 @@ def ingredients_match(a: str, b: str) -> bool:
 
 
 def get_user_profile(cur, user_id: int) -> dict | None:
+    # username과 name도 함께 읽는다(2026-08-13). 마이 화면이 "누구로 로그인했는지"를
+    # 보여주려면 필요한데, 이 함수 말고는 계정 한 건을 통째로 읽는 자리가 없다.
     cur.execute("""
         SELECT id, gender, age_group, allergy, health_goal, purpose,
                cooking_level, supplements, household_size, novelty_pref, cooking_tools,
-               medical_conditions
+               medical_conditions, username, name
         FROM users WHERE id = ?
     """, (user_id,))
     row = cur.fetchone()
@@ -217,7 +219,7 @@ def get_user_profile(cur, user_id: int) -> dict | None:
 
     columns = ["id", "gender", "age_group", "allergy", "health_goal", "purpose",
                "cooking_level", "supplements", "household_size", "novelty_pref", "cooking_tools",
-               "medical_conditions"]
+               "medical_conditions", "username", "name"]
     return dict(zip(columns, row))
 
 
@@ -468,18 +470,9 @@ def get_recipe_categories_with_counts(cur) -> list[dict]:
     return [{"category": row[0], "count": row[1]} for row in cur.fetchall()]
 
 
-def get_recipe_categories(cur) -> list[str]:
-    """
-    "레시피 찾아보기" 필터 칩에 쓸 분류 목록을 실제 데이터에서 뽑아온다 (#58).
-    분류 이름을 임의로 추측해서 하드코딩하지 않고, 실제 등록된(approved) 레시피에 있는
-    category 값만, 많이 쓰이는 순으로 반환한다.
-    """
-    cur.execute(
-        "SELECT category, COUNT(*) AS c FROM recipes "
-        "WHERE status = 'approved' AND category IS NOT NULL AND category != '' "
-        "GROUP BY category ORDER BY c DESC"
-    )
-    return [row[0] for row in cur.fetchall()]
+# get_recipe_categories()는 2026-08-13에 지웠다. 개수까지 함께 주는
+# get_recipe_categories_with_counts()가 그 자리를 대신하고, 이름만 돌려주던 쪽은
+# 어디서도 부르지 않았다.
 
 
 # 최소 이 비율(조미료 제외 재료 기준) 이상은 맞아야 "쓸만한 후보"로 인정한다 (2026-07 4차 개정,

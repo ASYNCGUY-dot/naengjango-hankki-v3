@@ -1231,6 +1231,17 @@
             ],
             "title": "Medical Conditions"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "novelty_pref": {
             "anyOf": [
               {
@@ -1263,6 +1274,17 @@
               }
             ],
             "title": "Supplements"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
           }
         },
         "required": [

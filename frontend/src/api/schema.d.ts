@@ -1248,12 +1248,16 @@ export interface components {
             household_size?: number | null;
             /** Medical Conditions */
             medical_conditions?: string | null;
+            /** Name */
+            name?: string | null;
             /** Novelty Pref */
             novelty_pref?: string | null;
             /** Purpose */
             purpose?: string | null;
             /** Supplements */
             supplements?: string | null;
+            /** Username */
+            username?: string | null;
         };
         /** ProfileRequest */
         ProfileRequest: {
