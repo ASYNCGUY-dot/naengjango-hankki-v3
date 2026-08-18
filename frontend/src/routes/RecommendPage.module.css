@@ -1,5 +1,30 @@
 .appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   padding: var(--space-4) var(--space-4) var(--space-2);
+}
+
+/* 재료를 고친 뒤에만 나타난다. 안 고쳤을 때는 아무 일도 안 하는 버튼이라 감춘다. */
+.reset {
+  display: inline-flex;
+  align-items: center;
+  /* 손가락으로 눌러야 하므로 글자 크기와 무관하게 44px를 확보한다. */
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-3);
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.reset:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
 }
 
 .appbar h1 {
@@ -22,7 +47,128 @@
 .basisLabel {
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
-  margin-right: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.basisHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  margin-top: var(--space-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+/* × 자리도 손가락으로 눌러야 한다. 칩 전체가 아니라 이 버튼만 누르는 영역이므로
+   여기서 따로 44px를 확보한다. */
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+}
+
+.chipRemove:hover {
+  color: var(--color-danger-text);
+}
+
+.addRow {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.addRow input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.addRow button {
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.addRow button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 결과가 낡았을 때만 나타난다. 지금 보이는 목록이 화면의 결과와 다르다는 신호라
+   눈에 띄어야 한다. */
+.apply {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  margin-top: var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.apply:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
+
+.apply:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* 화면 낭독기에는 읽히고 눈에는 안 보인다. 입력칸에 라벨이 없으면 무엇을 넣는
+   칸인지 알 수 없는데, 옆에 "추가" 버튼이 있어 시각적으로는 자명하다. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .grid {

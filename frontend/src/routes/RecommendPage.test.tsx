@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import RecommendPage from './RecommendPage'
@@ -93,7 +94,9 @@ describe('추천 결과 화면', () => {
       .map((c) => new URL(c[0] as string))
       .find((u) => u.pathname.startsWith('/recommendation/'))
     expect(recCall?.searchParams.getAll('ingredients')).toEqual(['고등어', '무'])
-    expect(screen.getByText(/고등어, 무/)).toBeInTheDocument()
+    // 기준 재료는 칩으로 보여준다 - 하나씩 뺄 수 있어야 하기 때문이다.
+    expect(screen.getByRole('button', { name: '고등어 빼기' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '무 빼기' })).toBeInTheDocument()
   })
 
   it('재료 활용 개수를 카드에 표시한다', async () => {
@@ -159,5 +162,126 @@ describe('추천 결과 화면', () => {
 
     await screen.findByText('사진없는추천')
     await waitFor(() => expect(container.querySelector('img')).toBeNull())
+  })
+})
+
+describe('기준 재료 편집', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  const pantry = [
+    { id: 1, name: '고등어', expiry_date: null },
+    { id: 2, name: '무', expiry_date: null },
+  ]
+
+  function recCalls(fetchMock: ReturnType<typeof mockApi>) {
+    return fetchMock.mock.calls
+      .map((c) => new URL(c[0] as string))
+      .filter((u) => u.pathname.startsWith('/recommendation/'))
+  }
+
+  it('재료를 빼도 바로 다시 부르지 않는다', async () => {
+    // 추천 한 번이 무료 티어에서 2.4초다. 칩 하나 지울 때마다 부르면 편집이 괴로워진다.
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi(pantry, [item()])
+    renderWithProviders(<RecommendPage />)
+
+    await screen.findByText('고등어무조림')
+    expect(recCalls(fetchMock)).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: '무 빼기' }))
+
+    expect(screen.queryByRole('button', { name: '무 빼기' })).not.toBeInTheDocument()
+    expect(recCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('고친 재료로 다시 추천받을 수 있다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi(pantry, [item()])
+    renderWithProviders(<RecommendPage />)
+
+    await screen.findByText('고등어무조림')
+    await user.click(screen.getByRole('button', { name: '무 빼기' }))
+    await user.click(screen.getByRole('button', { name: '이 재료로 추천받기' }))
+
+    await waitFor(() => expect(recCalls(fetchMock)).toHaveLength(2))
+    expect(recCalls(fetchMock)[1].searchParams.getAll('ingredients')).toEqual(['고등어'])
+  })
+
+  it('없던 재료를 넣어 추천받을 수 있다', async () => {
+    // 냉장고에 저장하지 않고 "이 재료만으로 뭘 만들지"를 보려는 용도다.
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi(pantry, [item()])
+    renderWithProviders(<RecommendPage />)
+
+    await screen.findByText('고등어무조림')
+    await user.type(screen.getByLabelText('재료 추가'), '두부')
+    await user.click(screen.getByRole('button', { name: '추가' }))
+    await user.click(screen.getByRole('button', { name: '이 재료로 추천받기' }))
+
+    await waitFor(() => expect(recCalls(fetchMock)).toHaveLength(2))
+    expect(recCalls(fetchMock)[1].searchParams.getAll('ingredients')).toEqual([
+      '고등어',
+      '무',
+      '두부',
+    ])
+  })
+
+  it('같은 재료를 두 번 넣지 않는다', async () => {
+    // 중복이 들어가면 서버가 겹침 개수를 부풀려 센다.
+    const user = userEvent.setup()
+    signIn()
+    mockApi(pantry, [item()])
+    renderWithProviders(<RecommendPage />)
+
+    await screen.findByText('고등어무조림')
+    await user.type(screen.getByLabelText('재료 추가'), '고등어')
+    await user.click(screen.getByRole('button', { name: '추가' }))
+
+    expect(screen.getAllByRole('button', { name: '고등어 빼기' })).toHaveLength(1)
+  })
+
+  it('되돌리기는 고친 뒤에만 나타나고, 누르면 냉장고 재료로 돌아간다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockApi(pantry, [item()])
+    renderWithProviders(<RecommendPage />)
+
+    await screen.findByText('고등어무조림')
+    // 안 고친 상태에서는 아무 일도 안 하는 버튼이라 감춘다.
+    expect(
+      screen.queryByRole('button', { name: '냉장고 재료로 되돌리기' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '무 빼기' }))
+    await user.click(screen.getByRole('button', { name: '냉장고 재료로 되돌리기' }))
+
+    expect(screen.getByRole('button', { name: '무 빼기' })).toBeInTheDocument()
+  })
+
+  it('편집해도 냉장고를 건드리지 않는다', async () => {
+    // 이 화면의 편집은 이번 추천에만 쓰인다. 냉장고에 쓰기가 나가면 안 된다.
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi(pantry, [item()])
+    renderWithProviders(<RecommendPage />)
+
+    await screen.findByText('고등어무조림')
+    await user.click(screen.getByRole('button', { name: '무 빼기' }))
+    await user.type(screen.getByLabelText('재료 추가'), '두부')
+    await user.click(screen.getByRole('button', { name: '추가' }))
+    await user.click(screen.getByRole('button', { name: '이 재료로 추천받기' }))
+
+    await waitFor(() => expect(recCalls(fetchMock)).toHaveLength(2))
+    const wrote = fetchMock.mock.calls.some(
+      ([url, init]) =>
+        String(url).includes('/pantry/') &&
+        (init as RequestInit | undefined)?.method !== undefined &&
+        (init as RequestInit).method !== 'GET',
+    )
+    expect(wrote).toBe(false)
   })
 })
