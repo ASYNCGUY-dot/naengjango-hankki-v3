@@ -603,6 +603,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recommendation/recipes/themes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Home Themes
+         * @description 홈 화면에 줄 단위로 보여줄 테마들.
+         *
+         *     홈이 가나다순 20개를 한 덩어리로 쏟아내 "어지럽다"는 피드백을 받아 만들었다
+         *     (2026-08-18). 테마는 데이터가 지탱하는 것만 쓴다 - 요청에 있던 한식·중식·일식과
+         *     난이도는 recipes에 컬럼이 없어 만들 수 없고, 난이도는 재료 개수로 대신한다.
+         *
+         *     month는 테스트와 미리보기용이다. 안 주면 오늘 날짜를 쓴다.
+         */
+        get: operations["list_home_themes_recommendation_recipes_themes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recommendation/recipes/{recipe_id}": {
         parameters: {
             query?: never;
@@ -1416,6 +1442,22 @@ export interface components {
             image_url: string | null;
             /** Menu Name */
             menu_name: string;
+        };
+        /**
+         * RecipeTheme
+         * @description 홈 화면의 테마 한 줄.
+         */
+        RecipeTheme: {
+            /** Key */
+            key: string;
+            /** Recipes */
+            recipes: components["schemas"]["RecipeSummary"][];
+            /** Subtitle */
+            subtitle?: string | null;
+            /** Title */
+            title: string;
+            /** Total */
+            total: number;
         };
         /** RecommendationItem */
         RecommendationItem: {
@@ -2942,6 +2984,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecipeSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_home_themes_recommendation_recipes_themes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                month?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeTheme"][];
                 };
             };
             /** @description Validation Error */

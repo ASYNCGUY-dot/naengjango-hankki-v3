@@ -865,6 +865,133 @@ def score_by_ingredients(cur, candidates: list[dict], user_ingredients: list[str
     return scored
 
 
+# ---------- 홈 화면 테마 ----------
+#
+# 홈이 가나다순 20개를 한 덩어리로 쏟아내서 "두서 없고 어지럽다"는 피드백을 받았다
+# (2026-08-18). "가지겉절이, 가지나물냉국, 가지라따뚜이…"가 줄줄이 나오는 게 큰 몫이었다.
+#
+# 테마를 고를 때 데이터가 지탱하는 것만 골랐다. 요청에는 한식·중식·일식과 난이도도
+# 있었지만 recipes에 그런 컬럼이 없다. 메뉴명으로 추측할 수는 있어도 "가지 탕수육"을
+# 어디에 넣을지가 어긋나기 시작하면 사용자가 먼저 알아챈다. 난이도는 **재료 개수**로
+# 대신한다 - 지어낸 등급보다 정직하고, 실제로 "간단한가"와 상관이 있다.
+#
+# 정렬은 id순이다. 메뉴명순으로 하면 애초 문제였던 가나다 뭉침이 테마 안에서 되풀이된다.
+
+# 재료가 이 개수 이하면 "간단한" 쪽으로 본다. 1,148개 중 188개가 걸린다.
+SIMPLE_INGREDIENT_MAX = 7
+LIGHT_CALORIE_MAX = 200
+HEARTY_CALORIE_MIN = 400
+
+
+def _subject_particle(word: str) -> str:
+    """받침이 있으면 "이", 없으면 "가". 문장을 만들어 붙이므로 조사를 맞춰야 한다.
+
+    "참나물가 제철이에요"는 한국어 사용자가 바로 알아챈다. 한글 음절은
+    (코드 - 0xAC00) % 28 이 0이 아니면 종성이 있다.
+    """
+    if not word:
+        return "가"
+    last = word[-1]
+    if "가" <= last <= "힣":
+        return "이" if (ord(last) - 0xAC00) % 28 else "가"
+    # 한글이 아닌 글자로 끝나면 판단할 근거가 없다. 둘 다 어색하지 않은 쪽을 쓴다.
+    return "가"
+
+
+def _theme_rows(cur, where_sql: str, params: tuple, limit: int) -> tuple[list[dict], int]:
+    """조건에 맞는 레시피 목록과 전체 개수를 함께 돌려준다.
+
+    개수를 같이 주는 이유는 화면에 "32개"처럼 규모를 보여주기 위해서다. 열 개만 보여주고
+    끝이면 그게 전부인지 일부인지 알 수 없다.
+    """
+    cur.execute(
+        f"SELECT id, menu_name, category, calorie, image_url FROM recipes "
+        f"WHERE {where_sql} ORDER BY id LIMIT ?",
+        (*params, limit),
+    )
+    recipes = [
+        {"id": r[0], "menu_name": r[1], "category": r[2], "calorie": r[3], "image_url": r[4]}
+        for r in cur.fetchall()
+    ]
+    cur.execute(f"SELECT COUNT(*) FROM recipes WHERE {where_sql}", params)
+    return recipes, cur.fetchone()[0]
+
+
+def get_home_themes(cur, seasonal_ingredients: list[str], month: int, limit: int = 10) -> list[dict]:
+    """홈 화면에 줄 단위로 보여줄 테마들.
+
+    제철 재료는 호출부가 넘긴다 - 이 함수가 달력을 읽으면 테스트가 날짜에 묶인다.
+
+    한 번의 요청으로 네 테마를 다 돌려준다. 테마마다 따로 부르면 무료 티어(0.1 CPU)에서
+    왕복이 네 배가 되고, 콜드스타트까지 겹치면 첫 화면이 그만큼 늦어진다.
+    """
+    themes: list[dict] = []
+
+    if seasonal_ingredients:
+        # 제철 품목 이름이 재료에 들어 있는 레시피. LIKE 패턴은 문자열에 박지 않고
+        # 파라미터로 바인딩한다(8.1 함정 - psycopg2가 리터럴 %를 자리표시자로 오인한다).
+        likes = " OR ".join(["ri.name LIKE ?"] * len(seasonal_ingredients))
+        where = (
+            "status = 'approved' AND id IN "
+            f"(SELECT ri.recipe_id FROM recipe_ingredients ri WHERE {likes})"
+        )
+        params = tuple(f"%{name}%" for name in seasonal_ingredients)
+        recipes, total = _theme_rows(cur, where, params, limit)
+        if recipes:
+            themes.append({
+                "key": "seasonal",
+                "title": f"{month}월 제철",
+                "subtitle": (
+                    f"{', '.join(seasonal_ingredients)}"
+                    f"{_subject_particle(seasonal_ingredients[-1])} 제철이에요"
+                ),
+                "total": total,
+                "recipes": recipes,
+            })
+
+    recipes, total = _theme_rows(
+        cur,
+        "status = 'approved' AND id IN "
+        "(SELECT recipe_id FROM recipe_ingredients GROUP BY recipe_id HAVING COUNT(*) <= ?)",
+        (SIMPLE_INGREDIENT_MAX,),
+        limit,
+    )
+    if recipes:
+        themes.append({
+            "key": "simple",
+            "title": "간단하게",
+            "subtitle": f"재료 {SIMPLE_INGREDIENT_MAX}개 이하로 만들어요",
+            "total": total,
+            "recipes": recipes,
+        })
+
+    recipes, total = _theme_rows(
+        cur, "status = 'approved' AND calorie <= ?", (LIGHT_CALORIE_MAX,), limit
+    )
+    if recipes:
+        themes.append({
+            "key": "light",
+            "title": "가볍게",
+            "subtitle": f"{LIGHT_CALORIE_MAX}kcal 이하",
+            "total": total,
+            "recipes": recipes,
+        })
+
+    recipes, total = _theme_rows(
+        cur, "status = 'approved' AND calorie >= ?", (HEARTY_CALORIE_MIN,), limit
+    )
+    if recipes:
+        themes.append({
+            "key": "hearty",
+            "title": "든든하게",
+            "subtitle": f"{HEARTY_CALORIE_MIN}kcal 이상",
+            "total": total,
+            "recipes": recipes,
+        })
+
+    return themes
+
+
 if __name__ == "__main__":
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()

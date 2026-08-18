@@ -3,6 +3,7 @@ import type { components } from './schema'
 
 export type { RecipeSummary }
 export type CategoryCount = components['schemas']['CategoryCount']
+export type RecipeTheme = components['schemas']['RecipeTheme']
 
 /** 화면의 "전체" 칩. 서버에 이 값을 보내면 필터를 걸지 않는다(search_all_recipes 참고). */
 export const ALL_CATEGORIES = '전체'
@@ -31,4 +32,20 @@ export async function searchRecipes(options: {
 
 export async function listCategories(signal?: AbortSignal): Promise<CategoryCount[]> {
   return apiFetch<CategoryCount[]>('/recommendation/recipes/categories', { signal })
+}
+
+/** 한 테마 줄에 보여줄 개수. 가로로 넘기는 줄이라 화면 폭과 무관하게 정한다. */
+export const THEME_SIZE = 10
+
+/**
+ * 홈 화면 테마들. 네 줄이 한 번의 요청으로 온다.
+ *
+ * 줄마다 따로 부르면 무료 티어(0.1 CPU)에서 왕복이 네 배가 되고, 콜드스타트까지 겹치면
+ * 첫 화면이 그만큼 늦어진다.
+ */
+export async function listThemes(signal?: AbortSignal): Promise<RecipeTheme[]> {
+  return apiFetch<RecipeTheme[]>('/recommendation/recipes/themes', {
+    query: { limit: THEME_SIZE },
+    signal,
+  })
 }

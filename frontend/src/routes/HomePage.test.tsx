@@ -25,16 +25,26 @@ function recipe(id: number, overrides: Partial<Recipe> = {}): Recipe {
   }
 }
 
-/** 검색과 분류 목록 두 종류의 요청이 오므로 경로로 갈라서 답한다. */
+type Theme = {
+  key: string
+  title: string
+  subtitle: string | null
+  total: number
+  recipes: Recipe[]
+}
+
+/** 검색·분류·테마 세 종류의 요청이 오므로 경로로 갈라서 답한다. */
 function mockApi(handlers: {
   search?: (url: URL) => Recipe[]
   categories?: () => { category: string; count: number }[]
+  themes?: () => Theme[]
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(input as string)
-    const body = url.pathname.endsWith('/categories')
-      ? (handlers.categories?.() ?? [])
-      : (handlers.search?.(url) ?? [])
+    let body: unknown
+    if (url.pathname.endsWith('/categories')) body = handlers.categories?.() ?? []
+    else if (url.pathname.endsWith('/themes')) body = handlers.themes?.() ?? []
+    else body = handlers.search?.(url) ?? []
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -200,5 +210,89 @@ describe('홈 화면', () => {
     renderWithProviders(<HomePage />)
 
     expect(await screen.findByText('칩없어도보인다')).toBeInTheDocument()
+  })
+})
+
+describe('테마 줄', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  function theme(overrides: Partial<Theme> = {}): Theme {
+    return {
+      key: 'light',
+      title: '가볍게',
+      subtitle: '200kcal 이하',
+      total: 567,
+      recipes: [recipe(11, { menu_name: '가벼운메뉴' })],
+      ...overrides,
+    }
+  }
+
+  it('테마를 제목·개수와 함께 줄로 보여준다', async () => {
+    // 열 개만 보여주므로 전체가 몇 개인지 알려줘야 그게 전부인지 일부인지 안다.
+    mockApi({ search: () => [recipe(1)], themes: () => [theme()] })
+    renderWithProviders(<HomePage />)
+
+    const section = await screen.findByRole('region', { name: '가볍게' })
+    expect(within(section).getByText('567개')).toBeInTheDocument()
+    expect(within(section).getByText('200kcal 이하')).toBeInTheDocument()
+    expect(within(section).getByText('가벼운메뉴')).toBeInTheDocument()
+  })
+
+  it('검색하면 테마를 감춘다', async () => {
+    // 찾는 게 분명한 사람에게 테마는 방해다.
+    const user = userEvent.setup()
+    mockApi({ search: () => [recipe(1)], themes: () => [theme()] })
+    renderWithProviders(<HomePage />)
+
+    await screen.findByRole('region', { name: '가볍게' })
+    await user.type(screen.getByLabelText('레시피 검색'), '두부')
+
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: '가볍게' })).not.toBeInTheDocument(),
+    )
+  })
+
+  it('분류를 고르면 테마를 감춘다', async () => {
+    const user = userEvent.setup()
+    mockApi({
+      search: () => [recipe(1)],
+      themes: () => [theme()],
+      categories: () => [{ category: '반찬', count: 574 }],
+    })
+    renderWithProviders(<HomePage />)
+
+    await screen.findByRole('region', { name: '가볍게' })
+    await user.click(await screen.findByRole('button', { name: '반찬' }))
+
+    expect(screen.queryByRole('region', { name: '가볍게' })).not.toBeInTheDocument()
+  })
+
+  it('테마를 못 받아도 목록은 나온다', async () => {
+    // 테마는 덤이다. 그것 때문에 화면 전체가 비면 안 된다.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(input as string)
+      if (url.pathname.endsWith('/themes')) return new Response('{}', { status: 500 })
+      return new Response(JSON.stringify([recipe(1, { menu_name: '테마없어도보인다' })]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+    renderWithProviders(<HomePage />)
+
+    expect(await screen.findByText('테마없어도보인다')).toBeInTheDocument()
+  })
+
+  it('모양이 어긋난 테마가 와도 화면이 비지 않는다', async () => {
+    // recipes가 없는 항목을 그대로 그리면 렌더링 중에 터져 화면 전체가 빈다.
+    mockApi({
+      search: () => [recipe(1, { menu_name: '망가져도보인다' })],
+      themes: () => [{ key: 'broken', title: '깨진테마' } as unknown as Theme, theme()],
+    })
+    renderWithProviders(<HomePage />)
+
+    expect(await screen.findByText('망가져도보인다')).toBeInTheDocument()
+    expect(screen.queryByText('깨진테마')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '가볍게' })).toBeInTheDocument()
   })
 })

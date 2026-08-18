@@ -15,6 +15,7 @@ get_user_profile -> get_candidate_recipes -> score_by_ingredients 순서는 그�
 
 import json
 import sqlite3
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -23,7 +24,7 @@ from pydantic import BaseModel
 from api import usage_log
 from api.auth_token import get_current_user_id, get_optional_user_id, require_self
 from api.deps import get_db
-from src.agents import portion_agent, recommendation_agent
+from src.agents import portion_agent, recommendation_agent, seasonal_agent
 
 router = APIRouter(prefix="/recommendation", tags=["recommendation"])
 
@@ -191,6 +192,17 @@ class CategoryCount(BaseModel):
     count: int
 
 
+class RecipeTheme(BaseModel):
+    """홈 화면의 테마 한 줄."""
+
+    key: str
+    title: str
+    subtitle: str | None = None
+    # 열 개만 보여주고 끝이면 그게 전부인지 일부인지 알 수 없다. 규모를 함께 준다.
+    total: int
+    recipes: list[RecipeSummary]
+
+
 # "/recipes/categories"와 "/recipes/search"는 "/recipes/{recipe_id}"보다 먼저 등록해야 한다 -
 # 안 그러면 "categories"가 recipe_id 자리에 매칭 시도되다 int 변환에 실패해 422가 난다
 # (#req5에서 popular 엔드포인트로 겪은 것과 같은 문제, api/main.py 참고).
@@ -199,6 +211,29 @@ def list_categories(cur: sqlite3.Cursor = Depends(get_db)):
     """분류 필터 칩에 쓸 목록. 이름을 화면에 하드코딩하지 않으려고 실제 데이터에서 뽑는다.
     개수를 함께 주는 이유는, 결과가 적은 분류를 화면이 미리 알 수 있어서다."""
     return recommendation_agent.get_recipe_categories_with_counts(cur)
+
+
+@router.get("/recipes/themes", response_model=list[RecipeTheme])
+def list_home_themes(
+    limit: int = Query(default=10, ge=1, le=20),
+    month: int | None = Query(default=None, ge=1, le=12),
+    cur: sqlite3.Cursor = Depends(get_db),
+):
+    """홈 화면에 줄 단위로 보여줄 테마들.
+
+    홈이 가나다순 20개를 한 덩어리로 쏟아내 "어지럽다"는 피드백을 받아 만들었다
+    (2026-08-18). 테마는 데이터가 지탱하는 것만 쓴다 - 요청에 있던 한식·중식·일식과
+    난이도는 recipes에 컬럼이 없어 만들 수 없고, 난이도는 재료 개수로 대신한다.
+
+    month는 테스트와 미리보기용이다. 안 주면 오늘 날짜를 쓴다.
+    """
+    resolved_month = month or date.today().month
+    return recommendation_agent.get_home_themes(
+        cur,
+        seasonal_agent.get_current_season_ingredients(resolved_month),
+        resolved_month,
+        limit,
+    )
 
 
 @router.get("/recipes/search", response_model=list[RecipeSummary])

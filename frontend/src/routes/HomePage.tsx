@@ -5,9 +5,11 @@ import {
   ALL_CATEGORIES,
   PAGE_SIZE,
   listCategories,
+  listThemes,
   searchRecipes,
   type CategoryCount,
   type RecipeSummary,
+  type RecipeTheme,
 } from '../api/recipes'
 import RecipeCard from '../components/RecipeCard'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
@@ -27,11 +29,20 @@ function describe(caught: unknown): string {
  * 시안에는 "인기 레시피"였는데 바꿨다. 인기 순위는 좋아요를 기준으로 하는데 지금 DB에
  * 좋아요가 4개뿐이고 그마저 개발자 본인이 누른 것이라, 그 섹션은 카드 4장으로 끝난다.
  * 1,148개를 분류로 훑어보는 쪽이 지금 데이터로 성립한다. 좋아요가 쌓이면 그때 되살린다.
+ *
+ * 테마 줄을 얹었다(2026-08-18). "두서 없고 어지럽다"는 피드백을 받았는데, 원인은 테마가
+ * 없는 것만이 아니라 가나다순 20개가 한 덩어리로 쏟아지는 것이었다 - "가지겉절이,
+ * 가지나물냉국, 가지라따뚜이…"가 줄줄이 나온다. 테마별로 끊어 가로로 넘기게 하면
+ * 그 뭉침이 사라진다.
+ *
+ * 테마는 검색어나 분류가 걸려 있지 않을 때만 보여준다. 찾는 게 분명한 사람에게 테마는
+ * 방해다.
  */
 export default function HomePage() {
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState(ALL_CATEGORIES)
   const [categories, setCategories] = useState<CategoryCount[]>([])
+  const [themes, setThemes] = useState<RecipeTheme[]>([])
   const [recipes, setRecipes] = useState<RecipeSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -61,12 +72,18 @@ export default function HomePage() {
     }
   }, [])
 
-  // 분류 칩은 한 번만 받아오면 된다.
+  // 분류 칩과 테마는 한 번만 받아오면 된다.
   useEffect(() => {
     const controller = new AbortController()
     listCategories(controller.signal)
       .then(setCategories)
       // 칩을 못 받아도 목록은 볼 수 있어야 한다. 조용히 넘어간다.
+      .catch(() => {})
+    listThemes(controller.signal)
+      // 모양이 어긋난 항목은 버린다. 렌더링 중에 터지면 화면 전체가 비는데, 테마는
+      // 덤이라 그럴 값이 없다. 실제로 테스트에서 그렇게 빈 화면이 나왔다.
+      .then((rows) => setThemes(rows.filter((row) => Array.isArray(row?.recipes))))
+      // 못 받아도 아래 목록으로 둘러볼 수 있다.
       .catch(() => {})
     return () => controller.abort()
   }, [])
@@ -89,6 +106,9 @@ export default function HomePage() {
     }
   }
 
+  // 검색어도 분류도 안 걸린 상태 = 둘러보는 중이다.
+  const isBrowsing = keyword.trim() === '' && category === ALL_CATEGORIES
+
   return (
     <>
       <header className={styles.appbar}>
@@ -108,6 +128,26 @@ export default function HomePage() {
           onChange={(e) => setKeyword(e.target.value)}
         />
       </div>
+
+      {/* 찾는 게 분명한 사람(검색어·분류를 건 사람)에게 테마는 방해다. */}
+      {isBrowsing &&
+        themes.map((theme) => (
+          <section className={styles.theme} key={theme.key} aria-labelledby={`theme-${theme.key}`}>
+            <div className={styles.themeHead}>
+              <h2 id={`theme-${theme.key}`}>{theme.title}</h2>
+              {/* 열 개만 보여주므로 전체가 몇 개인지 함께 알려준다. */}
+              <span className={styles.themeCount}>{theme.total}개</span>
+            </div>
+            {theme.subtitle && <p className={styles.themeSubtitle}>{theme.subtitle}</p>}
+            <ul className={styles.themeRow}>
+              {theme.recipes.map((recipe) => (
+                <li key={recipe.id}>
+                  <RecipeCard recipe={recipe} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
 
       <ul className={styles.chips}>
         {[{ category: ALL_CATEGORIES, count: 0 }, ...categories].map((item) => (
