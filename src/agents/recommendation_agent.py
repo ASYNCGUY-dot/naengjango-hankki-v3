@@ -889,6 +889,42 @@ def score_by_ingredients(cur, candidates: list[dict], user_ingredients: list[str
     return scored
 
 
+def suggest_ingredient_names(cur, keyword: str, limit: int = 8) -> list[dict]:
+    """냉장고에 재료를 넣을 때 보여줄 제안 목록.
+
+    영양 카탈로그(30만 건)가 아니라 **레시피 태그**에서 뽑는다. 이유가 분명하다 -
+    추천이 실제로 비교하는 대상이 이 태그이기 때문이다. 카탈로그에서 제안하면 사용자가
+    고른 이름이 어느 레시피와도 안 맞을 수 있고("두부, 동두부, 동결건조"), 그러면
+    추천이 나빠졌는데 원인이 알고리즘인지 입력인지 구분할 수 없게 된다.
+
+    쓰이는 레시피 수가 많은 것부터 준다. "두"를 치면 118개에 쓰인 "두부"가 먼저 나와야지
+    한 개에만 쓰인 "두부면"이 먼저 나오면 안 된다.
+    """
+    keyword = (keyword or "").strip()
+    if not keyword:
+        return []
+
+    cur.execute(
+        "SELECT tag_value, COUNT(DISTINCT recipe_id) AS n FROM recipe_tags "
+        "WHERE tag_type = 'ingredient' AND tag_value LIKE ? "
+        "GROUP BY tag_value ORDER BY n DESC, tag_value LIMIT ?",
+        (f"%{keyword}%", limit * 3),
+    )
+
+    suggestions = []
+    for name, count in cur.fetchall():
+        # 원본에 "• [추가 재료] 쌈두부"처럼 표기가 섞여 들어온 것이 있다. 그대로 제안하면
+        # 사용자가 그 이름을 그대로 저장하게 된다.
+        if not name or name.startswith("•") or "[" in name:
+            continue
+        if portion_agent.classify_ingredient_row(name, None) != "ingredient":
+            continue
+        suggestions.append({"name": name, "recipe_count": count})
+        if len(suggestions) >= limit:
+            break
+    return suggestions
+
+
 # ---------- 홈 화면 테마 ----------
 #
 # 홈이 가나다순 20개를 한 덩어리로 쏟아내서 "두서 없고 어지럽다"는 피드백을 받았다

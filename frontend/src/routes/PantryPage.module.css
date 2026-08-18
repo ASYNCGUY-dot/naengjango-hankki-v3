@@ -22,6 +22,48 @@
   padding: 0 var(--space-4) var(--space-3);
 }
 
+/* 입력창 아래 붙는 추천 목록. 목록을 띄우려고 화면이 밀리지 않게 흐름 안에 둔다 -
+   떠 있는 레이어로 만들면 모바일에서 키보드에 가린다. */
+.suggestions {
+  list-style: none;
+  margin: 0 var(--space-4) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+.suggestions > li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.suggestions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  border: none;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestions button:hover {
+  background: var(--color-surface-sunken);
+}
+
+/* 어느 표기를 골라야 추천이 잘 되는지 알려주는 값이다. */
+.suggestionCount {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
 .addForm input {
   flex: 1;
   min-height: var(--touch-target-min);

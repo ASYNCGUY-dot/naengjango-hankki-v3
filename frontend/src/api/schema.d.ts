@@ -393,6 +393,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pantry/suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest Ingredients
+         * @description 냉장고 입력창의 자동완성.
+         *
+         *     인가가 없다 - 재료 이름은 개인 정보가 아니고, 로그인 전 데모에서도 쓸 수 있어야 한다.
+         *
+         *     영양 카탈로그가 아니라 레시피 태그에서 뽑는다. 추천이 실제로 비교하는 대상이 그것이라,
+         *     여기서 고른 이름은 반드시 어딘가에 매칭된다. 손으로 치면 "돼지 고기"처럼 어디에도 안
+         *     맞는 값이 들어가고, 그러면 지인 테스트에서 "추천이 별로다"라는 말이 나와도 알고리즘
+         *     문제인지 입력 문제인지 갈라낼 수 없다.
+         */
+        get: operations["suggest_ingredients_pantry_suggest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pantry/{user_id}": {
         parameters: {
             query?: never;
@@ -1063,6 +1090,13 @@ export interface components {
             }[];
             /** Total */
             total: number;
+        };
+        /** IngredientSuggestion */
+        IngredientSuggestion: {
+            /** Name */
+            name: string;
+            /** Recipe Count */
+            recipe_count: number;
         };
         /** LikeStatus */
         LikeStatus: {
@@ -2625,6 +2659,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_ingredients_pantry_suggest_get: {
+        parameters: {
+            query?: {
+                keyword?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientSuggestion"][];
                 };
             };
             /** @description Validation Error */

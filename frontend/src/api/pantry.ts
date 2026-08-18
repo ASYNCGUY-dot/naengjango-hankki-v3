@@ -33,6 +33,25 @@ export async function removePantryItem(userId: number, ingredientId: number): Pr
   await apiFetch(`/pantry/${userId}/${ingredientId}`, { method: 'DELETE' })
 }
 
+export type IngredientSuggestion = components['schemas']['IngredientSuggestion']
+
+/**
+ * 재료 이름 자동완성.
+ *
+ * 레시피 태그에서 뽑으므로 여기서 고른 이름은 추천에서 반드시 매칭된다. 손으로 치면
+ * "돼지 고기"처럼 어디에도 안 맞는 값이 들어가고, 그러면 추천이 나빴을 때 알고리즘
+ * 문제인지 입력 문제인지 갈라낼 수 없다.
+ */
+export async function suggestIngredients(
+  keyword: string,
+  signal?: AbortSignal,
+): Promise<IngredientSuggestion[]> {
+  return apiFetch<IngredientSuggestion[]>('/pantry/suggest', {
+    query: { keyword },
+    signal,
+  })
+}
+
 /** 유통기한이 이 일수 이내면 임박으로 본다. */
 export const EXPIRY_SOON_DAYS = 3
 

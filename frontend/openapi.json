@@ -339,6 +339,24 @@
         "title": "IngredientSearchResponse",
         "type": "object"
       },
+      "IngredientSuggestion": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "recipe_count": {
+            "title": "Recipe Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "recipe_count"
+        ],
+        "title": "IngredientSuggestion",
+        "type": "object"
+      },
       "LikeStatus": {
         "properties": {
           "like_count": {
@@ -4083,6 +4101,67 @@
         "summary": "Update Recipe",
         "tags": [
           "user-recipes"
+        ]
+      }
+    },
+    "/pantry/suggest": {
+      "get": {
+        "description": "냉장고 입력창의 자동완성.\n\n인가가 없다 - 재료 이름은 개인 정보가 아니고, 로그인 전 데모에서도 쓸 수 있어야 한다.\n\n영양 카탈로그가 아니라 레시피 태그에서 뽑는다. 추천이 실제로 비교하는 대상이 그것이라,\n여기서 고른 이름은 반드시 어딘가에 매칭된다. 손으로 치면 \"돼지 고기\"처럼 어디에도 안\n맞는 값이 들어가고, 그러면 지인 테스트에서 \"추천이 별로다\"라는 말이 나와도 알고리즘\n문제인지 입력 문제인지 갈라낼 수 없다.",
+        "operationId": "suggest_ingredients_pantry_suggest_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "keyword",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 40,
+              "title": "Keyword",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 8,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IngredientSuggestion"
+                  },
+                  "title": "Response Suggest Ingredients Pantry Suggest Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggest Ingredients",
+        "tags": [
+          "pantry"
         ]
       }
     },

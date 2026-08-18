@@ -8,6 +8,8 @@ import {
   listPantry,
   removePantryItem,
   updateExpiry,
+  suggestIngredients,
+  type IngredientSuggestion,
   type PantryItem,
 } from '../api/pantry'
 import { useAuth } from '../auth/context'
@@ -29,6 +31,9 @@ function describe(caught: unknown): string {
  * 대신 유통기한을 앞세웠다. 서버가 임박 순으로 정렬해서 주고, "냉장고에서 곧 상하는 것부터
  * 쓰자"가 이 앱이 하려는 일에 더 가깝다.
  */
+/** 입력할 때마다 요청하면 콜드스타트가 있는 서버에 과하다. 잠깐 멈추면 그때 보낸다. */
+const SUGGEST_DEBOUNCE_MS = 250
+
 export default function PantryPage() {
   const { userId, isAuthenticated } = useAuth()
   const navigate = useNavigate()
@@ -36,6 +41,9 @@ export default function PantryPage() {
   const [items, setItems] = useState<PantryItem[]>([])
   const [name, setName] = useState('')
   const [expiry, setExpiry] = useState('')
+  // 손으로 치면 "돼지 고기"처럼 어느 레시피 태그와도 안 맞는 값이 들어간다. 그러면
+  // 추천이 나빠지는데 원인이 알고리즘인지 입력인지 구분할 수 없다.
+  const [suggestions, setSuggestions] = useState<IngredientSuggestion[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -67,6 +75,26 @@ export default function PantryPage() {
     void load(controller.signal)
     return () => controller.abort()
   }, [userId, load])
+
+  // 입력할 때마다 부르면 콜드스타트가 있는 서버에 과하다. 잠깐 멈추면 그때 보낸다.
+  useEffect(() => {
+    const keyword = name.trim()
+    if (keyword === '') {
+      setSuggestions([])
+      return
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      suggestIngredients(keyword, controller.signal)
+        .then(setSuggestions)
+        // 제안을 못 받아도 직접 쳐서 넣을 수 있다. 조용히 넘어간다.
+        .catch(() => {})
+    }, SUGGEST_DEBOUNCE_MS)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [name])
 
   async function handleAdd(event: FormEvent) {
     event.preventDefault()
@@ -167,6 +195,24 @@ export default function PantryPage() {
           {isAdding ? '추가 중…' : '추가'}
         </button>
       </form>
+
+      {/* 고르면 추천에서 반드시 매칭되는 이름들이다. 몇 개 레시피가 쓰는지 함께 보여줘야
+          어느 표기를 골라야 할지 알 수 있다. */}
+      {suggestions.length > 0 && (
+        <ul className={styles.suggestions} aria-label="재료 추천">
+          {suggestions.map((item) => (
+            <li key={item.name}>
+              <button type="button" onClick={() => {
+                  setName(item.name)
+                  setSuggestions([])
+                }}>
+                <span>{item.name}</span>
+                <span className={styles.suggestionCount}>레시피 {item.recipe_count}개</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {isSlow && (
         <p className={styles.notice} role="status">

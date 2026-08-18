@@ -22,9 +22,14 @@ function signIn(userId = 15) {
 }
 
 /** 요청 종류별로 답한다. 목록은 호출할 때마다 최신 상태를 돌려준다. */
-function mockApi(getItems: () => Item[], overrides: { onWrite?: () => Response } = {}) {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+function mockApi(
+  getItems: () => Item[],
+  overrides: { onWrite?: () => Response; suggestions?: () => unknown[] } = {},
+) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const method = (init as RequestInit | undefined)?.method ?? 'GET'
+    // 자동완성은 목록 조회와 같은 GET이라 경로로 갈라야 한다.
+    if (String(input).includes('/pantry/suggest')) return json(overrides.suggestions?.() ?? [])
     if (method === 'GET') return json(getItems())
     return overrides.onWrite?.() ?? json({ ok: true })
   })
@@ -187,5 +192,55 @@ describe('냉장고 화면', () => {
 
     await screen.findByText('고등어')
     expect(screen.queryByRole('button', { name: /늘리기|줄이기/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('재료 자동완성', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  it('치는 동안 추천 이름을 보여주고, 고르면 입력창에 넣는다', async () => {
+    // 손으로 치면 "돼지 고기"처럼 어느 레시피 태그와도 안 맞는 값이 들어간다.
+    const user = userEvent.setup()
+    signIn()
+    mockApi(
+      () => [],
+      { suggestions: () => [{ name: '두부', recipe_count: 118 }] },
+    )
+    renderWithProviders(<PantryPage />)
+
+    await user.type(screen.getByLabelText('재료 이름'), '두부')
+
+    const suggestion = await screen.findByRole('button', { name: /두부/ })
+    expect(suggestion).toHaveTextContent('레시피 118개')
+
+    await user.click(suggestion)
+    expect(screen.getByLabelText('재료 이름')).toHaveValue('두부')
+  })
+
+  it('입력창이 비면 추천을 부르지 않는다', async () => {
+    // 빈 검색어로 1,762종을 다 내려받으면 첫 타자가 치기도 전에 목록이 열린다.
+    signIn()
+    const fetchMock = mockApi(() => [])
+    renderWithProviders(<PantryPage />)
+
+    await screen.findByLabelText('재료 이름')
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes('/pantry/suggest')),
+    ).toBe(false)
+  })
+
+  it('추천을 못 받아도 직접 쳐서 넣을 수 있다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (String(input).includes('/pantry/suggest')) return json({ detail: '오류' }, 500)
+      if (((init as RequestInit | undefined)?.method ?? 'GET') === 'GET') return json([])
+      return json({ ok: true })
+    })
+    renderWithProviders(<PantryPage />)
+
+    await user.type(screen.getByLabelText('재료 이름'), '두부')
+    expect(screen.getByRole('button', { name: '추가' })).toBeEnabled()
   })
 })
