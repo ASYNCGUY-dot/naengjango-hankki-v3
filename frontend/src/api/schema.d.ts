@@ -1280,6 +1280,11 @@ export interface components {
             gender?: string | null;
             /** Has Profile */
             has_profile: boolean;
+            /**
+             * Health Data Consent
+             * @default false
+             */
+            health_data_consent: boolean;
             /** Health Goal */
             health_goal?: string | null;
             /** Household Size */
@@ -1309,6 +1314,11 @@ export interface components {
             cooking_tools: string;
             /** Gender */
             gender: string;
+            /**
+             * Health Data Consent
+             * @default false
+             */
+            health_data_consent: boolean;
             /** Health Goal */
             health_goal: string;
             /** Household Size */

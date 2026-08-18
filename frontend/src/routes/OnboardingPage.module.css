@@ -99,6 +99,32 @@
   background: var(--color-surface-raised);
 }
 
+/* 건강 정보 동의. 알레르기 칩과 같은 강조를 줘서 안전 관련 묶음으로 읽히게 한다. */
+.consent {
+  margin-bottom: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-accent);
+}
+
+.consentLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* 체크박스는 작아도 라벨 전체가 누르는 영역이라 44px를 여기서 확보한다. */
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.consentLabel input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--color-accent);
+}
+
 .cta {
   display: flex;
   align-items: center;

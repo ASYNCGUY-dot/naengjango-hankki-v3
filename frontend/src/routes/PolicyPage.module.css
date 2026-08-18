@@ -1,0 +1,81 @@
+.page {
+  padding: var(--space-6) var(--space-4) var(--space-10);
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  line-height: var(--line-height-relaxed);
+}
+
+.page h1 {
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.page h2 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-2);
+}
+
+.page p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.updated {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.lead {
+  margin-top: var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* 표가 좁은 화면에서 페이지 전체를 밀어내지 않게 한다. */
+.table {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.table th,
+.table td {
+  border: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+  min-width: 7rem;
+}
+
+.table th {
+  background: var(--color-surface-sunken);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.table td {
+  color: var(--color-text-secondary);
+}
+
+/* 건강 정보 문단. 그냥 지나치면 안 되는 내용이라 눈에 띄게 둔다. */
+.note {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
+}
+
+.foot {
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}

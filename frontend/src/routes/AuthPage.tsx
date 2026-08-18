@@ -194,15 +194,20 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
             <fieldset className={styles.consents}>
               <legend>약관 동의</legend>
+              {/* 라벨과 링크를 분리한다. 라벨 안에 링크를 넣으면 링크를 누를 때 체크박스가
+                  함께 토글돼서, 문서를 보려던 사람이 동의를 켜버린다. */}
               <Checkbox id="agree-terms" checked={agreedTerms} onChange={setAgreedTerms}
-                label="(필수) 이용약관에 동의합니다" />
+                label="(필수) 이용약관에 동의합니다"
+                to="/terms" />
               <Checkbox id="agree-privacy" checked={agreedPrivacy} onChange={setAgreedPrivacy}
-                label="(필수) 개인정보 수집·이용에 동의합니다" />
+                label="(필수) 개인정보 수집·이용에 동의합니다"
+                to="/privacy" />
               <Checkbox id="agree-marketing" checked={agreedMarketing} onChange={setAgreedMarketing}
                 label="(선택) 마케팅 정보 수신에 동의합니다" />
               <p className={styles.hint}>
-                수집 항목: 아이디, 이름, 연락처, 이메일, 성별, 연령대. 서비스 이용과 계정
-                관리를 위해 쓰이며, 회원 탈퇴 시 지웁니다.
+                아이디·이름·연락처·이메일·성별·연령대를 받습니다. 가입 후 식단 정보를
+                입력하시면 알레르기와 병력 정보도 저장되는데, 이건 넣지 않아도 서비스를 쓸 수
+                있어요. 지우고 싶으시면 만든 사람에게 말씀해주세요.
               </p>
             </fieldset>
           </>
@@ -271,16 +276,26 @@ function Checkbox(props: {
   checked: boolean
   onChange: (checked: boolean) => void
   label: string
+  /** 있으면 라벨 옆에 "보기" 링크를 단다. 동의 대상 문서로 가는 길이다. */
+  to?: string
 }) {
   return (
-    <label className={styles.checkbox} htmlFor={props.id}>
-      <input
-        id={props.id}
-        type="checkbox"
-        checked={props.checked}
-        onChange={(e) => props.onChange(e.target.checked)}
-      />
-      {props.label}
-    </label>
+    <div className={styles.checkboxRow}>
+      <label className={styles.checkbox} htmlFor={props.id}>
+        <input
+          id={props.id}
+          type="checkbox"
+          checked={props.checked}
+          onChange={(e) => props.onChange(e.target.checked)}
+        />
+        {props.label}
+      </label>
+      {props.to !== undefined && (
+        // 새 탭으로 연다. 같은 탭에서 열면 지금까지 입력한 가입 정보가 날아간다.
+        <Link className={styles.consentLink} to={props.to} target="_blank" rel="noreferrer">
+          보기
+        </Link>
+      )}
+    </div>
   )
 }

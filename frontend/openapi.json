@@ -1222,6 +1222,11 @@
             "title": "Has Profile",
             "type": "boolean"
           },
+          "health_data_consent": {
+            "default": false,
+            "title": "Health Data Consent",
+            "type": "boolean"
+          },
           "health_goal": {
             "anyOf": [
               {
@@ -1338,6 +1343,11 @@
           "gender": {
             "title": "Gender",
             "type": "string"
+          },
+          "health_data_consent": {
+            "default": false,
+            "title": "Health Data Consent",
+            "type": "boolean"
           },
           "health_goal": {
             "title": "Health Goal",

@@ -27,6 +27,11 @@ REQUIRED_CONSENTS = ("terms_of_service", "privacy")
 OPTIONAL_CONSENTS = ("marketing",)
 ALL_CONSENTS = REQUIRED_CONSENTS + OPTIONAL_CONSENTS
 
+# 건강 정보(알레르기·병력) 수집 동의. 위 셋과 받는 시점이 다르다 - 가입이 아니라
+# 그 정보를 실제로 입력하는 온보딩 화면에서 받는다. 무엇에 동의하는지 눈앞에 있을 때
+# 묻는 것이 맞고, 건강 정보를 넣지 않는 사람에게는 물을 이유가 없기 때문이다.
+HEALTH_CONSENT = "health_data"
+
 # 약관 문서를 고치면 이 값을 올린다. 그러면 "어느 버전에 동의했는가"가 기록으로 남는다.
 CONSENT_VERSION = "2026-08-13"
 
@@ -123,6 +128,34 @@ def record_consents(cur, user_id: int, consents: dict[str, bool]) -> None:
             "VALUES (?, ?, ?, ?, ?)",
             (user_id, key, CONSENT_VERSION, bool(consents.get(key, False)), agreed_at),
         )
+
+
+def record_consent(cur, user_id: int, key: str, agreed: bool) -> None:
+    """동의 한 건을 이력에 남긴다.
+
+    record_consents()는 가입 시점에 세 개를 한꺼번에 쌓는다. 건강 정보 동의처럼 나중에
+    따로 받는 것은 이쪽을 쓴다. 쌓기만 하고 덮어쓰지 않는 원칙은 같다.
+    """
+    cur.execute(
+        "INSERT INTO user_consents (user_id, consent_key, version, agreed, agreed_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (user_id, key, CONSENT_VERSION, bool(agreed), _now().isoformat()),
+    )
+
+
+def has_consented(cur, user_id: int, key: str) -> bool:
+    """가장 최근 기록이 동의인지 본다.
+
+    이력을 쌓는 구조라 같은 키에 행이 여러 개 있을 수 있다. 철회하면 agreed=false가
+    나중에 쌓이므로, 마지막 행만 보는 것이 현재 상태다.
+    """
+    cur.execute(
+        "SELECT agreed FROM user_consents WHERE user_id = ? AND consent_key = ? "
+        "ORDER BY agreed_at DESC, id DESC LIMIT 1",
+        (user_id, key),
+    )
+    row = cur.fetchone()
+    return bool(row[0]) if row is not None else False
 
 
 def login(cur, username: str, password: str) -> int | None:

@@ -73,6 +73,13 @@
   padding: 0 var(--space-2);
 }
 
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 .checkbox {
   display: flex;
   align-items: center;
@@ -81,6 +88,18 @@
   min-height: var(--touch-target-min);
   font-size: var(--font-size-sm);
   cursor: pointer;
+}
+
+/* 문서 링크. 라벨 밖에 둬야 누를 때 동의가 함께 켜지지 않는다. */
+.consentLink {
+  display: inline-flex;
+  align-items: center;
+  /* 손가락으로 눌러야 하므로 글자만큼이 아니라 44px를 준다. */
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-2);
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-accent-text);
 }
 
 .checkbox input {

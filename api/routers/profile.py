@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from api import usage_log
 from api.auth_token import get_current_user_id, require_self
 from api.deps import get_db
-from src.agents import profile_agent, recommendation_agent
+from src.agents import auth_agent, profile_agent, recommendation_agent
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -33,6 +33,18 @@ class ProfileRequest(BaseModel):
     novelty_pref: str
     cooking_tools: str
     medical_conditions: str = ""
+    # 알레르기·병력은 건강에 관한 정보라 나머지와 같이 취급하지 않는다. 가입 때 받은
+    # 포괄 동의로 덮지 않고, 그 값을 실제로 넣는 이 시점에 따로 받는다.
+    # 기본값이 False라 기존 호출부는 건강 정보를 못 보낸다 - 그게 안전한 방향이다.
+    health_data_consent: bool = False
+
+
+# 이 둘이 비어 있으면 건강 정보를 수집하지 않는 것이므로 동의를 물을 이유가 없다.
+SENSITIVE_FIELDS = ("allergy", "medical_conditions")
+
+
+def _has_sensitive_data(profile: dict) -> bool:
+    return any(str(profile.get(key) or "").strip() for key in SENSITIVE_FIELDS)
 
 
 class ProfileGetResponse(BaseModel):
@@ -51,6 +63,9 @@ class ProfileGetResponse(BaseModel):
     novelty_pref: str | None = None
     cooking_tools: str | None = None
     medical_conditions: str | None = None
+    # 재방문 시 동의 상태를 화면에 그대로 복원하기 위해 함께 준다. 이미 동의한 사람에게
+    # 빈 체크박스를 보여주면 "동의한 적 없다"는 잘못된 인상을 준다.
+    health_data_consent: bool = False
 
 
 class AllergyOption(BaseModel):
@@ -119,6 +134,9 @@ def get_profile(
         # 그걸로 판단하면 온보딩을 안 한 사람도 "마쳤다"가 된다.
         # health_goal은 온보딩에서만 채워지는 필수 항목이라 지금은 이쪽이 맞다.
         has_profile=profile["health_goal"] is not None,
+        health_data_consent=auth_agent.has_consented(
+            cur, user_id, auth_agent.HEALTH_CONSENT
+        ),
         **{k: v for k, v in profile.items() if k != "id"},
     )
 
@@ -132,9 +150,21 @@ def update_profile(
 ):
     require_self(user_id, current_user_id)
     profile = body.model_dump()
+    health_consent = profile.pop("health_data_consent", False)
+
     missing = profile_agent.validate_profile(profile)
     if missing:
         raise HTTPException(status_code=422, detail=f"필수 항목 누락: {missing}")
+
+    # 건강 정보를 보냈으면 그에 대한 동의가 함께 와야 한다. 동의 없이 온 건강 정보는
+    # 저장하지 않고 거절한다 - 조용히 비워서 저장하면 사용자는 알레르기를 넣었다고
+    # 믿는데 필터는 아무것도 안 거르는, 이 프로젝트에서 가장 위험한 상태가 된다.
+    if _has_sensitive_data(profile) and not health_consent:
+        raise HTTPException(
+            status_code=422,
+            detail="알레르기·병력 정보를 저장하려면 건강 정보 수집에 동의해야 합니다.",
+        )
+
     # health_goal을 함께 읽는다. 온보딩을 "처음" 마친 시점을 알려면 고치기 전 상태가
     # 필요한데, 존재 확인 쿼리가 이미 있으므로 왕복을 더 늘리지 않고 끼워 읽는다.
     cur.execute("SELECT id, health_goal FROM users WHERE id = ?", (user_id,))
@@ -142,6 +172,12 @@ def update_profile(
     if row is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 user_id입니다.")
     was_onboarded = bool(row[1])
+
+    # 동의와 그 동의가 가리키는 데이터가 같은 요청에서 함께 저장된다. 나눠 두면 한쪽만
+    # 남는 순간이 생기고, 그때 기록은 증빙으로 쓸 수 없다.
+    # 거절도 남긴다 - 행이 없으면 "안 물어봤다"와 "거절했다"를 구분할 수 없다.
+    auth_agent.record_consent(cur, user_id, auth_agent.HEALTH_CONSENT, bool(health_consent))
+
     profile_agent.update_user_profile(cur, user_id, profile)
     # 수정할 때마다 남기면 "온보딩을 언제 마쳤나"가 마지막 수정 시각으로 흐려진다.
     if not was_onboarded:

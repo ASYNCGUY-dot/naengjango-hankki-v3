@@ -58,6 +58,11 @@ export default function OnboardingPage() {
   const [gender, setGender] = useState('')
   const [ageGroup, setAgeGroup] = useState('')
 
+  // 알레르기·병력은 건강에 관한 정보라 가입 때의 포괄 동의로 덮지 않는다. 무엇에
+  // 동의하는지 눈앞에 있을 때 여기서 따로 받는다. 서버도 같은 규칙을 강제한다 -
+  // 동의 없이 건강 정보를 보내면 422로 거절한다(api/routers/profile.py).
+  const [healthConsent, setHealthConsent] = useState(false)
+
   // 프로필을 못 읽었으면 저장을 막는다. PUT이 전체를 덮어쓰기 때문에, 성별·연령대를
   // 모르는 채로 보내면 가입 때 받은 값이 빈 문자열로 날아간다.
   const [isProfileLoaded, setIsProfileLoaded] = useState(false)
@@ -92,6 +97,8 @@ export default function OnboardingPage() {
         setHouseholdSize(profile.household_size ?? 1)
         setSupplements(profile.supplements ?? '')
         setMedicalConditions(profile.medical_conditions ?? '')
+        // 이미 동의한 사람에게 빈 체크박스를 보여주면 "동의한 적 없다"는 인상을 준다.
+        setHealthConsent(profile.health_data_consent)
         setIsProfileLoaded(true)
       })
       .catch(() => {
@@ -107,6 +114,10 @@ export default function OnboardingPage() {
     return list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
   }
 
+  // 건강 정보를 실제로 넣은 사람에게만 동의를 묻는다. 수집하지 않는 것에 동의를
+  // 요구하면 동의가 형식이 된다.
+  const hasHealthData = allergies.length > 0 || medicalConditions.trim() !== ''
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (userId === null || isSaving) return
@@ -114,6 +125,12 @@ export default function OnboardingPage() {
     setError(null)
     if (!healthGoal || !purpose || !cookingLevel || !noveltyPref) {
       setError('건강목표, 이용목적, 요리수준, 메뉴취향을 모두 골라주세요.')
+      return
+    }
+    // 서버도 막지만 여기서 먼저 잡는다. 콜드스타트 30초를 기다린 끝에 "동의가
+    // 필요합니다"를 보는 일이 없어야 한다.
+    if (hasHealthData && !healthConsent) {
+      setError('알레르기·병력 정보를 저장하려면 건강 정보 수집에 동의해주세요.')
       return
     }
 
@@ -131,6 +148,9 @@ export default function OnboardingPage() {
         novelty_pref: noveltyPref,
         cooking_tools: joinSelections(tools),
         medical_conditions: medicalConditions.trim(),
+        // 건강 정보를 안 넣었으면 동의도 보내지 않는다. 서버는 거절도 이력으로
+        // 남기므로, 안 물어본 것을 동의로 기록하지 않게 하려면 값이 정확해야 한다.
+        health_data_consent: hasHealthData && healthConsent,
       }
       await updateProfile(userId, body)
       navigate('/my', { replace: true })
@@ -284,6 +304,29 @@ export default function OnboardingPage() {
           />
           <span className={styles.hint}>영양 안내에만 쓰이고 추천 목록에는 드러나지 않아요.</span>
         </div>
+
+        {/* 건강 정보를 넣은 사람에게만 나타난다. 안 넣으면 수집하지 않으므로 물을 이유가
+            없고, 물으면 동의가 형식이 된다. */}
+        {hasHealthData && (
+          <div className={styles.consent}>
+            <label className={styles.consentLabel} htmlFor="health-consent">
+              <input
+                id="health-consent"
+                type="checkbox"
+                checked={healthConsent}
+                onChange={(e) => setHealthConsent(e.target.checked)}
+              />
+              (필수) 알레르기·병력 정보 수집에 동의합니다
+            </label>
+            <p className={styles.hint}>
+              건강에 관한 정보라 따로 여쭤봅니다. 알레르기 재료를 추천에서 빼는 것 외의
+              용도로 쓰지 않아요. 동의하지 않으셔도 나머지 항목은 저장할 수 있어요.{' '}
+              <Link to="/privacy" target="_blank" rel="noreferrer">
+                자세히 보기
+              </Link>
+            </p>
+          </div>
+        )}
 
         <button className={styles.cta} type="submit" disabled={isSaving}>
           {isSaving ? '저장 중…' : '저장하기'}

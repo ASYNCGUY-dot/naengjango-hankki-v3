@@ -7,6 +7,7 @@ import MyPage from './routes/MyPage'
 import OnboardingPage from './routes/OnboardingPage'
 import PantryPage from './routes/PantryPage'
 import { ForgotPasswordPage, ResetPasswordPage } from './routes/PasswordResetPage'
+import { PrivacyPage, TermsPage } from './routes/PolicyPage'
 import RecipeDetailPage from './routes/RecipeDetailPage'
 import RecommendPage from './routes/RecommendPage'
 
@@ -28,6 +29,10 @@ export default function App() {
           /reset-password는 메일의 링크로 들어오는 자리라 주소에 token을 달고 온다. */}
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      {/* 가입 화면의 동의 체크박스가 여기로 연결된다. 문서 없이 동의만 받으면
+          그 동의는 기록으로서 의미가 없다. */}
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/pantry" element={<PantryPage />} />

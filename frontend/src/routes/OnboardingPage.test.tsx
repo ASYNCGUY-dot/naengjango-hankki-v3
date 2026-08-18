@@ -110,6 +110,7 @@ describe('식단 정보 입력', () => {
 
     await user.click(await screen.findByRole('button', { name: '달걀' }))
     await user.click(screen.getByRole('button', { name: '대두' }))
+    await user.click(screen.getByLabelText(/알레르기·병력 정보 수집에 동의/))
     await fillRequired(user)
     await user.click(screen.getByRole('button', { name: '저장하기' }))
 
@@ -173,6 +174,69 @@ describe('식단 정보 입력', () => {
     )
     expect(screen.getByLabelText('건강목표')).toHaveValue('근육증가')
     expect(screen.getByLabelText('가구원 수')).toHaveValue('3')
+  })
+
+  it('건강 정보를 넣으면 별도 동의를 묻는다', async () => {
+    // 알레르기·병력은 건강에 관한 정보라 가입 때의 포괄 동의로 덮지 않는다.
+    const user = userEvent.setup()
+    signIn()
+    mockApi({})
+    renderWithProviders(<OnboardingPage />)
+
+    // 아무것도 안 골랐을 때는 묻지 않는다 - 수집하지 않는 것에 동의를 요구하면
+    // 동의가 형식이 된다.
+    await screen.findByRole('button', { name: '달걀' })
+    expect(screen.queryByLabelText(/알레르기·병력 정보 수집에 동의/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '달걀' }))
+    expect(screen.getByLabelText(/알레르기·병력 정보 수집에 동의/)).toBeInTheDocument()
+  })
+
+  it('동의하지 않으면 건강 정보를 보내지 않는다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi({})
+    renderWithProviders(<OnboardingPage />)
+
+    await user.click(await screen.findByRole('button', { name: '달걀' }))
+    await fillRequired(user)
+    await user.click(screen.getByRole('button', { name: '저장하기' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('동의')
+    expect(
+      fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'PUT'),
+    ).toBe(false)
+  })
+
+  it('동의하면 동의 여부를 함께 보낸다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi({})
+    renderWithProviders(<OnboardingPage />)
+
+    await user.click(await screen.findByRole('button', { name: '달걀' }))
+    await user.click(screen.getByLabelText(/알레르기·병력 정보 수집에 동의/))
+    await fillRequired(user)
+    await user.click(screen.getByRole('button', { name: '저장하기' }))
+
+    await waitFor(() => {
+      const body = putBody(fetchMock)
+      expect(body.health_data_consent).toBe(true)
+      expect(body.allergy).toBe('달걀')
+    })
+  })
+
+  it('이미 동의했으면 체크된 상태로 보여준다', async () => {
+    // 동의한 사람에게 빈 체크박스를 보여주면 "동의한 적 없다"는 인상을 준다.
+    signIn()
+    mockApi({
+      profile: profile({ has_profile: true, allergy: '우유', health_data_consent: true }),
+    })
+    renderWithProviders(<OnboardingPage />)
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/알레르기·병력 정보 수집에 동의/)).toBeChecked(),
+    )
   })
 
   it('알레르기 목록을 못 받으면 알린다', async () => {
