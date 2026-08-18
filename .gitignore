@@ -15,3 +15,6 @@ venv/
 *.db-journal
 *.log
 backup/
+
+# 005 적용 전 백업 파일. 개인정보가 들어 있으므로 저장소에 올리지 않는다.
+backup_before_005_*.sql

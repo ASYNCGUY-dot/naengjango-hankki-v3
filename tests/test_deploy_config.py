@@ -116,6 +116,34 @@ def test_the_frontend_points_at_the_api_service():
     assert web_host in names, f"CORS_ALLOW_ORIGINS가 가리키는 {web_host}가 서비스 목록에 없다"
 
 
+def test_the_005_backup_script_covers_what_005_deletes():
+    """백업 스크립트와 005의 삭제 대상 목록이 어긋나면 백업에 구멍이 난다.
+
+    실제로 몇 분 만에 어긋났다. 007 검증용 계정을 백업 스크립트에만 넣고 005에는
+    안 넣어서, 005를 돌리면 그 계정이 살아남아 Phase 4 집계에 섞일 뻔했다.
+    """
+    sql = (ROOT / "migration" / "005_users_username_required.sql").read_text(encoding="utf-8")
+    script = (ROOT / "scripts" / "backup_before_005.py").read_text(encoding="utf-8")
+
+    # 주석부터 걷어낸다. 주석 안의 "계정(2026-08-13)" 같은 닫는 괄호에 걸려서
+    # 목록이 잘린 채로 통과할 뻔했다.
+    sql = re.sub(r"--[^\n]*", "", sql)
+
+    # 005의 username IN (...) 목록
+    block = re.search(r"username IN \((.*?)\)", sql, re.DOTALL)
+    assert block is not None, "005에서 삭제 대상 목록을 찾지 못했다"
+    in_migration = set(re.findall(r"'([^']+)'", block.group(1)))
+
+    block = re.search(r"DOOMED_USERNAMES = \((.*?)\)", script, re.DOTALL)
+    assert block is not None, "백업 스크립트에서 DOOMED_USERNAMES를 찾지 못했다"
+    in_script = set(re.findall(r'"([^"]+)"', block.group(1)))
+
+    assert in_migration == in_script, (
+        "005와 scripts/backup_before_005.py의 삭제 대상이 다르다. "
+        f"005에만: {in_migration - in_script}, 스크립트에만: {in_script - in_migration}"
+    )
+
+
 def test_web_base_url_is_not_left_at_localhost():
     """메일 본문의 링크가 받는 사람의 컴퓨터를 가리키면 안 된다."""
     config = yaml.safe_load(RENDER_YAML.read_text(encoding="utf-8"))
