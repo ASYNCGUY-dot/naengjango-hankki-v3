@@ -1,0 +1,137 @@
+# Phase 4 — 지인 5명 테스트 준비물
+
+V2는 84개 기능을 만들고 단 한 명에게도 검증받지 못했다. 이 단계가 V3를 만든 이유다.
+여기에는 보낼 것, 미리 알아둘 것, 끝나고 볼 것이 들어 있다.
+
+**주소**: https://naengjango-hankki-v3-web.onrender.com
+
+---
+
+## 1. 보낼 메시지
+
+첫 접속이 30초 넘게 걸린다는 사실을 **반드시** 함께 보낸다. 이 안내가 없으면 지인은
+고장 난 줄 알고 닫는다. 화면에도 "서버를 깨우는 중" 안내가 3초 뒤에 뜨지만, 미리
+알고 기다리는 것과 화면을 보고 알게 되는 것은 다르다.
+
+> 안녕! 요리 앱 하나 만들었는데 일주일만 써보고 솔직하게 말해줄래?
+>
+> 냉장고에 있는 재료를 넣으면 그걸로 만들 수 있는 레시피를 추천해주는 앱이야.
+> 알레르기가 있으면 그 재료가 든 메뉴는 빼고 보여줘.
+>
+> https://naengjango-hankki-v3-web.onrender.com
+>
+> **처음 열 때 30초쯤 멈춘 것처럼 보일 수 있어.** 무료 서버라 잠들어 있다가 깨는
+> 중이라서 그래. 화면에 "서버를 깨우는 중"이라고 뜨면 그냥 기다리면 돼.
+> 두 번째부터는 바로 뜬다.
+>
+> 쓰는 순서는 이래.
+> 1. 회원가입 (아이디, 비밀번호, 이름, 연락처, 이메일)
+> 2. 식단 정보 입력 — **알레르기 있으면 꼭 넣어줘.** 이게 있어야 그 재료가 든
+>    레시피를 빼줄 수 있어
+> 3. 냉장고에 지금 있는 재료 넣기
+> 4. 추천 받아보기
+>
+> 비밀번호를 잊으면 나한테 말해줘. 지금은 메일 보내는 기능이 막혀 있어서 내가 직접
+> 초기화 링크를 만들어줄게.
+>
+> 좋았던 것보다 **불편했던 것, 안 쓰게 된 이유**가 더 궁금해. 편하게 말해줘.
+
+### 문구에 대해
+
+세 가지를 일부러 넣었다. **콜드스타트 안내**가 없으면 첫 화면에서 이탈한다.
+**알레르기 입력 요청**이 없으면 아무도 온보딩을 안 해서 필터가 무의미해진다.
+**"불편했던 것이 궁금하다"**를 명시하지 않으면 지인은 예의상 칭찬만 한다.
+
+메일 발송이 막힌 이유는 [8.-3 절](../V3_HANDOFF.md)에 있다. 초기화가 필요하면:
+
+```bash
+.venv/Scripts/python.exe scripts/make_reset_link.py <아이디 또는 이메일>
+```
+
+---
+
+## 2. 미리 알아둘 성능 (2026-08-18 실측)
+
+| 항목 | 값 | 비고 |
+|---|---:|---|
+| 정적 사이트 첫 로드 | 0.29초 | CDN이라 스핀다운 없음 |
+| API 콜드스타트 | 측정값은 아래 참조 | 15분 유휴 후 |
+| 추천 (웜) | 2.4초 | 5회 중앙값 |
+| 레시피 검색 (웜) | 0.61초 | |
+
+추천이 2.4초인 것은 무료 티어가 **0.1 CPU**이기 때문이다. 검색은 DB 바운드라 0.6초인데
+추천은 CPU 바운드라 그 제약에서만 증폭된다. 로컬에서는 이미 0.674초 → 0.20초까지 줄인
+뒤의 숫자이므로, 더 짜내려면 알고리즘을 손대야 한다. **지인 테스트 전에 할 일은 아니다** —
+2.4초는 로딩 표시가 있으면 견딜 만하고, 진짜 문제는 첫 접속이다.
+
+---
+
+## 3. 끝나고 볼 것
+
+### 이탈 지점 — 누가 어디까지 갔고 언제 멈췄나
+
+```sql
+SELECT u.username,
+       u.created_at                                                  AS 가입,
+       MIN(e.created_at) FILTER (WHERE e.event = 'onboarding_done')  AS 온보딩,
+       MIN(e.created_at) FILTER (WHERE e.event = 'pantry_add')       AS 첫재료,
+       COUNT(*)          FILTER (WHERE e.event = 'pantry_add')       AS 재료입력수,
+       COUNT(*)          FILTER (WHERE e.event = 'recommend')        AS 추천호출,
+       COUNT(*)          FILTER (WHERE e.event = 'recipe_view')      AS 상세열람,
+       COUNT(DISTINCT LEFT(e.created_at, 10))
+                         FILTER (WHERE e.event = 'login')            AS 방문일수,
+       MAX(e.created_at)                                             AS 마지막활동
+  FROM users u
+  LEFT JOIN usage_events e ON e.user_id = u.id
+ WHERE u.username <> '최지수'
+ GROUP BY u.id, u.username, u.created_at
+ ORDER BY 마지막활동;
+```
+
+읽는 법은 이렇다. **가입만 있고 온보딩이 비면** 첫 화면에서 막힌 것이다.
+**온보딩은 했는데 첫재료가 비면** 재료 입력이 부담스러웠던 것이다.
+**추천호출이 0이면** 추천까지 가는 길이 안 보였던 것이다.
+**방문일수가 1이면** 한 번 써보고 안 돌아온 것이다 — 이게 가장 중요한 신호다.
+
+### 어떤 레시피를 실제로 열어봤나
+
+```sql
+SELECT r.menu_name, r.category, COUNT(*) AS 열람수
+  FROM usage_events e JOIN recipes r ON r.id = e.recipe_id
+ WHERE e.event = 'recipe_view'
+   AND e.created_at > '2026-08-19'   -- 개발 중 검증 기록을 자른다
+ GROUP BY r.id, r.menu_name, r.category
+ ORDER BY 열람수 DESC
+ LIMIT 20;
+```
+
+추천에 뜬 것 중 **무엇을 눌렀는지**가 추천 품질의 유일한 객관적 신호다. 좋아요는
+아무도 안 누른다(V2에서 1,148개 레시피에 좋아요가 4개였다).
+
+### 알레르기가 실제로 쓰였나
+
+```sql
+SELECT username, allergy, health_goal, cooking_tools
+  FROM users
+ WHERE username <> '최지수'
+ ORDER BY id;
+```
+
+`allergy`가 전부 비어 있으면 온보딩 화면이 제 역할을 못 한 것이다.
+
+> **주의**: `usage_events`에 2026-08-18의 비로그인 열람 10행이 개발 중 검증으로 남아
+> 있다. 위 쿼리들이 날짜로 걸러내지만, 익명 열람을 집계할 때는 직접 확인할 것.
+
+---
+
+## 4. 테스트 중에 지켜볼 것
+
+`main`에 push하면 **자동으로 배포된다**. 지인이 쓰는 동안에는 push 전에 한 번 더
+생각할 것 — 빌드가 실패하면 그 시간 동안 사이트가 옛 버전으로 남는다.
+
+배포가 멀쩡한지는 언제든 이걸로 확인한다. 검증 계정을 스스로 만들고 지우므로
+운영 데이터를 더럽히지 않는다.
+
+```bash
+.venv/Scripts/python.exe scripts/smoke_test_deploy.py
+```
