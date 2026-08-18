@@ -128,6 +128,40 @@ def get_current_user_id(
     return user_id
 
 
+def get_optional_user_id(
+    authorization: str | None = Header(default=None),
+    cur: sqlite3.Cursor = Depends(get_db),
+) -> int | None:
+    """토큰이 있으면 누구인지 알려주고, 없거나 못 쓰면 None을 준다. 절대 막지 않는다.
+
+    공개 엔드포인트(레시피 상세는 링크 공유가 되므로 인가가 없다)에서 "누가 봤는지"만
+    알고 싶을 때 쓴다. get_current_user_id를 쓸 수 없는 이유는 그쪽이 토큰이 없으면
+    401을 던져서, 공유 링크를 받은 사람이 레시피를 못 보게 되기 때문이다.
+
+    만료 토큰의 정리나 슬라이딩 연장은 하지 않는다. 여기서 쓰기를 하면 공개 조회가
+    쓰기 트랜잭션이 되고, 그건 이 함수가 할 일이 아니다.
+    """
+    if not authorization:
+        return None
+    try:
+        token_hash = _hash_token(_extract_bearer(authorization))
+    except HTTPException:
+        return None
+
+    cur.execute(
+        "SELECT user_id, expires_at FROM auth_tokens WHERE token_hash = ?", (token_hash,)
+    )
+    row = cur.fetchone()
+    if row is None:
+        return None
+
+    user_id, expires_at_raw = row
+    expires_at = _parse_expires_at(expires_at_raw)
+    if expires_at is None or expires_at <= _now():
+        return None
+    return user_id
+
+
 def require_self(claimed_user_id: int, current_user_id: int):
     """요청이 다루는 user_id가 토큰 주인 본인인지 확인한다."""
     if claimed_user_id != current_user_id:

@@ -219,6 +219,20 @@ CREATE TABLE auth_tokens (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- 사용 로그 (migration/007). Phase 4에서 이탈 지점을 보려면 시각이 남지 않는 행동
+-- (추천 호출·상세 열람 등)을 따로 쌓아야 한다. 비로그인 열람도 세므로 user_id는 NULL 허용.
+CREATE TABLE usage_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    event TEXT NOT NULL,
+    recipe_id INTEGER,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_usage_events_user_time ON usage_events (user_id, created_at);
+CREATE INDEX idx_usage_events_event ON usage_events (event);
+
 -- 최소 시드 데이터: recommendation/review/safety/price 라우터 테스트용 승인된 레시피 1개.
 -- 두부/양파 두 재료만 써서 recommendation_agent의 자격(qualifies) 판단이 쉽게 재현되게
 -- 했다 - 메뉴명에 "두부"가 그대로 들어있어 core_ingredients가 "두부"로 잡히므로, 보유

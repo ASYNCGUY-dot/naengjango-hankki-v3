@@ -20,7 +20,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from pydantic import BaseModel
 
-from api.auth_token import get_current_user_id, require_self
+from api import usage_log
+from api.auth_token import get_current_user_id, get_optional_user_id, require_self
 from api.deps import get_db
 from src.agents import portion_agent, recommendation_agent
 
@@ -137,6 +138,7 @@ def recommend(
     top = scored[:limit]
     for item in top:
         item.update(_parse_nutrients(item.get("nutrients_json")))
+    usage_log.record(cur, usage_log.RECOMMEND, user_id=user_id)
     return top
 
 
@@ -218,7 +220,11 @@ def search_recipes(
 
 
 @router.get("/recipes/{recipe_id}", response_model=RecipeDetail)
-def get_recipe(recipe_id: int, cur: sqlite3.Cursor = Depends(get_db)):
+def get_recipe(
+    recipe_id: int,
+    cur: sqlite3.Cursor = Depends(get_db),
+    viewer_id: int | None = Depends(get_optional_user_id),
+):
     recipe = recommendation_agent.get_recipe_by_id(cur, recipe_id)
     if recipe is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 recipe_id입니다.")
@@ -236,4 +242,5 @@ def get_recipe(recipe_id: int, cur: sqlite3.Cursor = Depends(get_db)):
         {"name": item["name"], "amount": item["amount"], "unit": item["unit"]}
         for item in items
     ]
+    usage_log.record(cur, usage_log.RECIPE_VIEW, user_id=viewer_id, recipe_id=recipe_id)
     return recipe

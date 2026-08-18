@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from pydantic import BaseModel, Field
 
-from api import auth_token
+from api import auth_token, usage_log
 from api.deps import INTEGRITY_ERRORS, get_db
 from src.agents import auth_agent, mail_agent
 
@@ -175,6 +175,8 @@ def login(body: LoginRequest, cur: sqlite3.Cursor = Depends(get_db)):
         _record_failed_login(body.username)
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다.")
     _clear_failed_logins(body.username)
+    # Phase 4에서 "며칠째까지 돌아왔나"를 보려면 재방문 시점이 남아야 한다.
+    usage_log.record(cur, usage_log.LOGIN, user_id=user_id)
     return LoginResponse(user_id=user_id, token=auth_token.issue_token(cur, user_id))
 
 

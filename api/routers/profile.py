@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from pydantic import BaseModel
 
+from api import usage_log
 from api.auth_token import get_current_user_id, require_self
 from api.deps import get_db
 from src.agents import profile_agent, recommendation_agent
@@ -134,8 +135,15 @@ def update_profile(
     missing = profile_agent.validate_profile(profile)
     if missing:
         raise HTTPException(status_code=422, detail=f"필수 항목 누락: {missing}")
-    cur.execute("SELECT id FROM users WHERE id = ?", (user_id,))
-    if cur.fetchone() is None:
+    # health_goal을 함께 읽는다. 온보딩을 "처음" 마친 시점을 알려면 고치기 전 상태가
+    # 필요한데, 존재 확인 쿼리가 이미 있으므로 왕복을 더 늘리지 않고 끼워 읽는다.
+    cur.execute("SELECT id, health_goal FROM users WHERE id = ?", (user_id,))
+    row = cur.fetchone()
+    if row is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 user_id입니다.")
+    was_onboarded = bool(row[1])
     profile_agent.update_user_profile(cur, user_id, profile)
+    # 수정할 때마다 남기면 "온보딩을 언제 마쳤나"가 마지막 수정 시각으로 흐려진다.
+    if not was_onboarded:
+        usage_log.record(cur, usage_log.ONBOARDING_DONE, user_id=user_id)
     return {"user_id": user_id, "updated": True}

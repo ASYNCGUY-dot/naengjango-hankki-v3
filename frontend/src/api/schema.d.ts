@@ -2948,7 +2948,9 @@ export interface operations {
     get_recipe_recommendation_recipes__recipe_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 recipe_id: number;
             };

@@ -117,6 +117,32 @@ def test_every_migration_file_is_replayed(pg_conn):
     assert len(MIGRATIONS) >= 5
 
 
+def test_a_failing_usage_log_does_not_discard_the_users_write(pg_cur):
+    """사용 로그가 실패해도 같은 요청의 진짜 쓰기는 살아남아야 한다 (2026-08-18).
+
+    이건 sqlite로는 증명이 안 된다. sqlite는 문 하나가 실패해도 트랜잭션을 그대로 두지만
+    Postgres는 트랜잭션 전체를 중단 상태로 만든다. 그 상태에서는 뒤따르는 COMMIT이
+    사실상 ROLLBACK이 되어, 사용자가 방금 넣은 재료가 조용히 사라진다.
+    api/usage_log.py가 INSERT를 SAVEPOINT로 감싸는 이유가 정확히 이것이다.
+
+    세이브포인트를 빼면 아래 SELECT가 InFailedSqlTransaction으로 터진다.
+    """
+    from api import usage_log
+
+    pg_cur.execute(
+        "INSERT INTO users (username, password_hash) VALUES (?, ?) RETURNING id",
+        ("savepoint_probe", "x"),
+    )
+    user_id = pg_cur.fetchone()[0]
+
+    # 흉내가 아니라 진짜로 터뜨린다. DDL도 트랜잭션 안이라 테스트 끝에 롤백된다.
+    pg_cur.execute("DROP TABLE usage_events")
+    usage_log.record(pg_cur, usage_log.PANTRY_ADD, user_id=user_id)
+
+    pg_cur.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+    assert pg_cur.fetchone()[0] == "savepoint_probe"
+
+
 def test_account_fields_exist_after_migration_006(pg_conn):
     """006이 실제로 적용됐는지 - 이름·연락처·이메일·가입시각과 동의/초기화 테이블."""
     cur = pg_conn.cursor()

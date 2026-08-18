@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from pydantic import BaseModel
 
+from api import usage_log
 from api.auth_token import get_current_user_id, require_self
 from api.deps import get_db
 from src.agents import pantry_agent
@@ -54,6 +55,8 @@ def add_pantry(
     require_self(user_id, current_user_id)
     _require_user(cur, user_id)
     pantry_agent.add_pantry_ingredient(cur, user_id, body.name, body.expiry_date)
+    # ingredients 테이블에는 시각이 없어서 "언제 넣었나"를 여기서만 알 수 있다.
+    usage_log.record(cur, usage_log.PANTRY_ADD, user_id=user_id)
     return {"added": True}
 
 
