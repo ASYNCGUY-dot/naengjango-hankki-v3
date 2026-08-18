@@ -24,6 +24,44 @@ services:
       - key: CORS_ALLOW_ORIGINS
         value: https://naengjango-hankki-v3-web.onrender.com
 
+      # ---------- 비밀번호 초기화 (2026-08-18에 추가) ----------
+      # 이 세 개가 없으면 초기화가 "조용히" 실패한다. /auth/password-reset/request는
+      # 계정 존재 여부가 새어나가지 않도록 성공·실패에 관계없이 같은 응답을 주기 때문에
+      # (api/routers/auth.py), 사용자는 "메일을 보냈어요"를 보고 기다리는데 아무것도
+      # 오지 않고 어디에도 신호가 없다. 반드시 값을 채울 것.
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: GMAIL_SENDER_ADDRESS
+        sync: false
+      # 메일 본문의 초기화 링크가 가리킬 주소. 기본값이 http://localhost:5173이라
+      # 지정하지 않으면 링크가 받는 사람의 컴퓨터를 가리킨다.
+      - key: WEB_BASE_URL
+        value: https://naengjango-hankki-v3-web.onrender.com
+
+      # ---------- 부가 기능 ----------
+      # 지인 테스트의 핵심 흐름(가입-온보딩-재료-추천-상세)에는 필요 없다. 다만 해당
+      # 화면을 누르면 그때 실패하므로, 그 기능을 열어둘 거라면 값을 채워야 한다.
+      # 제휴 키 암호화(src/agents/crypto_utils.py). 한 번 정하면 절대 바꾸면 안 된다 -
+      # 바꾸면 기존 암호문을 복호화할 수 없다.
+      - key: APP_ENCRYPTION_KEY
+        sync: false
+      # 농산물 가격(src/agents/price_agent.py)
+      - key: KAMIS_CERT_ID
+        sync: false
+      - key: KAMIS_CERT_KEY
+        sync: false
+      # 쇼핑 링크(api/routers/shopping.py)
+      - key: COUPANG_ACCESS_KEY
+        sync: false
+      - key: COUPANG_SECRET_KEY
+        sync: false
+      # 유튜브 영상(src/agents/youtube_agent.py)
+      - key: YOUTUBE_API_KEY
+        sync: false
+      # 식품영양성분 DB 적재(src/agents/ingredient_catalog_agent.py)
+      - key: NUTRITION_API_KEY
+        sync: false
+
   # V3 프론트엔드. Vite 빌드 결과(정적 파일)를 Render 정적 사이트로 올린다.
   #
   # 정적 사이트를 쓰는 이유: Render 무료 웹 서비스는 15분 유휴 후 중단되고 재시작에

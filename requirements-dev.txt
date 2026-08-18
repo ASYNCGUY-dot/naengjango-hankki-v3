@@ -1,3 +1,6 @@
 # 개발/테스트 전용 - Render/Reflex Cloud 배포에는 설치하지 않는다(render.yaml, reflex deploy 참고).
 -r requirements.txt
 pytest
+# tests/test_deploy_config.py가 render.yaml을 읽는다. 다른 패키지에 묻어 들어와 있어서
+# 지금까지는 없어도 돌았지만, 그건 언제든 사라질 수 있는 의존이라 직접 적는다.
+PyYAML
