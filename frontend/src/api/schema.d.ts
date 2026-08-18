@@ -1524,6 +1524,8 @@ export interface components {
             ingredient_overlap: number;
             /** Menu Name */
             menu_name: string;
+            /** Missing Count */
+            missing_count: number;
             /** Nutrition Group */
             nutrition_group: string;
             /** Protein G */

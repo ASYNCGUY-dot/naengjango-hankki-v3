@@ -28,9 +28,12 @@ export type CardBadge = { text: string; tone: 'good' | 'weak' | 'poor' }
 export default function RecipeCard({
   recipe,
   badge,
+  note,
 }: {
   recipe: CardRecipe
   badge?: CardBadge
+  /** "2개만 더 있으면 돼요"처럼 카드 아래에 붙는 한 줄. */
+  note?: string | null
 }) {
   // image_url은 string | null이다. 1,148개 중 2개가 실제로 비어 있어서, 개발 중에는
   // 거의 안 걸리고 실사용에서만 터진다. 타입이 여기서 처리를 강제한다.
@@ -51,6 +54,8 @@ export default function RecipeCard({
         {badge && <span className={`${styles.badge} ${styles[badge.tone]}`}>{badge.text}</span>}
         <p className={styles.title}>{recipe.menu_name}</p>
         <p className={styles.meta}>{describeMeta(recipe)}</p>
+        {/* "재료 3개 활용"만으로는 "그래서 오늘 만들 수 있나"에 답하지 못한다. */}
+        {note && <p className={styles.note}>{note}</p>}
       </div>
     </Link>
   )

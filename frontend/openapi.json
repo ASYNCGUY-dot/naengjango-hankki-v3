@@ -1864,6 +1864,10 @@
             "title": "Menu Name",
             "type": "string"
           },
+          "missing_count": {
+            "title": "Missing Count",
+            "type": "integer"
+          },
           "nutrition_group": {
             "title": "Nutrition Group",
             "type": "string"
@@ -1904,6 +1908,7 @@
           "image_url",
           "youtube_url",
           "ingredient_overlap",
+          "missing_count",
           "coverage_ratio",
           "qualifies",
           "has_protein_match"

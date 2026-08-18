@@ -5,6 +5,27 @@ export type { RecipeSummary }
 export type CategoryCount = components['schemas']['CategoryCount']
 export type RecipeTheme = components['schemas']['RecipeTheme']
 export type NutritionFit = components['schemas']['NutritionFitResponse']
+export type Substitution = components['schemas']['SubstitutionResponse']
+
+/**
+ * 냉장고에 없는 재료와, 대신 쓸 수 있는 것.
+ *
+ * 커버리지와 목록은 같은 기준으로 계산된다 - "7개 부족"이라고 적어놓고 목록에 5개만
+ * 나오면 둘 다 못 믿게 된다(substitution_agent가 지키는 불변조건).
+ *
+ * 냉장고에 저장된 재료를 기준으로 한다. 추천 화면에서 그때그때 고친 재료가 아니라는
+ * 뜻이라, 상세 화면은 "냉장고 기준"이라고 밝힌다.
+ */
+export async function getSubstitution(
+  recipeId: number,
+  userId: number,
+  signal?: AbortSignal,
+): Promise<Substitution> {
+  return apiFetch<Substitution>(`/recommendation/recipes/${recipeId}/substitution`, {
+    query: { user_id: userId },
+    signal,
+  })
+}
 
 /**
  * 이 레시피가 나에게 어떤 영양소를 얼마나 채워주는지.

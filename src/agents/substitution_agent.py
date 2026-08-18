@@ -225,7 +225,14 @@ def get_ingredient_coverage(cur, recipe_id: int, user_ingredients: list[str]) ->
         "SELECT tag_value FROM recipe_tags WHERE recipe_id = ? AND tag_type = 'ingredient'",
         (recipe_id,)
     )
-    recipe_ingredients = [row[0] for row in cur.fetchall()]
+    # get_missing_ingredients와 같은 기준으로 걸러야 한다. 한쪽만 구획 제목을 빼면
+    # "7개 부족"이라고 적어놓고 목록에는 5개만 나오는 상태가 된다(2026-08-18에 실제로
+    # 그랬다). 위 docstring이 약속하는 불변조건이다.
+    recipe_ingredients = [
+        row[0]
+        for row in cur.fetchall()
+        if portion_agent.classify_ingredient_row(row[0], None) == "ingredient"
+    ]
     total = len(recipe_ingredients)
     if total == 0:
         return {"total": 0, "matched": 0, "missing": 0, "coverage_pct": None}

@@ -95,3 +95,63 @@ class TestMissingIngredients:
             headers=headers,
         ).json()
         assert "주재료" not in [m["ingredient"] for m in body["missing_ingredients"]]
+
+    def test_coverage_and_the_missing_list_agree(self, client, db_conn):
+        """한쪽만 구획 제목을 빼면 "7개 부족"인데 목록은 5개인 상태가 된다.
+
+        substitution_agent의 docstring이 약속하는 불변조건이고, 2026-08-18에 실제로 깨졌다.
+        """
+        res = client.post(
+            "/auth/signup",
+            json={
+                "username": "cov_agree", "password": "pw123456", "name": "테스트",
+                "phone": "010-0000-0000", "email": "cov_agree@example.com",
+                "gender": "여성", "age_group": "20대",
+                "consents": {"terms_of_service": True, "privacy": True, "marketing": False},
+            },
+        )
+        data = res.json()
+        headers = {"Authorization": f"Bearer {data['token']}"}
+        db_conn.execute(
+            "INSERT INTO recipe_tags (recipe_id, tag_type, tag_value) VALUES (1, 'ingredient', '장식')"
+        )
+
+        body = client.get(
+            "/recommendation/recipes/1/substitution",
+            params={"user_id": data["user_id"]},
+            headers=headers,
+        ).json()
+        assert body["coverage"]["missing"] == len(body["missing_ingredients"])
+
+    def test_the_card_and_the_detail_report_the_same_number(self, client, db_conn):
+        """추천 카드가 "7개 부족"이라 하고 상세가 "5개"라고 하면 둘 다 못 믿게 된다.
+
+        정렬용 missing_count는 조미료를 빼고 세는데, 그 숫자를 화면에 쓰면 소금이 없는데도
+        "다 있다"가 된다. 그래서 화면에는 missing_for_display를 내보낸다.
+        """
+        res = client.post(
+            "/auth/signup",
+            json={
+                "username": "same_num", "password": "pw123456", "name": "테스트",
+                "phone": "010-0000-0000", "email": "same_num@example.com",
+                "gender": "여성", "age_group": "20대",
+                "consents": {"terms_of_service": True, "privacy": True, "marketing": False},
+            },
+        )
+        data = res.json()
+        user_id = data["user_id"]
+        headers = {"Authorization": f"Bearer {data['token']}"}
+        client.post(f"/pantry/{user_id}", json={"name": "두부"}, headers=headers)
+
+        card = client.get(
+            f"/recommendation/{user_id}", params={"ingredients": ["두부"]}, headers=headers
+        ).json()
+        assert card, "추천 결과가 있어야 비교할 수 있다"
+        first = card[0]
+
+        detail = client.get(
+            f"/recommendation/recipes/{first['id']}/substitution",
+            params={"user_id": user_id},
+            headers=headers,
+        ).json()
+        assert first["missing_count"] == detail["coverage"]["missing"]

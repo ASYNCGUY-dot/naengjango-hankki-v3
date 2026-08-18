@@ -58,6 +58,14 @@
   color: var(--color-text-secondary);
 }
 
+/* "2개만 더 있으면 돼요". 분류·칼로리보다 이쪽이 결정에 쓰이므로 더 눈에 띄게 둔다. */
+.note {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent-text);
+}
+
 /* 추천 화면에서 "재료 N개 활용"을 보여주는 자리.
    채움색 위 글자는 --color-text-on-fill을 쓴다. 브랜드 채움색은 밝아서 흰 글자를
    올리면 읽히지 않는다(design/tokens.css 참고). */

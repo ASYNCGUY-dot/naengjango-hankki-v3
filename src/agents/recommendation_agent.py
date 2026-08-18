@@ -9,6 +9,7 @@ import re
 import sqlite3
 from functools import lru_cache
 
+import portion_agent
 from tagging_agent import clean_ingredient_name
 
 DB_PATH = "data/app.db"
@@ -732,6 +733,9 @@ def score_by_ingredients(cur, candidates: list[dict], user_ingredients: list[str
         for c in candidates:
             c["ingredient_overlap"] = 0
             c["missing_count"] = 0
+            # 재료를 안 받았으니 부족한 개수도 셀 수 없다. 0은 "다 있다"가 아니라
+            # "안 셌다"는 뜻이고, 화면은 겹침이 0이면 이 문구를 아예 안 그린다.
+            c["missing_for_display"] = 0
             c["coverage_ratio"] = 0.0
             c["qualifies"] = False
             c["category_tier"] = _category_tier(c.get("category"))
@@ -777,9 +781,18 @@ def score_by_ingredients(cur, candidates: list[dict], user_ingredients: list[str
     for c in candidates:
         # 기본 조미료는 매칭 대상(랭킹)에서 제외 (거의 모든 레시피에 있어서 변별력이 없음).
         # 화면에 보여주는 "부족한 재료" 쪽은 조미료도 포함해서 따로 정확하게 계산한다 (3원칙).
+        # 구획 제목("주재료"·"장식")이 재료 태그로도 들어가 있다. 거르지 않으면 있지도
+        # 않은 재료를 "부족하다"고 세고, missing_count가 정렬 기준이라 **추천 순서까지**
+        # 틀어진다(2026-08-18에 발견). 판정은 portion_agent가 갖고 있다.
+        recipe_tag_values = [
+            tag_value
+            for tag_value in ingredient_tags_by_recipe.get(c["id"], [])
+            if portion_agent.classify_ingredient_row(tag_value, None) == "ingredient"
+        ]
+
         recipe_ingredients_norm = [
             normalize_ingredient(tag_value)
-            for tag_value in ingredient_tags_by_recipe.get(c["id"], [])
+            for tag_value in recipe_tag_values
             if not is_staple(tag_value)
         ]
 
@@ -791,9 +804,19 @@ def score_by_ingredients(cur, candidates: list[dict], user_ingredients: list[str
         # 별개로 True/False만 판단한다. 채소/두부만 겹치는 레시피와 구분하기 위함.
         has_protein_match = _has_protein_match(user_norm, recipe_ingredients_norm)
 
-        # 이 레시피에 필요한 재료(조미료 제외) 중, 보유 재료로 채워지지 않는 개수
+        # 이 레시피에 필요한 재료(조미료 제외) 중, 보유 재료로 채워지지 않는 개수.
+        # 이 값은 **정렬용**이다. 조미료를 빼는 것이 랭킹에는 맞지만 화면에 그대로 쓰면
+        # "소금이 없는데 다 있다고 나오는" 상태가 된다.
         total_needed = len(recipe_ingredients_norm)
         missing_count = max(total_needed - overlap, 0)
+
+        # 화면에 보여줄 개수는 따로 센다. 조미료도 포함해서 세야 상세 화면의 "부족한
+        # 재료" 목록(substitution_agent)과 숫자가 어긋나지 않는다 - 같은 레시피를 두 화면이
+        # 다르게 말하면 둘 다 못 믿게 된다(추천 원칙 3번: 표시되는 수치는 정확해야 함).
+        display_norm = [normalize_ingredient(tag_value) for tag_value in recipe_tag_values]
+        missing_for_display = max(
+            len(display_norm) - _count_matched_ingredients(user_norm, display_norm), 0
+        )
         coverage_ratio = (overlap / total_needed) if total_needed > 0 else 0.0
 
         # 7차 개정(#73): 겹침 "개수"가 같은 후보들 사이에서, 그 겹침이 주재료급(수량 많음)인지
@@ -831,6 +854,7 @@ def score_by_ingredients(cur, candidates: list[dict], user_ingredients: list[str
             **c,
             "ingredient_overlap": overlap,
             "missing_count": missing_count,
+            "missing_for_display": missing_for_display,
             "coverage_ratio": coverage_ratio,
             "step_count": step_count,
             "qualifies": qualifies,

@@ -19,7 +19,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api import usage_log
 from api.auth_token import get_current_user_id, get_optional_user_id, require_self
@@ -55,6 +55,13 @@ class RecommendationItem(BaseModel):
     image_url: str | None
     youtube_url: str | None
     ingredient_overlap: int
+    # 이 레시피에 더 필요한 재료 개수. "몇 개를 쓰는가"만 보여주면 "그래서 지금 만들 수
+    # 있나"에 답하지 못한다.
+    #
+    # 정렬에 쓰는 missing_count가 아니라 missing_for_display를 내보낸다. 정렬용은 조미료를
+    # 빼고 세는데(랭킹에서는 변별력이 없어서), 그 숫자를 화면에 쓰면 소금이 없는데도
+    # "다 있다"고 말하게 되고 상세 화면의 "부족한 재료" 목록과도 어긋난다.
+    missing_count: int = Field(validation_alias="missing_for_display")
     coverage_ratio: float
     qualifies: bool
     has_protein_match: bool
@@ -176,6 +183,10 @@ def get_alternative(
     # RecommendationItem이 요구하는 필드(ingredient_overlap 등)는 재료 무관 추천이라 의미가
     # 없으니 0/False 기본값으로 채운다 - 프론트는 이 응답을 별도의 간단한 카드로 보여준다.
     alternative.setdefault("ingredient_overlap", 0)
+    # 재료를 안 보고 고른 추천이라 "몇 개 부족한지"도 셀 수 없다. 0은 "다 있다"는 뜻이
+    # 아니라 "계산하지 않았다"는 뜻이고, 화면은 ingredient_overlap이 0이면 이 문구를
+    # 아예 그리지 않는다(describeMissing 참고).
+    alternative.setdefault("missing_for_display", 0)
     alternative.setdefault("coverage_ratio", 0.0)
     alternative.setdefault("qualifies", False)
     alternative.setdefault("has_protein_match", False)

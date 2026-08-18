@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, TimeoutError, toHttps } from '../api/client'
+import MissingIngredientsCard from '../components/MissingIngredientsCard'
 import NutritionFitCard from '../components/NutritionFitCard'
 import {
   describeAmount,
@@ -142,6 +143,10 @@ export default function RecipeDetailPage() {
       {/* 온보딩에서 받은 성별·연령·병력·영양제가 실제로 쓰이는 자리다. 영양 정보 타일
           바로 아래에 둔다 - 같은 주제를 두 번에 나눠 보여주는 셈이라 붙어 있어야 한다. */}
       <NutritionFitCard recipeId={recipe.id} />
+
+      {/* 재료 목록 바로 위에 둔다. "무엇이 필요한가" 다음에 오는 질문이 "그중 뭐가
+          없는가"이므로 목록을 보기 전에 답을 주는 편이 낫다. */}
+      <MissingIngredientsCard recipeId={recipe.id} />
 
       <div className={styles.sectionHead}>
         <h2>재료</h2>

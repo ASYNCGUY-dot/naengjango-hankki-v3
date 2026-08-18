@@ -42,3 +42,19 @@ export function describeMatch(item: RecommendationItem): string {
   if (item.ingredient_overlap === 0) return '가진 재료 없이 만드는 메뉴'
   return `재료 ${item.ingredient_overlap}개 활용`
 }
+
+/**
+ * "지금 만들 수 있나"에 답하는 한 줄.
+ *
+ * 겹치는 재료 개수만 보여주면 "그래서 오늘 되는 거야?"에 답하지 못한다. 서버가 이미
+ * 세고 있던 값인데 응답에서 버려지고 있었다(2026-08-18까지).
+ *
+ * null을 돌려주면 화면이 아무것도 안 그린다 - 재료를 안 보고 고른 추천(대체 메뉴)은
+ * missing_count가 0으로 오는데, 그건 "다 있다"가 아니라 "안 셌다"는 뜻이라 "지금 바로
+ * 만들 수 있어요"라고 말하면 거짓이 된다.
+ */
+export function describeMissing(item: RecommendationItem): string | null {
+  if (item.ingredient_overlap === 0) return null
+  if (item.missing_count === 0) return '지금 바로 만들 수 있어요'
+  return `${item.missing_count}개만 더 있으면 돼요`
+}
