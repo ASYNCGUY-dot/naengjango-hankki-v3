@@ -55,11 +55,13 @@ function detail(overrides: Partial<RecipeDetail> = {}): RecipeDetail {
     image_url: 'http://www.foodsafetykorea.go.kr/uploadimg/cook/10_00113_2.png',
     base_servings: 2,
     ingredients: [
-      { name: '주재료', amount: null, unit: null },
-      { name: '실곤약', amount: 440, unit: 'g' },
-      { name: '검은콩', amount: 70, unit: 'g' },
-      { name: '장식', amount: null, unit: null },
-      { name: '오이', amount: 20, unit: 'g' },
+      { name: '주재료', amount: null, unit: null, kind: 'section' },
+      { name: '실곤약', amount: 440, unit: 'g', kind: 'ingredient' },
+      { name: '검은콩', amount: 70, unit: 'g', kind: 'ingredient' },
+      { name: '장식', amount: null, unit: null, kind: 'section' },
+      { name: '오이', amount: 20, unit: 'g', kind: 'ingredient' },
+      // 수량이 글자로 적힌 진짜 재료. 예전에는 이게 제목으로 잘못 잡혀 사라졌다.
+      { name: '소금적당량', amount: null, unit: null, kind: 'ingredient' },
     ],
     ...overrides,
   }
@@ -92,15 +94,25 @@ describe('parseNutrients', () => {
 })
 
 describe('groupIngredients', () => {
-  it('수량이 없는 행을 구획 제목으로 본다', () => {
+  it('서버가 구획 제목이라고 한 행만 제목으로 본다', () => {
     // 원본에 "주재료"·"장식"이 재료처럼 섞여 있다. 그냥 나열하면 재료로 보인다.
     const groups = groupIngredients(detail().ingredients)
     expect(groups.map((g) => g.title)).toEqual(['주재료', '장식'])
     expect(groups[0].items.map((i) => i.name)).toEqual(['실곤약', '검은콩'])
   })
 
+  it('수량이 없어도 재료라고 하면 사라지지 않는다', () => {
+    // 이게 실제 버그였다. 수량 유무로 판단하니 "소금적당량"이 제목이 되고, 목록 끝이라
+    // 뒤따르는 항목이 없어 그룹째 버려졌다. 309개 레시피(27%)가 영향받았다.
+    const groups = groupIngredients(detail().ingredients)
+    const shown = groups.flatMap((g) => g.items.map((i) => i.name))
+    expect(shown).toContain('소금적당량')
+  })
+
   it('구획 제목이 없으면 하나로 묶는다', () => {
-    const groups = groupIngredients([{ name: '두부', amount: 100, unit: 'g' }])
+    const groups = groupIngredients([
+      { name: '두부', amount: 100, unit: 'g', kind: 'ingredient' },
+    ])
     expect(groups).toHaveLength(1)
     expect(groups[0].title).toBeNull()
   })

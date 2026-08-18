@@ -16,7 +16,9 @@ def test_detail_includes_ingredients_without_login(client):
     assert body["menu_name"]
     assert body["ingredients"], "재료 없이는 레시피 화면이 성립하지 않는다"
     first = body["ingredients"][0]
-    assert set(first) == {"name", "amount", "unit"}
+    # kind는 이 행이 재료인지 구획 제목인지를 서버가 정해 내려주는 값이다. 화면이
+    # "수량 없으면 제목"으로 추측하다 재료를 사라지게 한 적이 있어서 서버가 판정한다.
+    assert set(first) == {"name", "amount", "unit", "kind"}
 
 
 def test_detail_reports_base_servings(client):

@@ -75,6 +75,39 @@ def parse_ingredients_with_amounts(parts_dtls: str) -> tuple[int, list[dict]]:
     return base_servings, items
 
 
+# 원본 데이터에서 재료 행처럼 저장돼 있지만 재료가 아닌 것들.
+#
+# 2026-08-18에 실제 버그로 드러났다. 화면이 "수량이 없으면 구획 제목"으로 판정하고 있었는데,
+# 수량 없는 행 649개 중 진짜 구획 제목은 4개뿐이었다. 나머지는 "소금적당량"·"후추 적당량"처럼
+# 수량이 글자로 적힌 진짜 재료다. 그래서 309개 레시피(전체의 27%)에서 재료가 제목으로
+# 잘못 그려지거나, 목록 맨 끝에 있으면 **화면에서 아예 사라졌다**.
+# 요리 앱에서 소금이 재료 목록에 없는 것은 그냥 틀린 것이다.
+#
+# 판정을 화면에 맡기지 않고 여기서 한다. 규칙을 두 곳에 두면 또 어긋난다.
+SECTION_TITLES = frozenset({
+    "주재료", "부재료", "양념", "양념장", "소스", "고명", "장식", "재료", "드레싱", "육수",
+})
+
+# 재료가 아니라 원본의 안내 문구가 행으로 들어온 것. 화면에 보여줄 이유가 없다.
+_NOISE_MARKERS = ("인분 기준", "<br>")
+
+
+def classify_ingredient_row(name: str, amount) -> str:
+    """재료 행 하나가 무엇인지 정한다: "section" | "noise" | "ingredient".
+
+    수량 유무만으로 판단하지 않는다 - 그게 위 주석의 버그였다. 이름을 함께 본다.
+    """
+    stripped = (name or "").strip()
+    if not stripped:
+        return "noise"
+    if any(marker in stripped for marker in _NOISE_MARKERS):
+        return "noise"
+    # 구획 제목은 수량이 없다. 이름이 같아도 수량이 붙어 있으면 그건 재료다.
+    if amount is None and stripped in SECTION_TITLES:
+        return "section"
+    return "ingredient"
+
+
 def get_recipe_ingredients(cur, recipe_id: int) -> tuple[int, list[dict]]:
     """DB에 저장해둔 recipe_ingredients에서 재료 수량 목록을 읽어온다."""
     cur.execute(

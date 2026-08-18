@@ -66,10 +66,15 @@ class RecommendationItem(BaseModel):
 
 class RecipeIngredient(BaseModel):
     name: str
-    # 수량이 없는 행이 있다. 원본 데이터에 "주재료"·"장식" 같은 구획 제목이 재료처럼
-    # 섞여 있어서, 화면은 amount가 없는 행을 소제목으로 그린다.
     amount: float | None
     unit: str | None
+    # 이 행이 재료인지 구획 제목인지를 서버가 정해서 내려준다.
+    #
+    # 예전에는 화면이 "수량이 없으면 구획 제목"으로 판단했는데 틀렸다. 수량 없는 행
+    # 649개 중 진짜 제목은 4개뿐이고 나머지는 "소금적당량"처럼 수량이 글자로 적힌 진짜
+    # 재료였다. 그래서 309개 레시피(27%)에서 재료가 제목으로 잘못 그려지거나, 목록 끝에
+    # 있으면 화면에서 아예 사라졌다. 판정 규칙을 화면에 두면 또 어긋난다.
+    kind: str  # "ingredient" | "section"
 
 
 class RecipeDetail(BaseModel):
@@ -273,9 +278,16 @@ def get_recipe(
     # /recipes/{id}/ingredients(인가 필요)에 그대로 남는다.
     base_servings, items = portion_agent.get_recipe_ingredients(cur, recipe_id)
     recipe["base_servings"] = base_servings
-    recipe["ingredients"] = [
-        {"name": item["name"], "amount": item["amount"], "unit": item["unit"]}
+    # 안내 문구가 재료 행으로 들어온 것("1인분 기준<br>" 등)은 아예 빼고 보낸다.
+    # 화면이 걸러내게 하면 다른 화면에서 또 새어나온다.
+    classified = [
+        (portion_agent.classify_ingredient_row(item["name"], item["amount"]), item)
         for item in items
+    ]
+    recipe["ingredients"] = [
+        {"name": item["name"], "amount": item["amount"], "unit": item["unit"], "kind": kind}
+        for kind, item in classified
+        if kind != "noise"
     ]
     usage_log.record(cur, usage_log.RECIPE_VIEW, user_id=viewer_id, recipe_id=recipe_id)
     return recipe

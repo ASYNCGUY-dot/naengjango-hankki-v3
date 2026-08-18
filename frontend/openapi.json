@@ -1593,6 +1593,10 @@
             ],
             "title": "Amount"
           },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -1612,7 +1616,8 @@
         "required": [
           "name",
           "amount",
-          "unit"
+          "unit",
+          "kind"
         ],
         "title": "RecipeIngredient",
         "type": "object"

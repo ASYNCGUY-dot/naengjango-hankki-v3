@@ -7,6 +7,7 @@ Substitution Agent [확장]
 - 최종 대체 가능 여부는 사용자가 직접 판단해야 하며, 이 제안은 참고용이다.
 """
 
+import portion_agent
 from recommendation_agent import normalize_ingredient, ingredients_match
 from tagging_agent import clean_ingredient_name
 
@@ -152,7 +153,14 @@ def get_missing_ingredients(cur, recipe_id: int, user_ingredients: list[str], me
         "SELECT tag_value FROM recipe_tags WHERE recipe_id = ? AND tag_type = 'ingredient'",
         (recipe_id,)
     )
-    recipe_ingredients = [row[0] for row in cur.fetchall()]
+    # 구획 제목("주재료"·"장식")이 재료 태그로도 들어가 있어서, 거르지 않으면 화면이
+    # "주재료가 부족합니다"라고 말한다(2026-08-18에 실제로 그랬다). 판정 규칙은
+    # portion_agent가 갖고 있다 - 여기서 목록을 또 만들면 두 곳이 어긋난다.
+    recipe_ingredients = [
+        row[0]
+        for row in cur.fetchall()
+        if portion_agent.classify_ingredient_row(row[0], None) == "ingredient"
+    ]
 
     user_norm = [normalize_ingredient(u.strip()) for u in user_ingredients if u.strip()]
 

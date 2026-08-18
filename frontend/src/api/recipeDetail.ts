@@ -100,8 +100,11 @@ export function groupIngredients(ingredients: RecipeIngredient[]): IngredientGro
   let current: IngredientGroup = { title: null, items: [] }
 
   for (const ingredient of ingredients) {
-    const isHeading = ingredient.amount === null && ingredient.unit === null
-    if (isHeading) {
+    // 수량 유무로 추측하지 않는다. 그렇게 하다 재료를 사라지게 했다 - 수량 없는 행
+    // 649개 중 진짜 제목은 4개뿐이고 나머지는 "소금적당량"처럼 수량이 글자로 적힌
+    // 재료였다. 목록 끝에 있으면 뒤따르는 항목이 없어 그룹째 버려졌다. 이제 서버가
+    // kind로 알려준다(api/routers/recommendation.py).
+    if (ingredient.kind === 'section') {
       if (current.items.length > 0) groups.push(current)
       current = { title: ingredient.name, items: [] }
     } else {

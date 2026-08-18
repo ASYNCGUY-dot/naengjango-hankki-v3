@@ -1444,6 +1444,8 @@ export interface components {
         RecipeIngredient: {
             /** Amount */
             amount: number | null;
+            /** Kind */
+            kind: string;
             /** Name */
             name: string;
             /** Unit */
