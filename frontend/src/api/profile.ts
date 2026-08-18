@@ -4,6 +4,17 @@ import type { components } from './schema'
 export type Profile = components['schemas']['ProfileGetResponse']
 export type ProfileBody = components['schemas']['ProfileRequest']
 export type AllergyOption = components['schemas']['AllergyOption']
+export type ProfileOptions = components['schemas']['ProfileOptions']
+
+/**
+ * 가입·온보딩 선택지. 인가가 없어 가입 전에도 부를 수 있다.
+ *
+ * 화면이 목록을 따로 들면 서버가 아는 값과 조용히 어긋난다. 성별·연령대는 영양 기준표의
+ * 키이고 병력은 조정 규칙의 키라, 어긋나면 그 기능이 통째로 꺼진 채 화면만 정상으로 보인다.
+ */
+export async function getProfileOptions(signal?: AbortSignal): Promise<ProfileOptions> {
+  return apiFetch<ProfileOptions>('/profile/options', { signal })
+}
 
 export async function getProfile(userId: number, signal?: AbortSignal): Promise<Profile> {
   return apiFetch<Profile>(`/profile/${userId}`, { signal })

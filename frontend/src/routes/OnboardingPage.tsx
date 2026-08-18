@@ -11,6 +11,7 @@ import {
   PURPOSES,
   getProfile,
   joinSelections,
+  getProfileOptions,
   listAllergyOptions,
   splitSelections,
   updateProfile,
@@ -52,7 +53,9 @@ export default function OnboardingPage() {
   const [noveltyPref, setNoveltyPref] = useState('')
   const [householdSize, setHouseholdSize] = useState(1)
   const [supplements, setSupplements] = useState('')
-  const [medicalConditions, setMedicalConditions] = useState('')
+  // 서버가 아는 다섯 개 중에서만 고른다. 자유 입력은 조용히 버려진다.
+  const [conditions, setConditions] = useState<string[]>([])
+  const [conditionOptions, setConditionOptions] = useState<string[]>([])
 
   // 가입에서 받은 값. 화면에 다시 묻지 않지만 저장할 때 함께 보내야 한다.
   const [gender, setGender] = useState('')
@@ -73,6 +76,10 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (userId === null) return
     const controller = new AbortController()
+
+    getProfileOptions(controller.signal)
+      .then((opts) => setConditionOptions(opts.medical_conditions))
+      .catch(() => {})
 
     listAllergyOptions(controller.signal)
       .then(setAllergyOptions)
@@ -96,7 +103,7 @@ export default function OnboardingPage() {
         setNoveltyPref(profile.novelty_pref ?? '')
         setHouseholdSize(profile.household_size ?? 1)
         setSupplements(profile.supplements ?? '')
-        setMedicalConditions(profile.medical_conditions ?? '')
+        setConditions(splitSelections(profile.medical_conditions))
         // 이미 동의한 사람에게 빈 체크박스를 보여주면 "동의한 적 없다"는 인상을 준다.
         setHealthConsent(profile.health_data_consent)
         setIsProfileLoaded(true)
@@ -116,7 +123,7 @@ export default function OnboardingPage() {
 
   // 건강 정보를 실제로 넣은 사람에게만 동의를 묻는다. 수집하지 않는 것에 동의를
   // 요구하면 동의가 형식이 된다.
-  const hasHealthData = allergies.length > 0 || medicalConditions.trim() !== ''
+  const hasHealthData = allergies.length > 0 || conditions.length > 0
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -147,7 +154,7 @@ export default function OnboardingPage() {
         household_size: householdSize,
         novelty_pref: noveltyPref,
         cooking_tools: joinSelections(tools),
-        medical_conditions: medicalConditions.trim(),
+        medical_conditions: joinSelections(conditions),
         // 건강 정보를 안 넣었으면 동의도 보내지 않는다. 서버는 거절도 이력으로
         // 남기므로, 안 물어본 것을 동의로 기록하지 않게 하려면 값이 정확해야 한다.
         health_data_consent: hasHealthData && healthConsent,
@@ -293,17 +300,32 @@ export default function OnboardingPage() {
           />
         </div>
 
-        <div className={styles.field}>
-          <label htmlFor="medical_conditions">병력 정보</label>
-          <input
-            id="medical_conditions"
-            type="text"
-            placeholder="예: 고혈압, 당뇨 (선택)"
-            value={medicalConditions}
-            onChange={(e) => setMedicalConditions(e.target.value)}
-          />
-          <span className={styles.hint}>영양 안내에만 쓰이고 추천 목록에는 드러나지 않아요.</span>
-        </div>
+        {/* 자유 입력이었는데 목록으로 바꿨다(2026-08-18). 서버는 정해진 다섯 개만 알아듣고
+            그 밖의 값은 조용히 버린다 - "혈압 높음"이라고 쓰면 고혈압 나트륨 조정이 안
+            걸리는데 화면은 저장됐다고 말했다. 알레르기와 같은 문제였다. */}
+        <fieldset className={`${styles.section} ${styles.safety}`}>
+          <legend>병력 정보</legend>
+          <span className={styles.hint}>
+            해당하는 것만 골라주세요. 영양 안내에만 쓰이고 추천 목록에는 드러나지 않아요.
+          </span>
+          <ul className={styles.chips}>
+            {conditionOptions.map((name) => {
+              const selected = conditions.includes(name)
+              return (
+                <li key={name}>
+                  <button
+                    type="button"
+                    className={selected ? `${styles.chip} ${styles.chipSelected}` : styles.chip}
+                    aria-pressed={selected}
+                    onClick={() => setConditions((prev) => toggle(prev, name))}
+                  >
+                    {name}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </fieldset>
 
         {/* 건강 정보를 넣은 사람에게만 나타난다. 안 넣으면 수집하지 않으므로 물을 이유가
             없고, 물으면 동의가 형식이 된다. */}

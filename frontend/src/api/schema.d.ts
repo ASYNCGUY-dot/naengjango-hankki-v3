@@ -492,6 +492,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Profile Options
+         * @description 가입·온보딩 화면이 쓸 선택지. 인가가 없다 - 가입 전에도 필요하다.
+         */
+        get: operations["get_profile_options_profile_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile/{user_id}": {
         parameters: {
             query?: never;
@@ -1327,6 +1347,25 @@ export interface components {
             supplements?: string | null;
             /** Username */
             username?: string | null;
+        };
+        /**
+         * ProfileOptions
+         * @description 가입·온보딩 화면이 쓸 선택지.
+         *
+         *     화면이 목록을 따로 들고 있으면 서버가 아는 값과 조용히 어긋난다. 2026-08-18에
+         *     실제로 그랬다 - 가입 화면의 "50대"/"60대 이상"을 영양 기준표가 몰라서, 그걸 고른
+         *     사용자는 영양 분석을 아예 못 받았다. 병력 정보도 자유 입력이라 "혈압 높음"이라고
+         *     쓰면 고혈압 조정이 안 걸렸다. 알레르기에서 겪은 것과 같은 구조다.
+         */
+        ProfileOptions: {
+            /** Age Groups */
+            age_groups: string[];
+            /** Gender Undisclosed */
+            gender_undisclosed: string;
+            /** Genders */
+            genders: string[];
+            /** Medical Conditions */
+            medical_conditions: string[];
         };
         /** ProfileRequest */
         ProfileRequest: {
@@ -2806,6 +2845,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AllergyOption"][];
+                };
+            };
+        };
+    };
+    get_profile_options_profile_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOptions"];
                 };
             };
         };

@@ -77,6 +77,12 @@ export async function confirmPasswordReset(token: string, newPassword: string): 
 /** 백엔드의 MIN_PASSWORD_LENGTH와 같은 값이다(api/routers/auth.py). */
 export const MIN_PASSWORD_LENGTH = 8
 
-/** 가입 폼의 선택지. 백엔드는 문자열을 그대로 받으므로 화면에서 목록을 정한다. */
-export const GENDER_OPTIONS = ['여성', '남성', '선택 안 함'] as const
-export const AGE_GROUP_OPTIONS = ['10대', '20대', '30대', '40대', '50대', '60대 이상'] as const
+/**
+ * 가입 폼의 선택지는 여기서 정하지 않는다. `getProfileOptions()`(api/profile.ts)로
+ * 서버에서 받아온다.
+ *
+ * 여기에 목록을 두고 있었는데 서버가 아는 값과 어긋나 있었다(2026-08-18). 화면이
+ * "50대"·"60대 이상"을 주는 동안 영양 기준표는 "50대 이상"만 알아서, 그 둘을 고른
+ * 사용자는 영양 분석을 아예 못 받았다. 화면은 저장됐다고 말하는데 말이다.
+ * 알레르기에서 겪은 것과 같은 구조라 같은 방식으로 막았다.
+ */

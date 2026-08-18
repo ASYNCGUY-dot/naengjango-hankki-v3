@@ -1,12 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import {
-  AGE_GROUP_OPTIONS,
-  GENDER_OPTIONS,
-  MIN_PASSWORD_LENGTH,
-  type SignupBody,
-} from '../api/auth'
+import { MIN_PASSWORD_LENGTH, type SignupBody } from '../api/auth'
+import { getProfileOptions, type ProfileOptions } from '../api/profile'
 import { ApiError, TimeoutError } from '../api/client'
 import { useAuth } from '../auth/context'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
@@ -53,6 +49,18 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const isSlow = useSlowRequestHint(isPending)
+
+  // 선택지는 서버가 정한다. 화면이 목록을 들고 있다가 서버가 아는 값과 어긋난 적이 있다.
+  const [options, setOptions] = useState<ProfileOptions | null>(null)
+  useEffect(() => {
+    if (mode !== 'signup') return
+    const controller = new AbortController()
+    getProfileOptions(controller.signal)
+      .then(setOptions)
+      // 못 받으면 성별·연령대 칸이 비는데, 가입 자체를 막지는 않는다.
+      .catch(() => {})
+    return () => controller.abort()
+  }, [mode])
 
   const set = (key: keyof typeof EMPTY_SIGNUP) => (value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -175,7 +183,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
               <label htmlFor="gender">성별</label>
               <select id="gender" value={form.gender} onChange={(e) => set('gender')(e.target.value)}>
                 <option value="">선택하세요</option>
-                {GENDER_OPTIONS.map((option) => (
+                {(options?.genders ?? []).map((option) => (
                   <option key={option} value={option}>{option}</option>
                 ))}
               </select>
@@ -186,7 +194,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
               <select id="age_group" value={form.age_group}
                 onChange={(e) => set('age_group')(e.target.value)}>
                 <option value="">선택하세요</option>
-                {AGE_GROUP_OPTIONS.map((option) => (
+                {(options?.age_groups ?? []).map((option) => (
                   <option key={option} value={option}>{option}</option>
                 ))}
               </select>

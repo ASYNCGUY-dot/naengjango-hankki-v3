@@ -17,6 +17,13 @@ function signIn(userId = 116) {
   localStorage.setItem('naengjango.token', 'tok-test')
 }
 
+const PROFILE_OPTIONS = {
+  genders: ['여성', '남성', '선택 안 함'],
+  age_groups: ['10대', '20대', '30대', '40대', '50대 이상'],
+  medical_conditions: ['고혈압', '당뇨', '신장질환', '빈혈', '골다공증'],
+  gender_undisclosed: '선택 안 함',
+}
+
 const ALLERGY_OPTIONS = [
   { value: '달걀', label: '달걀', recipe_count: 227 },
   { value: '우유', label: '우유', recipe_count: 88 },
@@ -55,6 +62,9 @@ function mockApi(options: {
     const url = String(input)
     if ((init as RequestInit | undefined)?.method === 'PUT') {
       return json({ updated: true }, options.putStatus ?? 200)
+    }
+    if (url.includes('/profile/options')) {
+      return json(PROFILE_OPTIONS)
     }
     if (url.includes('/profile/allergy-options')) {
       return json(options.allergyOptions ?? ALLERGY_OPTIONS, options.allergyStatus ?? 200)
@@ -268,6 +278,7 @@ describe('식단 정보 입력', () => {
       releaseProfile = resolve
     })
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input).includes('/profile/options')) return json(PROFILE_OPTIONS)
       if (String(input).includes('/profile/allergy-options')) return json(ALLERGY_OPTIONS)
       await pending
       return json(profile())

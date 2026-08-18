@@ -1322,6 +1322,44 @@
         "title": "ProfileGetResponse",
         "type": "object"
       },
+      "ProfileOptions": {
+        "description": "가입·온보딩 화면이 쓸 선택지.\n\n화면이 목록을 따로 들고 있으면 서버가 아는 값과 조용히 어긋난다. 2026-08-18에\n실제로 그랬다 - 가입 화면의 \"50대\"/\"60대 이상\"을 영양 기준표가 몰라서, 그걸 고른\n사용자는 영양 분석을 아예 못 받았다. 병력 정보도 자유 입력이라 \"혈압 높음\"이라고\n쓰면 고혈압 조정이 안 걸렸다. 알레르기에서 겪은 것과 같은 구조다.",
+        "properties": {
+          "age_groups": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Age Groups",
+            "type": "array"
+          },
+          "gender_undisclosed": {
+            "title": "Gender Undisclosed",
+            "type": "string"
+          },
+          "genders": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Genders",
+            "type": "array"
+          },
+          "medical_conditions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Medical Conditions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "genders",
+          "age_groups",
+          "medical_conditions",
+          "gender_undisclosed"
+        ],
+        "title": "ProfileOptions",
+        "type": "object"
+      },
       "ProfileRequest": {
         "properties": {
           "age_group": {
@@ -4405,6 +4443,28 @@
           }
         },
         "summary": "List Allergy Options",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/profile/options": {
+      "get": {
+        "description": "가입·온보딩 화면이 쓸 선택지. 인가가 없다 - 가입 전에도 필요하다.",
+        "operationId": "get_profile_options_profile_options_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Profile Options",
         "tags": [
           "profile"
         ]

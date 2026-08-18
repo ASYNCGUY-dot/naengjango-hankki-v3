@@ -13,6 +13,33 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
+
+/** 가입 화면이 쓸 선택지. 서버가 내려주므로 목록을 화면이 들고 있지 않다. */
+const PROFILE_OPTIONS = {
+  genders: ['여성', '남성', '선택 안 함'],
+  age_groups: ['10대', '20대', '30대', '40대', '50대 이상'],
+  medical_conditions: ['고혈압', '당뇨', '신장질환', '빈혈', '골다공증'],
+  gender_undisclosed: '선택 안 함',
+}
+
+/**
+ * 선택지 조회를 갈라내고 나머지는 주어진 응답으로 답한다.
+ *
+ * mockResolvedValue로 같은 Response를 돌려주면 안 된다 - 본문은 한 번만 읽히므로
+ * 두 번째 요청이 빈 값을 받는다. 실제로 그렇게 깨진 적이 있다.
+ */
+function mockApi(body: unknown, status = 200) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    if (String(input).includes('/profile/options')) return jsonResponse(PROFILE_OPTIONS)
+    return jsonResponse(body, status)
+  })
+}
+
+/** 가입 요청만 센다. 화면이 선택지를 받아오므로 "fetch가 안 불렸다"로는 검사할 수 없다. */
+function signupCalls(fetchMock: ReturnType<typeof mockApi>) {
+  return fetchMock.mock.calls.filter(([url]) => String(url).includes('/auth/signup'))
+}
+
 async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>, pw = 'pw123456') {
   await user.type(screen.getByLabelText('아이디'), 'jisu')
   await user.type(screen.getByLabelText('비밀번호'), pw)
@@ -93,7 +120,7 @@ describe('로그인 화면', () => {
     await fillAndSubmit(user, 'short')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('8자 이상')
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(signupCalls(fetchMock)).toHaveLength(0)
   })
 
   it('요청이 진행되는 동안 버튼을 잠근다', async () => {
@@ -139,9 +166,7 @@ describe('로그인 화면', () => {
 
   it('회원가입 화면은 가입 후 바로 로그인 상태가 된다', async () => {
     const user = userEvent.setup()
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(jsonResponse({ user_id: 42, token: 'tok-new' }))
+    const fetchMock = mockApi({ user_id: 42, token: 'tok-new' })
     renderWithProviders(<App />, { route: '/signup' })
 
     await fillSignupForm(user)
@@ -154,7 +179,8 @@ describe('로그인 화면', () => {
 
     // 서버가 요구하는 항목이 실제로 실려 나가는지 본다. 폼만 보고 통과시키면
     // 필드를 화면에만 만들어두고 안 보내는 실수를 못 잡는다.
-    const sent = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
+    // calls[0]은 선택지 조회다. 가입 요청을 골라서 본다.
+    const sent = JSON.parse((signupCalls(fetchMock)[0][1] as RequestInit).body as string)
     expect(sent).toMatchObject({
       username: 'newbie',
       name: '최지수',
@@ -169,14 +195,14 @@ describe('로그인 화면', () => {
   it('필수 동의를 안 하면 서버에 보내지 않는다', async () => {
     // 콜드스타트가 30초라, 서버까지 보내고 거부당하면 30초를 버린다.
     const user = userEvent.setup()
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({}))
+    const fetchMock = mockApi({})
     renderWithProviders(<App />, { route: '/signup' })
 
     await fillSignupForm(user, { agreePrivacy: false })
     await user.click(screen.getByRole('button', { name: '회원가입' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('동의')
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(signupCalls(fetchMock)).toHaveLength(0)
   })
 
   it.each([
@@ -184,26 +210,26 @@ describe('로그인 화면', () => {
     ['연락처', '연락처를 입력해주세요.'],
   ])('%s이(가) 비면 막는다', async (label, message) => {
     const user = userEvent.setup()
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({}))
+    const fetchMock = mockApi({})
     renderWithProviders(<App />, { route: '/signup' })
 
     await fillSignupForm(user, { skip: label })
     await user.click(screen.getByRole('button', { name: '회원가입' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(message)
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(signupCalls(fetchMock)).toHaveLength(0)
   })
 
   it('이메일 형식이 틀리면 막는다', async () => {
     const user = userEvent.setup()
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({}))
+    const fetchMock = mockApi({})
     renderWithProviders(<App />, { route: '/signup' })
 
     await fillSignupForm(user, { email: '골뱅이없음' })
     await user.click(screen.getByRole('button', { name: '회원가입' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('이메일 형식')
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(signupCalls(fetchMock)).toHaveLength(0)
   })
 
   it('로그인 화면에는 회원가입 전용 항목이 없다', () => {

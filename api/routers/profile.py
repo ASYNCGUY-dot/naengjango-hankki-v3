@@ -16,7 +16,12 @@ from pydantic import BaseModel
 from api import usage_log
 from api.auth_token import get_current_user_id, require_self
 from api.deps import get_db
-from src.agents import auth_agent, profile_agent, recommendation_agent
+from src.agents import (
+    auth_agent,
+    nutrition_target_agent,
+    profile_agent,
+    recommendation_agent,
+)
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -76,8 +81,35 @@ class AllergyOption(BaseModel):
     recipe_count: int
 
 
-# "/allergy-options"는 "/{user_id}"보다 먼저 등록해야 한다 - 뒤에 두면 "allergy-options"가
-# user_id 자리에 매칭되다 int 변환에 실패해 422가 난다(8.2 함정).
+class ProfileOptions(BaseModel):
+    """가입·온보딩 화면이 쓸 선택지.
+
+    화면이 목록을 따로 들고 있으면 서버가 아는 값과 조용히 어긋난다. 2026-08-18에
+    실제로 그랬다 - 가입 화면의 "50대"/"60대 이상"을 영양 기준표가 몰라서, 그걸 고른
+    사용자는 영양 분석을 아예 못 받았다. 병력 정보도 자유 입력이라 "혈압 높음"이라고
+    쓰면 고혈압 조정이 안 걸렸다. 알레르기에서 겪은 것과 같은 구조다.
+    """
+
+    genders: list[str]
+    age_groups: list[str]
+    medical_conditions: list[str]
+    # 이 값을 고르면 영양 기준을 계산할 수 없다는 것을 화면이 알아야 안내할 수 있다.
+    gender_undisclosed: str
+
+
+# 리터럴 경로는 "/{user_id}"보다 먼저 등록해야 한다 - 뒤에 두면 그 이름이 user_id 자리에
+# 매칭되다 int 변환에 실패해 422가 난다(8.2 함정).
+@router.get("/options", response_model=ProfileOptions)
+def get_profile_options():
+    """가입·온보딩 화면이 쓸 선택지. 인가가 없다 - 가입 전에도 필요하다."""
+    return ProfileOptions(
+        genders=nutrition_target_agent.GENDER_OPTIONS,
+        age_groups=nutrition_target_agent.AGE_GROUP_OPTIONS,
+        medical_conditions=nutrition_target_agent.MEDICAL_CONDITION_OPTIONS,
+        gender_undisclosed=nutrition_target_agent.GENDER_UNDISCLOSED,
+    )
+
+
 @router.get("/allergy-options", response_model=list[AllergyOption])
 def list_allergy_options(cur: sqlite3.Cursor = Depends(get_db)):
     """온보딩에서 고를 알레르기 목록을 실제 태그에서 만든다.
