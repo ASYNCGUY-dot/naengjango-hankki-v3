@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, TimeoutError, toHttps } from '../api/client'
+import NutritionFitCard from '../components/NutritionFitCard'
 import {
   describeAmount,
   getRecipe,
@@ -137,6 +138,10 @@ export default function RecipeDetailPage() {
         <NutrientTile label="단백질" value={nutrients.protein_g} unit="g" />
         <NutrientTile label="나트륨" value={nutrients.sodium_mg} unit="mg" />
       </ul>
+
+      {/* 온보딩에서 받은 성별·연령·병력·영양제가 실제로 쓰이는 자리다. 영양 정보 타일
+          바로 아래에 둔다 - 같은 주제를 두 번에 나눠 보여주는 셈이라 붙어 있어야 한다. */}
+      <NutritionFitCard recipeId={recipe.id} />
 
       <div className={styles.sectionHead}>
         <h2>재료</h2>

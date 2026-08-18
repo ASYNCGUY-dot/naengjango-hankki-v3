@@ -4,6 +4,27 @@ import type { components } from './schema'
 export type { RecipeSummary }
 export type CategoryCount = components['schemas']['CategoryCount']
 export type RecipeTheme = components['schemas']['RecipeTheme']
+export type NutritionFit = components['schemas']['NutritionFitResponse']
+
+/**
+ * 이 레시피가 나에게 어떤 영양소를 얼마나 채워주는지.
+ *
+ * 온보딩에서 받은 성별·연령대로 공식 권장섭취량을 찾고, 복용 중인 영양제와 병력을
+ * 반영한다(2025 한국인 영양소 섭취기준). 그 질문들이 실제로 쓰이는 유일한 자리다.
+ *
+ * 성별·연령대를 안 밝히면 서버가 `available: false`로 답한다 - 오류가 아니라
+ * "기준을 정할 수 없다"는 뜻이므로 화면이 그렇게 안내해야 한다.
+ */
+export async function getNutritionFit(
+  recipeId: number,
+  userId: number,
+  signal?: AbortSignal,
+): Promise<NutritionFit> {
+  return apiFetch<NutritionFit>(`/recommendation/recipes/${recipeId}/nutrition-fit`, {
+    query: { user_id: userId },
+    signal,
+  })
+}
 
 /** 화면의 "전체" 칩. 서버에 이 값을 보내면 필터를 걸지 않는다(search_all_recipes 참고). */
 export const ALL_CATEGORIES = '전체'
