@@ -7,25 +7,74 @@ CORS는 그 경계에서만 진짜로 검증된다.
 사용법:
     .venv/Scripts/python.exe scripts/smoke_test_deploy.py
 
-계정을 새로 만들지 않는다. 기존 검증 계정으로 로그인만 한다 - 운영 DB에 쓰레기 계정을
-늘리지 않기 위해서다(005의 삭제 목록에 이미 들어 있는 계정이다).
+계정은 실행할 때마다 새로 만들고 끝나면 지운다. 처음에는 고정된 검증 계정을 썼는데,
+migration/005가 그런 계정을 정리하는 순간 이 스크립트가 같이 죽는다. 언제 돌려도
+결과가 같아야 하는 도구가 특정 계정의 생존에 기대면 안 된다.
+
+지우는 대상은 이 스크립트가 방금 만든 계정 하나뿐이다. 이름이 정확히 일치할 때만 지운다.
+
+자식 행을 먼저 지워야 한다. 001_schema.sql이 만든 참조에는 ON DELETE 규칙이 없어서
+users를 바로 지우면 외래키 위반이 난다(2026-08-18에 실제로 났다). 006/007이 만든
+테이블만 CASCADE라 알아서 따라온다. migration/005가 삭제 순서를 지키는 이유와 같다.
 """
 
 import os
 import sys
 import time
+from datetime import datetime, timezone
 
 import requests
 from dotenv import load_dotenv
 
 API = "https://naengjango-hankki-v2-api.onrender.com"
 WEB = "https://naengjango-hankki-v3-web.onrender.com"
-USER = "e2e_usage_20260818"
+
+# 이 실행에서만 쓰는 계정. 같은 초에 두 번 돌리지 않는 한 겹치지 않는다.
+USER = "smoke_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 PW = "pw12345678"
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 failures: list[str] = []
+
+
+# users를 참조하면서 ON DELETE 규칙이 없는 테이블들. 먼저 비워야 계정을 지울 수 있다.
+CHILD_TABLES = [
+    ("ingredients", "user_id"),
+    ("reviews", "user_id"),
+    ("favorites", "user_id"),
+    ("ingredient_favorites", "user_id"),
+    ("recipe_likes", "user_id"),
+    ("user_partner_keys", "user_id"),
+    ("auth_tokens", "user_id"),
+    ("ingredient_submissions", "submitted_by"),
+    ("ingredient_submissions", "reviewed_by"),
+]
+
+
+def cleanup(username: str) -> None:
+    """이 스크립트가 만든 계정을 지운다. 실패해도 검사 결과를 뒤집지 않는다."""
+    try:
+        import psycopg2
+
+        conn = psycopg2.connect(os.environ["POSTGRES_URL"])
+        cur = conn.cursor()
+        # 이름이 정확히 일치할 때만. 조건이 넓어지면 남의 계정까지 지운다.
+        cur.execute("SELECT id FROM public.users WHERE username = %s", (username,))
+        row = cur.fetchone()
+        if row is None:
+            conn.close()
+            print(f"\n정리: {username}이 이미 없습니다.")
+            return
+
+        for table, column in CHILD_TABLES:
+            cur.execute(f"DELETE FROM public.{table} WHERE {column} = %s", (row[0],))
+        cur.execute("DELETE FROM public.users WHERE id = %s", (row[0],))
+        conn.commit()
+        conn.close()
+        print(f"\n정리: 검증 계정 {username} 삭제 완료")
+    except Exception as exc:  # noqa: BLE001
+        print(f"\n정리 실패({type(exc).__name__}). 계정 {username}이 남아 있으니 직접 지우세요.")
 
 
 def check(label: str, ok: bool, detail: str = "") -> bool:
@@ -69,16 +118,44 @@ check(
 )
 
 print("\n3) 지인이 밟을 흐름 그대로")
+res = requests.post(
+    f"{API}/auth/signup",
+    json={
+        "username": USER, "password": PW, "name": "스모크", "phone": "010-0000-0000",
+        "email": f"{USER}@example.com", "gender": "여성", "age_group": "20대",
+        "consents": {"terms_of_service": True, "privacy": True, "marketing": False},
+    },
+    timeout=60,
+)
+if not check("회원가입", res.status_code == 200, str(res.status_code)):
+    print("\n가입이 안 되면 나머지를 볼 수 없다. 중단한다.")
+    print(res.text[:300])
+    sys.exit(1)
+
 res = requests.post(f"{API}/auth/login", json={"username": USER, "password": PW}, timeout=60)
 if not check("로그인", res.status_code == 200, str(res.status_code)):
     print("\n로그인이 안 되면 나머지를 볼 수 없다. 중단한다.")
     print(res.text[:300])
+    cleanup(USER)
     sys.exit(1)
 data = res.json()
 user_id, headers = data["user_id"], {"Authorization": f"Bearer {data['token']}"}
 
 res = requests.get(f"{API}/profile/{user_id}", headers=headers, timeout=60)
 check("내 정보", res.status_code == 200, str(res.status_code))
+
+res = requests.put(
+    f"{API}/profile/{user_id}",
+    json={
+        "gender": "여성", "age_group": "20대", "allergy": "달걀",
+        "health_goal": "체중감량", "purpose": "자취생 식단관리", "cooking_level": "초급",
+        "supplements": "없음", "household_size": 1, "novelty_pref": "새로운 메뉴 선호",
+        "cooking_tools": "가스레인지", "medical_conditions": "",
+    },
+    headers=headers,
+    timeout=60,
+)
+check("온보딩 저장", res.status_code == 200, str(res.status_code))
 
 res = requests.get(f"{API}/profile/allergy-options", headers=headers, timeout=60)
 check("알레르기 목록(V3 신규)", res.status_code == 200 and len(res.json()) > 0,
@@ -111,15 +188,24 @@ try:
 
     conn = psycopg2.connect(os.environ["POSTGRES_URL"])
     cur = conn.cursor()
+    # 이 실행이 남긴 것만 본다. 다른 사람 활동이 섞이면 검사가 아니라 구경이 된다.
     cur.execute(
-        "SELECT event, COUNT(*) FROM usage_events WHERE created_at > %s GROUP BY event ORDER BY event",
-        (time.strftime("%Y-%m-%dT%H:", time.gmtime()),),
+        "SELECT event, COUNT(*) FROM usage_events WHERE user_id = %s GROUP BY event ORDER BY event",
+        (user_id,),
     )
     rows = cur.fetchall()
-    check("이번 시간대 이벤트 기록", bool(rows), ", ".join(f"{e}={n}" for e, n in rows) or "없음")
+    got = {event for event, _ in rows}
+    expected = {"login", "onboarding_done", "pantry_add", "recommend"}
+    check(
+        "이번 실행의 이벤트 기록",
+        expected <= got,
+        ", ".join(f"{e}={n}" for e, n in rows) or "없음",
+    )
     conn.close()
 except Exception as exc:  # noqa: BLE001
     check("사용 로그 확인", False, f"{type(exc).__name__}: {exc}")
+
+cleanup(USER)
 
 print()
 if failures:

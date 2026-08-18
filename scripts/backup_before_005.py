@@ -34,7 +34,7 @@ load_dotenv(ROOT / ".env")
 DOOMED_USERNAMES = (
     "testuser01", "test", "gaptest0718", "design_verify_20260726",
     "verify_ui_v2_20260721", "prod_verify_20260721", "design2_verify_local",
-    "최지목", "e2e_verify_20260813", "e2e_usage_20260818",
+    "최지목", "e2e_verify_20260813", "e2e_usage_20260818", "e2e_deploy_20260818",
 )
 
 # (테이블, 사용자를 가리키는 컬럼) - 005가 지우는 순서와 같다.
