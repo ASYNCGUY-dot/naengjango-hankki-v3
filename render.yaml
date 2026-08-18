@@ -10,6 +10,10 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
     envVars:
+      # 파이썬 버전을 고정한다. 빼두면 Render의 그때그때 기본값을 쓰게 되는데, 코드는
+      # CI와 같은 3.12에서만 검증돼 있다. 빌드가 언제 깨질지 모르는 상태로 두지 않는다.
+      - key: PYTHON_VERSION
+        value: "3.12"
       - key: POSTGRES_URL
         sync: false
       - key: FOODSAFETY_API_KEY
@@ -74,7 +78,11 @@ services:
   - type: web
     name: naengjango-hankki-v3-web
     runtime: static
-    buildCommand: cd frontend && npm ci && npm run build
+    # --include=dev가 필요하다. NODE_ENV=production인 환경에서 npm ci는 devDependencies를
+    # 건너뛰는데, 이 프로젝트는 빌드 도구인 tsc와 vite가 둘 다 devDependencies에 있다.
+    # 그러면 "'tsc'을(를) 찾을 수 없습니다"로 빌드가 죽는다(2026-08-18에 로컬에서 재현했다).
+    # NODE_ENV가 안 걸린 환경에서는 아무 차이가 없으므로 그냥 붙여둔다.
+    buildCommand: cd frontend && npm ci --include=dev && npm run build
     staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_BASE

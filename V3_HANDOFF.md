@@ -346,6 +346,20 @@ V2는 84개 기능을 만들고 단 한 명에게도 검증받지 않았다. 같
 
 같은 실수를 반복하지 않기 위한 목록이다. 전부 실제로 겪은 것이다.
 
+### 8.-2 정적 사이트 빌드가 devDependencies 없이 돌아간다 (2026-08-18)
+
+`tsc`와 `vite`가 둘 다 `devDependencies`에 있는데, `NODE_ENV=production`인 환경에서
+`npm ci`는 devDependencies를 건너뛴다. 그러면 `'tsc'을(를) 찾을 수 없습니다`로 빌드가
+죽는다. 로컬에서 `NODE_ENV=production npm ci && npm run build`로 그대로 재현했고,
+`npm ci --include=dev`로 바꾸니 통과했다.
+
+**빌드 명령에 `--include=dev`를 유지할 것.** `NODE_ENV`가 안 걸린 환경에서는 아무 차이가
+없으므로 붙여둬도 손해가 없다. `tests/test_deploy_config.py`가 이 플래그를 지킨다.
+
+또 하나, 언어 버전을 고정했다. 루트 `.node-version`(24)과 `PYTHON_VERSION=3.12`가
+CI와 같은 값이다. 빼두면 Render의 그때그때 기본값을 쓰게 되는데, 코드가 검증된 조합은
+그 둘뿐이다.
+
 ### 8.-1 배포 설정이 코드보다 뒤처져 조용히 죽는 기능 (2026-08-18)
 
 `render.yaml`이 넘겨주던 환경변수는 5개인데 `api/`·`src/`가 읽는 것은 15개였다. 빠진 것

@@ -83,6 +83,39 @@ def test_password_reset_env_is_declared():
         assert key in declared, f"{key}가 render.yaml에 없다"
 
 
+def test_static_build_installs_dev_dependencies():
+    """빌드 도구가 devDependencies에 있다는 사실이 배포에서 물린다.
+
+    tsc와 vite가 둘 다 devDependencies인데, NODE_ENV=production인 환경에서 npm ci는
+    devDependencies를 건너뛴다. 그러면 "'tsc'을(를) 찾을 수 없습니다"로 빌드가 죽는다.
+    2026-08-18에 로컬에서 그대로 재현했다.
+    """
+    config = yaml.safe_load(RENDER_YAML.read_text(encoding="utf-8"))
+    static_sites = [s for s in config["services"] if s.get("runtime") == "static"]
+    assert static_sites, "정적 사이트 정의가 없다"
+    for service in static_sites:
+        command = service["buildCommand"]
+        assert "npm ci --include=dev" in command, (
+            f"{service['name']}의 buildCommand에 --include=dev가 없다: {command!r}"
+        )
+
+
+def test_the_frontend_points_at_the_api_service():
+    """두 서비스 주소가 어긋나면 배포 직후 모든 요청이 실패한다."""
+    config = yaml.safe_load(RENDER_YAML.read_text(encoding="utf-8"))
+    names = {s["name"] for s in config["services"]}
+    values = {
+        entry["key"]: entry.get("value")
+        for service in config["services"]
+        for entry in service.get("envVars", [])
+        if entry.get("value")
+    }
+    api_host = values["VITE_API_BASE"].removeprefix("https://").removesuffix(".onrender.com")
+    web_host = values["CORS_ALLOW_ORIGINS"].removeprefix("https://").removesuffix(".onrender.com")
+    assert api_host in names, f"VITE_API_BASE가 가리키는 {api_host}가 서비스 목록에 없다"
+    assert web_host in names, f"CORS_ALLOW_ORIGINS가 가리키는 {web_host}가 서비스 목록에 없다"
+
+
 def test_web_base_url_is_not_left_at_localhost():
     """메일 본문의 링크가 받는 사람의 컴퓨터를 가리키면 안 된다."""
     config = yaml.safe_load(RENDER_YAML.read_text(encoding="utf-8"))
