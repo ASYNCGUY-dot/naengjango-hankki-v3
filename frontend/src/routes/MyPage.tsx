@@ -84,19 +84,29 @@ export default function MyPage() {
 
       {profile !== null &&
         (profile.has_profile ? (
-          <p className={styles.done}>
-            식단 정보를 입력해두셨어요. 알레르기와 건강목표가 추천에 반영됩니다.
-          </p>
+          <>
+            <p className={styles.done}>
+              식단 정보를 입력해두셨어요. 알레르기와 건강목표가 추천에 반영됩니다.
+            </p>
+            <Link className={styles.edit} to="/onboarding">
+              식단 정보 수정하기
+            </Link>
+          </>
         ) : (
           // 온보딩을 안 하면 users.allergy가 NULL이라 알레르기 제외가 아예 돌지 않는다.
           // 알레르기가 있는 사람에게는 위험할 수 있어 그냥 안내가 아니라 눈에 띄게 알린다.
-          <p className={styles.todo} role="status">
-            <span aria-hidden="true">⚠️</span>
-            <span>
-              식단 정보를 아직 입력하지 않으셨어요
-              <small>알레르기를 입력해야 그 재료가 든 레시피를 추천에서 빼드릴 수 있어요.</small>
-            </span>
-          </p>
+          <>
+            <p className={styles.todo} role="status">
+              <span aria-hidden="true">⚠️</span>
+              <span>
+                식단 정보를 아직 입력하지 않으셨어요
+                <small>알레르기를 입력해야 그 재료가 든 레시피를 추천에서 빼드릴 수 있어요.</small>
+              </span>
+            </p>
+            <Link className={styles.primary} to="/onboarding">
+              식단 정보 입력하기
+            </Link>
+          </>
         ))}
 
       <button

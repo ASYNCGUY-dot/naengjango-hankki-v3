@@ -52,6 +52,56 @@ class ProfileGetResponse(BaseModel):
     medical_conditions: str | None = None
 
 
+class AllergyOption(BaseModel):
+    """화면에 보여줄 이름과, 서버에 저장할 값."""
+
+    label: str
+    value: str
+    recipe_count: int
+
+
+# "/allergy-options"는 "/{user_id}"보다 먼저 등록해야 한다 - 뒤에 두면 "allergy-options"가
+# user_id 자리에 매칭되다 int 변환에 실패해 422가 난다(8.2 함정).
+@router.get("/allergy-options", response_model=list[AllergyOption])
+def list_allergy_options(cur: sqlite3.Cursor = Depends(get_db)):
+    """온보딩에서 고를 알레르기 목록을 실제 태그에서 만든다.
+
+    화면이 목록을 지어내면 안 된다. 태그에 없는 값을 고르게 하면 사용자는 골랐는데
+    필터는 아무것도 안 거르고, 본인은 걸러졌다고 믿는다. 실제로 기존 데이터에
+    "콩"(태그는 "대두"), "@$#$" 같은 자유 입력이 남아 있다.
+
+    동의어는 하나로 묶어서 보여준다(달걀/계란처럼 원본 표기가 갈린 것들).
+    """
+    cur.execute(
+        "SELECT tag_value, COUNT(DISTINCT recipe_id) FROM recipe_tags "
+        "WHERE tag_type = 'allergy' GROUP BY tag_value"
+    )
+    counts = {row[0]: row[1] for row in cur.fetchall()}
+
+    options: list[AllergyOption] = []
+    covered: set[str] = set()
+    for group in recommendation_agent.ALLERGY_SYNONYMS:
+        present = [name for name in group if name in counts]
+        if not present:
+            continue
+        # 가장 많이 쓰인 표기를 대표로 삼는다.
+        label = max(present, key=lambda name: counts[name])
+        options.append(
+            AllergyOption(
+                label=label, value=label, recipe_count=sum(counts[name] for name in present)
+            )
+        )
+        covered |= set(group)
+
+    for name, count in counts.items():
+        if name in covered:
+            continue
+        options.append(AllergyOption(label=name, value=name, recipe_count=count))
+
+    options.sort(key=lambda option: option.recipe_count, reverse=True)
+    return options
+
+
 @router.get("/{user_id}", response_model=ProfileGetResponse)
 def get_profile(
     user_id: int,

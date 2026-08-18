@@ -8,6 +8,12 @@
       "port": 8001
     },
     {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev", "--", "--port", "5174"],
+      "port": 5174
+    },
+    {
       "name": "design",
       "runtimeExecutable": ".venv/Scripts/python.exe",
       "runtimeArgs": ["-m", "http.server", "8002"],

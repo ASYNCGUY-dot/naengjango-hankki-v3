@@ -466,6 +466,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/allergy-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Allergy Options
+         * @description 온보딩에서 고를 알레르기 목록을 실제 태그에서 만든다.
+         *
+         *     화면이 목록을 지어내면 안 된다. 태그에 없는 값을 고르게 하면 사용자는 골랐는데
+         *     필터는 아무것도 안 거르고, 본인은 걸러졌다고 믿는다. 실제로 기존 데이터에
+         *     "콩"(태그는 "대두"), "@$#$" 같은 자유 입력이 남아 있다.
+         *
+         *     동의어는 하나로 묶어서 보여준다(달걀/계란처럼 원본 표기가 갈린 것들).
+         */
+        get: operations["list_allergy_options_profile_allergy_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile/{user_id}": {
         parameters: {
             query?: never;
@@ -865,6 +891,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AllergyOption
+         * @description 화면에 보여줄 이름과, 서버에 저장할 값.
+         */
+        AllergyOption: {
+            /** Label */
+            label: string;
+            /** Recipe Count */
+            recipe_count: number;
+            /** Value */
+            value: string;
+        };
         /** CategoryCount */
         CategoryCount: {
             /** Category */
@@ -2696,6 +2734,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_allergy_options_profile_allergy_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllergyOption"][];
                 };
             };
         };

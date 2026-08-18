@@ -53,6 +53,7 @@
 .done {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
 }
 
 .button {
@@ -90,6 +91,11 @@
 
 .primary:hover:not(:disabled) {
   background: var(--color-accent-strong);
+}
+
+.edit {
+  composes: button;
+  margin-bottom: var(--space-3);
 }
 
 .error {

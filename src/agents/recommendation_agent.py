@@ -204,6 +204,32 @@ def ingredients_match(a: str, b: str) -> bool:
     return _same_ingredient_group(a, b)
 
 
+# 알레르기 태그의 동의어 (2026-08-13).
+#
+# recipe_tags에 같은 것을 가리키는 태그가 둘씩 들어 있다. 원본 공공데이터의 표기가
+# 통일돼 있지 않아서다. 실측하면 "달걀" 200개 / "계란" 27개, "소고기" 71개 / "쇠고기" 47개다.
+# 알레르기 제외는 정확 일치로 비교하므로, "달걀"만 저장된 사용자에게 "계란" 태그가 붙은
+# 27개가 그대로 추천된다. 알레르기가 있는 사람에게는 위험한 누락이라 여기서 함께 묶는다.
+ALLERGY_SYNONYMS: list[set[str]] = [
+    {"달걀", "계란"},
+    {"소고기", "쇠고기"},
+]
+
+
+def expand_allergies(raw: str | None) -> set[str]:
+    """저장된 알레르기 문자열을 비교용 집합으로 바꾼다. 동의어를 함께 넣는다.
+
+    저장된 값이 NULL이거나 비어 있으면 빈 집합이다 - 가입만 하고 온보딩을 안 한 상태가
+    정상적으로 존재한다.
+    """
+    selected = {item.strip() for item in (raw or "").split(",") if item.strip()}
+    expanded = set(selected)
+    for group in ALLERGY_SYNONYMS:
+        if selected & group:
+            expanded |= group
+    return expanded
+
+
 def get_user_profile(cur, user_id: int) -> dict | None:
     # username과 name도 함께 읽는다(2026-08-13). 마이 화면이 "누구로 로그인했는지"를
     # 보여주려면 필요한데, 이 함수 말고는 계정 한 건을 통째로 읽는 자리가 없다.
@@ -265,7 +291,7 @@ def get_candidate_recipes(cur, profile: dict) -> list[dict]:
     # None이 그대로 나와 .split()에서 터진다(2026-08-13에 실제로 터졌다). 가입만 하고
     # 온보딩을 안 한 사용자가 정확히 이 상태라, 지인 테스트에서 전원이 첫 추천에서 만났을
     # 버그다. V2에서는 프로필을 만들 때 항상 값을 넣어서 드러나지 않았다.
-    user_allergies = set(a.strip() for a in (profile.get("allergy") or "").split(",") if a.strip())
+    user_allergies = expand_allergies(profile.get("allergy"))
 
     cur.execute(
         "SELECT id, menu_name, cook_method, category, calorie, nutrients_json, "

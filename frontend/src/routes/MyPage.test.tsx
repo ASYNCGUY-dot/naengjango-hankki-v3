@@ -108,6 +108,11 @@ describe('마이 화면', () => {
     const status = await screen.findByRole('status')
     expect(status).toHaveTextContent('식단 정보를 아직 입력하지 않으셨어요')
     expect(status).toHaveTextContent('알레르기')
+    // 경고만 띄우고 갈 곳을 안 주면 사용자가 할 수 있는 게 없다.
+    expect(screen.getByRole('link', { name: '식단 정보 입력하기' })).toHaveAttribute(
+      'href',
+      '/onboarding',
+    )
   })
 
   it('온보딩을 마쳤으면 경고를 띄우지 않는다', async () => {
@@ -117,5 +122,10 @@ describe('마이 화면', () => {
 
     await screen.findByText('최지수')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    // 알레르기가 바뀔 수 있으니 고친 뒤에도 다시 들어갈 길은 남겨둔다.
+    expect(screen.getByRole('link', { name: '식단 정보 수정하기' })).toHaveAttribute(
+      'href',
+      '/onboarding',
+    )
   })
 })

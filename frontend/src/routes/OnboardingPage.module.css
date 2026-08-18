@@ -1,0 +1,149 @@
+.page {
+  padding: var(--space-4) var(--space-4) var(--space-10);
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
+.page h1 {
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.lead {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: var(--space-2) 0 var(--space-6);
+}
+
+.section {
+  margin-bottom: var(--space-6);
+  border: none;
+  padding: 0;
+}
+
+.section legend {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-1);
+  padding: 0;
+}
+
+.hint {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+/* 알레르기는 안전과 직결되므로 눈에 띄게 둔다. */
+.safety {
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--color-surface-accent);
+}
+
+.safety legend {
+  padding: 0 var(--space-2);
+  color: var(--color-accent-text);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.chip {
+  min-height: var(--touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chipSelected {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.field label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.field select,
+.field input {
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.cta:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
+
+.cta:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.error {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-danger-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.notice {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
+  font-size: var(--font-size-sm);
+}
+
+.guest {
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  color: var(--color-text-secondary);
+}

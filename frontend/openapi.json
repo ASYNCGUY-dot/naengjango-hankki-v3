@@ -1,6 +1,30 @@
 {
   "components": {
     "schemas": {
+      "AllergyOption": {
+        "description": "화면에 보여줄 이름과, 서버에 저장할 값.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "recipe_count": {
+            "title": "Recipe Count",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "value",
+          "recipe_count"
+        ],
+        "title": "AllergyOption",
+        "type": "object"
+      },
       "CategoryCount": {
         "properties": {
           "category": {
@@ -4304,6 +4328,32 @@
         "summary": "Get Videos",
         "tags": [
           "popular-videos"
+        ]
+      }
+    },
+    "/profile/allergy-options": {
+      "get": {
+        "description": "온보딩에서 고를 알레르기 목록을 실제 태그에서 만든다.\n\n화면이 목록을 지어내면 안 된다. 태그에 없는 값을 고르게 하면 사용자는 골랐는데\n필터는 아무것도 안 거르고, 본인은 걸러졌다고 믿는다. 실제로 기존 데이터에\n\"콩\"(태그는 \"대두\"), \"@$#$\" 같은 자유 입력이 남아 있다.\n\n동의어는 하나로 묶어서 보여준다(달걀/계란처럼 원본 표기가 갈린 것들).",
+        "operationId": "list_allergy_options_profile_allergy_options_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AllergyOption"
+                  },
+                  "title": "Response List Allergy Options Profile Allergy Options Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Allergy Options",
+        "tags": [
+          "profile"
         ]
       }
     },
