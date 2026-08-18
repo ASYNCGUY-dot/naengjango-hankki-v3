@@ -18,6 +18,7 @@ users를 바로 지우면 외래키 위반이 난다(2026-08-18에 실제로 났
 테이블만 CASCADE라 알아서 따라온다. migration/005가 삭제 순서를 지키는 이유와 같다.
 """
 
+import json
 import os
 import sys
 import time
@@ -93,8 +94,17 @@ start = time.perf_counter()
 res = requests.get(f"{API}/openapi.json", timeout=180)
 elapsed = time.perf_counter() - start
 check("API", res.status_code == 200, f"{res.status_code}  {elapsed:.2f}s")
-paths = len(res.json()["paths"])
-check("V3 코드인가 (경로 48개)", paths == 48, f"{paths}개")
+# 개수를 박아두면 엔드포인트를 하나 더할 때마다 이 스크립트가 거짓으로 운다(실제로 그랬다).
+# 저장소의 명세와 대조하면 "배포가 지금 코드인가"를 직접 묻는 검사가 된다.
+_repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+with open(os.path.join(_repo, "frontend", "openapi.json"), encoding="utf-8") as f:
+    expected_paths = set(json.load(f)["paths"])
+missing = sorted(expected_paths - set(res.json()["paths"]))
+check(
+    "배포가 저장소와 같은 코드인가",
+    not missing,
+    f"경로 {len(res.json()['paths'])}개" + (f" / 빠진 것: {missing}" if missing else ""),
+)
 
 print("\n2) CORS - 이 경계는 배포에서만 검증된다")
 res = requests.options(
@@ -144,18 +154,27 @@ user_id, headers = data["user_id"], {"Authorization": f"Bearer {data['token']}"}
 res = requests.get(f"{API}/profile/{user_id}", headers=headers, timeout=60)
 check("내 정보", res.status_code == 200, str(res.status_code))
 
+profile_body = {
+    "gender": "여성", "age_group": "20대", "allergy": "달걀",
+    "health_goal": "체중감량", "purpose": "자취생 식단관리", "cooking_level": "초급",
+    "supplements": "없음", "household_size": 1, "novelty_pref": "새로운 메뉴 선호",
+    "cooking_tools": "가스레인지", "medical_conditions": "",
+}
+
+# 동의 없이 보낸 건강 정보는 서버가 거절해야 한다. 이게 통과해버리면 동의 절차가
+# 화면에만 있고 서버에는 없다는 뜻이다.
+res = requests.put(
+    f"{API}/profile/{user_id}", json=profile_body, headers=headers, timeout=60
+)
+check("동의 없는 알레르기는 거절된다", res.status_code == 422, str(res.status_code))
+
 res = requests.put(
     f"{API}/profile/{user_id}",
-    json={
-        "gender": "여성", "age_group": "20대", "allergy": "달걀",
-        "health_goal": "체중감량", "purpose": "자취생 식단관리", "cooking_level": "초급",
-        "supplements": "없음", "household_size": 1, "novelty_pref": "새로운 메뉴 선호",
-        "cooking_tools": "가스레인지", "medical_conditions": "",
-    },
+    json={**profile_body, "health_data_consent": True},
     headers=headers,
     timeout=60,
 )
-check("온보딩 저장", res.status_code == 200, str(res.status_code))
+check("온보딩 저장(동의 포함)", res.status_code == 200, str(res.status_code))
 
 res = requests.get(f"{API}/profile/allergy-options", headers=headers, timeout=60)
 check("알레르기 목록(V3 신규)", res.status_code == 200 and len(res.json()) > 0,
