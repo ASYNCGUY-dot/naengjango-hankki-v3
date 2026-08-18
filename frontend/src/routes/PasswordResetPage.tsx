@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
-import { MIN_PASSWORD_LENGTH, confirmPasswordReset, requestPasswordReset } from '../api/auth'
+import { MIN_PASSWORD_LENGTH, confirmPasswordReset } from '../api/auth'
 import { ApiError, TimeoutError } from '../api/client'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
 import styles from './AuthPage.module.css'
@@ -12,84 +12,41 @@ function describe(caught: unknown): string {
 }
 
 /**
- * 초기화 요청 화면.
+ * 초기화 안내 화면.
  *
  * "비밀번호 찾기"가 아니다. 비밀번호는 단방향 해시로 저장돼 서버도 알 수 없으므로
- * 알려줄 방법이 없다. 새로 설정할 수 있는 링크를 보내는 것만 가능하다.
+ * 알려줄 방법이 없다. 새로 설정할 수 있는 링크를 주는 것만 가능하다.
+ *
+ * 지금은 그 링크를 메일로 보내지 못한다(2026-08-18). Render 무료 웹 서비스가 SMTP
+ * 포트(25/465/587) 아웃바운드를 막아서, 발송이 20초 시간 초과로 죽는다. 자격증명
+ * 문제가 아니다 - 같은 코드가 로컬에서는 2.5초에 성공한다.
+ *
+ * 그래서 입력 폼을 뺐다. 폼을 남겨두면 "가입된 이메일이라면 링크를 보냈어요"라고
+ * 말해놓고 아무것도 보내지 않는 화면이 된다. 사용자는 오지 않을 메일을 계속 기다린다.
+ * 못 하는 일은 못 한다고 말하는 편이 낫다.
+ *
+ * 서버 쪽 엔드포인트와 /reset-password 화면은 그대로 살려뒀다. 만든 사람이
+ * scripts/make_reset_link.py로 링크를 직접 만들어 전달하면 초기화는 지금도 된다.
+ * 메일 경로가 열리면(유료 인스턴스 또는 HTTPS 메일 API) 이 화면만 되돌리면 된다.
  */
 export function ForgotPasswordPage() {
-  const [email, setEmail] = useState('')
-  const [isPending, setIsPending] = useState(false)
-  const [isSent, setIsSent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const isSlow = useSlowRequestHint(isPending)
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    if (isPending) return
-    setError(null)
-    setIsPending(true)
-    try {
-      await requestPasswordReset(email.trim())
-      setIsSent(true)
-    } catch (caught) {
-      setError(describe(caught))
-    } finally {
-      setIsPending(false)
-    }
-  }
-
   return (
     <main className={styles.page}>
       <div className={styles.brand}>
         <h1>비밀번호 초기화</h1>
-        <p className={styles.tagline}>가입할 때 쓴 이메일로 링크를 보내드려요</p>
+        <p className={styles.tagline}>지금은 만든 사람에게 연락해주세요</p>
       </div>
 
-      {isSlow && (
-        <p className={styles.wake} role="status">
-          <span aria-hidden="true">☕</span>
-          <span>
-            서버를 깨우는 중이에요
-            <small>무료 서버라 첫 요청은 30초쯤 걸려요.</small>
-          </span>
-        </p>
-      )}
-
-      {error !== null && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
-
-      {isSent ? (
-        // 서버는 가입된 주소든 아니든 같은 응답을 준다(계정 존재 여부를 숨기기 위해).
-        // 그래서 "보냈습니다"가 아니라 "가입된 주소라면 갈 것"이라고 안내해야 사실과 맞다.
-        <p className={styles.wake} role="status">
-          <span aria-hidden="true">✉️</span>
-          <span>
-            가입된 이메일이라면 초기화 링크를 보냈어요
-            <small>메일함을 확인해주세요. 링크는 30분 동안만 쓸 수 있어요.</small>
-          </span>
-        </p>
-      ) : (
-        <form onSubmit={handleSubmit} noValidate>
-          <div className={styles.field}>
-            <label htmlFor="reset-email">이메일</label>
-            <input
-              id="reset-email"
-              type="email"
-              autoComplete="email"
-              placeholder="가입할 때 쓴 이메일"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <button className={styles.cta} type="submit" disabled={isPending}>
-            {isPending ? '보내는 중…' : '초기화 링크 받기'}
-          </button>
-        </form>
-      )}
+      <p className={styles.wake} role="status">
+        <span aria-hidden="true">💬</span>
+        <span>
+          아직 초기화 메일을 보내드릴 수 없어요
+          <small>
+            만든 사람에게 알려주시면 초기화 링크를 직접 만들어 보내드려요. 링크를 받으시면 30분
+            안에 새 비밀번호를 설정하시면 됩니다.
+          </small>
+        </span>
+      </p>
 
       <p className={styles.foot}>
         <Link to="/login">로그인으로 돌아가기</Link>

@@ -14,6 +14,7 @@ HTTP 계층의 관심사라 auth_agent.py는 건드리지 않는다.
 설정하는 것만 가능하다.
 """
 
+import logging
 import os
 import re
 import sqlite3
@@ -29,6 +30,8 @@ from api.deps import INTEGRITY_ERRORS, get_db
 from src.agents import auth_agent, mail_agent
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+_logger = logging.getLogger("api.auth")
 
 MIN_PASSWORD_LENGTH = 8
 
@@ -212,7 +215,13 @@ def request_password_reset(
             f"{WEB_BASE_URL}/reset-password?token={token}", valid_minutes
         )
         # 발송 실패는 응답을 바꾸지 않는다. 실패를 드러내면 계정 존재 여부가 새어나간다.
-        mail_agent.send_mail(email, subject, mail_body)
+        # 다만 서버 로그에는 반드시 남긴다. 2026-08-18에 배포에서 실제로 실패했는데
+        # 응답도 화면도 로그도 전부 조용해서, 토큰이 발급된 것을 DB에서 직접 확인하고
+        # 요청이 20초 걸린 것을 보고서야 알았다. 운영자가 못 보는 실패는 없는 것과 같다.
+        # 주소는 남기지 않는다 - 로그에 남으면 그 자체가 가입 여부의 기록이 된다.
+        sent, reason = mail_agent.send_mail(email, subject, mail_body)
+        if not sent:
+            _logger.error("비밀번호 초기화 메일 발송 실패: %s", reason)
 
     return PasswordResetRequestResponse(requested=True)
 

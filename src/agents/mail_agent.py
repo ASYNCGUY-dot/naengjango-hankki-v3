@@ -64,7 +64,11 @@ def send_mail(to_address: str, subject: str, body: str) -> tuple[bool, str]:
             smtp.sendmail(sender, [to_address], message.as_string())
         return True, "발송 완료"
     except Exception as error:  # noqa: BLE001 - 어떤 실패든 요청을 중단시키지 않는다
-        return False, f"발송 실패: {type(error).__name__}"
+        # 어디에 붙다 실패했는지까지 남긴다. 2026-08-18에 Render에서 20초 시간 초과가
+        # 났는데, 원인이 자격증명인지 네트워크인지 사유만 봐서는 갈리지 않았다.
+        # 호스트·포트가 함께 있으면 "SMTP 포트가 막혔나"를 바로 의심할 수 있다.
+        # 비밀번호와 수신 주소는 넣지 않는다.
+        return False, f"발송 실패: {type(error).__name__} ({SMTP_HOST}:{SMTP_PORT})"
 
 
 def build_password_reset_mail(reset_url: str, valid_minutes: int) -> tuple[str, str]:

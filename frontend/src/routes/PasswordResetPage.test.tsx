@@ -16,19 +16,25 @@ describe('비밀번호 초기화 요청', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => vi.restoreAllMocks())
 
-  it('요청하면 "가입된 이메일이라면"이라고 안내한다', async () => {
-    // 서버는 가입된 주소든 아니든 같은 응답을 준다(계정 존재 여부를 숨기기 위해).
-    // 화면이 "보냈습니다"라고 단정하면 사실과 다르고, 없는 주소를 넣은 사람은
-    // 오지 않는 메일을 기다리게 된다.
-    const user = userEvent.setup()
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ requested: true }))
+  it('보낼 수 없다는 사실을 그대로 알리고, 오지 않을 메일을 기다리게 하지 않는다', () => {
+    // Render 무료 웹 서비스가 SMTP 포트를 막아 메일을 못 보낸다(2026-08-18).
+    // 그런데도 폼을 남겨두면 "가입된 이메일이라면 링크를 보냈어요"라고 말해놓고
+    // 아무것도 안 보내는 화면이 된다. 실패가 사용자에게 성공으로 보이는 최악이라
+    // 폼 자체를 뺐다. 메일 경로가 열리면 이 테스트부터 되돌리면 된다.
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
     renderWithProviders(<App />, { route: '/forgot-password' })
 
-    await user.type(screen.getByLabelText('이메일'), 'someone@example.com')
-    await user.click(screen.getByRole('button', { name: '초기화 링크 받기' }))
+    expect(screen.getByRole('status')).toHaveTextContent('아직 초기화 메일을 보내드릴 수 없어요')
+    expect(screen.queryByRole('button', { name: '초기화 링크 받기' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('이메일')).not.toBeInTheDocument()
+    // 보낼 수 없는데 서버를 부르면, 쓰지도 못할 토큰만 DB에 쌓인다.
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 
-    const status = await screen.findByRole('status')
-    expect(status).toHaveTextContent('가입된 이메일이라면')
+  it('연락하면 해결된다는 것을 알려준다', () => {
+    // 막다른 길로 끝내면 안 된다. 다음에 할 행동이 화면에 있어야 한다.
+    renderWithProviders(<App />, { route: '/forgot-password' })
+    expect(screen.getByRole('status')).toHaveTextContent('만든 사람에게 알려주시면')
   })
 
   it('로그인 화면에서 초기화로 갈 수 있다', async () => {

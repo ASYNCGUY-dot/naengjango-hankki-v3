@@ -8,6 +8,7 @@ V2의 계정은 아이디와 비밀번호뿐이었다. 비밀번호를 잊으면
 자체가 없다.
 """
 
+import logging
 from datetime import timedelta
 
 import pytest
@@ -30,6 +31,36 @@ def no_real_mail(monkeypatch):
     # 요청 횟수 제한은 모듈 레벨 dict라 테스트 사이에 남는다.
     auth_router._reset_requests.clear()
     return sent
+
+
+def test_send_failure_is_logged_even_though_the_response_stays_the_same(
+    client, monkeypatch, caplog
+):
+    """발송 실패를 응답으로는 못 알리지만 서버 로그에는 반드시 남겨야 한다.
+
+    2026-08-18에 배포에서 실제로 겪었다. Render 무료 인스턴스가 SMTP 포트를 막아
+    발송이 20초 시간 초과로 죽었는데, 응답도 화면도 서버 로그도 전부 조용했다.
+    라우터가 send_mail의 반환값을 그냥 버리고 있었기 때문이다. 토큰이 발급된 것을
+    DB에서 직접 보고, 요청이 20초 걸린 것을 눈치채고서야 알았다.
+
+    응답을 바꾸면 안 된다는 제약(계정 존재 여부 노출)은 그대로 지킨다.
+    """
+    monkeypatch.setattr(
+        mail_agent, "send_mail", lambda *_: (False, "발송 실패: TimeoutError (smtp.gmail.com:465)")
+    )
+    client.post("/auth/signup", json=signup_body("mailfail", email="mailfail@example.com"))
+
+    with caplog.at_level(logging.ERROR):
+        res = client.post("/auth/password-reset/request", json={"email": "mailfail@example.com"})
+
+    assert res.status_code == 200
+    assert res.json() == {"requested": True}
+    logged = [record.getMessage() for record in caplog.records]
+    assert any("발송 실패" in line for line in logged), (
+        f"발송이 실패했는데 서버 로그에 아무것도 안 남았다: {logged}"
+    )
+    # 로그에 주소가 남으면 그 자체가 가입 여부의 기록이 된다.
+    assert not any("mailfail@example.com" in line for line in logged)
 
 
 def _reset_link_token(sent) -> str:
