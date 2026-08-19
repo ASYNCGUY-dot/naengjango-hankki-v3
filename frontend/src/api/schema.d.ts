@@ -1037,6 +1037,8 @@ export interface components {
             created_at: string;
             /** Id */
             id: number;
+            /** Image Url */
+            image_url: string | null;
             /** Menu Name */
             menu_name: string;
         };

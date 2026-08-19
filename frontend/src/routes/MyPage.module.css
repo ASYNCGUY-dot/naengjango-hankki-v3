@@ -98,6 +98,42 @@
   margin-bottom: var(--space-3);
 }
 
+/* 저장한 레시피. 다시 찾아올 이유가 되는 자리라 로그아웃 위에 둔다. */
+.saved {
+  margin: var(--space-6) 0 var(--space-4);
+}
+
+.savedHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.savedHead h2 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+}
+
+.savedHead span {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.savedEmpty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* 홈·추천과 같은 2열 격자. 카드가 화면마다 다르게 보이면 같은 앱으로 안 읽힌다. */
+.savedGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  list-style: none;
+}
+
 .error {
   margin-bottom: var(--space-4);
   padding: var(--space-3);

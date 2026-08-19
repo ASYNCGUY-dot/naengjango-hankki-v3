@@ -18,6 +18,19 @@ function signIn(userId = 116) {
   localStorage.setItem('naengjango.token', 'tok-test')
 }
 
+/** 프로필과 즐겨찾기 두 GET이 오므로 경로로 갈라 답한다. */
+function mockApi(handlers: { profile?: () => unknown; favorites?: () => unknown[] } = {}) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    const url = String(input)
+    if (url.includes('/favorites/')) {
+      if ((init as RequestInit | undefined)?.method === 'POST') return json({ favorited: true })
+      return json(handlers.favorites?.() ?? [])
+    }
+    if ((init as RequestInit | undefined)?.method === 'POST') return json({ logged_out: true })
+    return json(handlers.profile?.() ?? profile())
+  })
+}
+
 function profile(overrides: Record<string, unknown> = {}) {
   return {
     has_profile: true,
@@ -52,7 +65,7 @@ describe('마이 화면', () => {
 
   it('누구로 로그인했는지 보여준다', async () => {
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json(profile()))
+    mockApi()
     renderWithProviders(<MyPage />)
 
     expect(await screen.findByText('최지수')).toBeInTheDocument()
@@ -63,11 +76,7 @@ describe('마이 화면', () => {
     // logout()은 구현돼 있었는데 화면에서 부르는 곳이 없어 로그아웃할 방법이 없었다.
     const user = userEvent.setup()
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) =>
-      (init as RequestInit | undefined)?.method === 'POST'
-        ? json({ logged_out: true })
-        : json(profile()),
-    )
+    mockApi()
     renderWithProviders(<MyPage />)
 
     await user.click(await screen.findByRole('button', { name: '로그아웃' }))
@@ -80,11 +89,12 @@ describe('마이 화면', () => {
     // 상태가 된다. 실제로 그랬고 미처리 거부 경고로 드러났다.
     const user = userEvent.setup()
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) =>
-      (init as RequestInit | undefined)?.method === 'POST'
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (String(input).includes('/favorites/')) return json([])
+      return (init as RequestInit | undefined)?.method === 'POST'
         ? json({ detail: '서버 오류' }, 500)
-        : json(profile()),
-    )
+        : json(profile())
+    })
     renderWithProviders(<MyPage />)
 
     await user.click(await screen.findByRole('button', { name: '로그아웃' }))
@@ -100,9 +110,7 @@ describe('마이 화면', () => {
     // users.allergy가 NULL이면 알레르기 제외가 아예 돌지 않는다. 알레르기가 있는
     // 사람에게는 위험할 수 있어 눈에 띄게 알려야 한다.
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
-      json(profile({ has_profile: false })),
-    )
+    mockApi({ profile: () => profile({ has_profile: false }) })
     renderWithProviders(<MyPage />)
 
     const status = await screen.findByRole('status')
@@ -117,7 +125,7 @@ describe('마이 화면', () => {
 
   it('온보딩을 마쳤으면 경고를 띄우지 않는다', async () => {
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json(profile()))
+    mockApi()
     renderWithProviders(<MyPage />)
 
     await screen.findByText('최지수')
@@ -127,5 +135,51 @@ describe('마이 화면', () => {
       'href',
       '/onboarding',
     )
+  })
+})
+
+describe('저장한 레시피', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  it('저장한 것이 없으면 어디서 저장하는지 알려준다', async () => {
+    signIn()
+    mockApi()
+    renderWithProviders(<MyPage />)
+
+    expect(await screen.findByText(/여기에 모여요/)).toBeInTheDocument()
+  })
+
+  it('저장한 레시피를 카드로 보여주고 상세로 이어준다', async () => {
+    // 이 기능이 없던 동안에는 마음에 든 레시피를 다시 찾을 방법이 검색뿐이었다.
+    signIn()
+    mockApi({
+      favorites: () => [
+        {
+          id: 67,
+          menu_name: '블랙빈 곤약국수',
+          category: '일품',
+          calorie: 54,
+          image_url: null,
+          created_at: '2026-08-18T00:00:00',
+        },
+      ],
+    })
+    renderWithProviders(<MyPage />)
+
+    const card = await screen.findByRole('link', { name: /블랙빈 곤약국수/ })
+    expect(card).toHaveAttribute('href', '/recipe/67')
+  })
+
+  it('저장 목록을 못 받아도 계정 정보와 로그아웃은 보인다', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input).includes('/favorites/')) return json({ detail: '오류' }, 500)
+      return json(profile())
+    })
+    renderWithProviders(<MyPage />)
+
+    expect(await screen.findByText('최지수')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '로그아웃' })).toBeInTheDocument()
   })
 })

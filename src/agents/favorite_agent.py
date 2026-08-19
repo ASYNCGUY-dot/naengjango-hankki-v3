@@ -46,8 +46,11 @@ def toggle_favorite(cur, user_id: int, recipe_id: int) -> bool:
 
 def get_favorite_recipes(cur, user_id: int) -> list[dict]:
     """이 사용자가 즐겨찾기한 레시피들을 최신순으로 가져온다."""
+    # image_url을 함께 가져온다(2026-08-18). 목록 카드가 사진 중심인데 이 조회가 사진을
+    # 안 주면 화면이 레시피마다 상세를 한 번씩 더 불러야 한다 - 목록 API에서 이미 같은
+    # 이유로 겪은 문제다(api/routers/recommendation.py의 RecipeSummary 주석 참고).
     cur.execute("""
-        SELECT r.id, r.menu_name, r.category, r.calorie, f.created_at
+        SELECT r.id, r.menu_name, r.category, r.calorie, r.image_url, f.created_at
         FROM favorites f
         JOIN recipes r ON r.id = f.recipe_id
         WHERE f.user_id = ?
@@ -55,7 +58,10 @@ def get_favorite_recipes(cur, user_id: int) -> list[dict]:
     """, (user_id,))
     rows = cur.fetchall()
     return [
-        {"id": r[0], "menu_name": r[1], "category": r[2], "calorie": r[3], "created_at": r[4]}
+        {
+            "id": r[0], "menu_name": r[1], "category": r[2], "calorie": r[3],
+            "image_url": r[4], "created_at": r[5],
+        }
         for r in rows
     ]
 

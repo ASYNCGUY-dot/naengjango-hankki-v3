@@ -28,6 +28,8 @@ function item(overrides: Partial<RecommendationItem> = {}): RecommendationItem {
     image_url: 'http://x/1.png',
     youtube_url: null,
     ingredient_overlap: 3,
+    // 카드가 "N개만 더 있으면 돼요"를 그리는 데 쓴다.
+    missing_count: 2,
     coverage_ratio: 0.5,
     qualifies: true,
     has_protein_match: true,

@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ApiError, TimeoutError } from '../api/client'
+import { listFavorites, type FavoriteItem } from '../api/favorites'
 import { getProfile, type Profile } from '../api/profile'
+import RecipeCard from '../components/RecipeCard'
 import { useAuth } from '../auth/context'
 import styles from './MyPage.module.css'
 
@@ -23,12 +25,19 @@ export default function MyPage() {
   const navigate = useNavigate()
 
   const [profile, setProfile] = useState<Profile | null>(null)
+  // 저장해둔 레시피. 이게 없던 동안에는 마음에 든 것을 다시 찾을 방법이 검색뿐이었다.
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     if (userId === null) return
     const controller = new AbortController()
+    listFavorites(userId, controller.signal)
+      .then(setFavorites)
+      // 저장 목록을 못 받아도 계정 정보와 로그아웃은 보여야 한다.
+      .catch(() => {})
+
     getProfile(userId, controller.signal)
       .then(setProfile)
       .catch((caught: unknown) => {
@@ -108,6 +117,26 @@ export default function MyPage() {
             </Link>
           </>
         ))}
+
+      <section className={styles.saved} aria-labelledby="saved-heading">
+        <div className={styles.savedHead}>
+          <h2 id="saved-heading">저장한 레시피</h2>
+          {favorites.length > 0 && <span>{favorites.length}개</span>}
+        </div>
+        {favorites.length === 0 ? (
+          <p className={styles.savedEmpty}>
+            레시피 화면에서 <strong>저장하기</strong>를 누르면 여기에 모여요.
+          </p>
+        ) : (
+          <ul className={styles.savedGrid}>
+            {favorites.map((item) => (
+              <li key={item.id}>
+                <RecipeCard recipe={item} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <button
         className={styles.button}

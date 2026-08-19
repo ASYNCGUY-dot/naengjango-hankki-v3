@@ -1,0 +1,33 @@
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: calc(100% - var(--space-8));
+  min-height: var(--touch-target-min);
+  margin: var(--space-4) var(--space-4) 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--color-surface-sunken);
+}
+
+/* 저장된 상태. 색만으로 구분하지 않는다 - 글자도 "저장됨"으로 바뀌고 하트도 채워진다. */
+.on {
+  border-color: var(--color-accent);
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
+}
+
+.error {
+  margin: var(--space-2) var(--space-4) 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-danger-text);
+}

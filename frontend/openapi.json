@@ -167,6 +167,17 @@
             "title": "Id",
             "type": "integer"
           },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "menu_name": {
             "title": "Menu Name",
             "type": "string"
@@ -177,6 +188,7 @@
           "menu_name",
           "category",
           "calorie",
+          "image_url",
           "created_at"
         ],
         "title": "FavoriteItem",

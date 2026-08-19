@@ -21,6 +21,9 @@ class FavoriteItem(BaseModel):
     menu_name: str
     category: str | None
     calorie: float | None
+    # 카드가 사진 중심이라 목록이 사진을 줘야 한다. 안 주면 화면이 레시피마다 상세를
+    # 한 번씩 더 불러야 하고, 콜드스타트가 있는 무료 서버에서는 감당이 안 된다.
+    image_url: str | None
     created_at: str
 
 

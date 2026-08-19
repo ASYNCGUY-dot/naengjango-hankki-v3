@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, TimeoutError, toHttps } from '../api/client'
+import FavoriteButton from '../components/FavoriteButton'
 import MissingIngredientsCard from '../components/MissingIngredientsCard'
 import NutritionFitCard from '../components/NutritionFitCard'
 import {
@@ -130,6 +131,10 @@ export default function RecipeDetailPage() {
           {recipe.nutrition_group && <span className={styles.badge}>{recipe.nutrition_group}</span>}
         </div>
       </div>
+
+      {/* 제목 바로 아래에 둔다. 저장은 "이 레시피가 마음에 든다"는 판단이고, 그 판단은
+          사진과 이름을 본 직후에 생긴다. */}
+      <FavoriteButton recipeId={recipe.id} />
 
       {/* 이름을 주면 화면 낭독기가 "영양 정보 목록"으로 읽어준다. 화면에는 제목이
           없어서 이 목록이 무엇인지 소리로는 알 수 없다. */}
