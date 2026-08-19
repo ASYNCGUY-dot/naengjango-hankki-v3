@@ -47,6 +47,7 @@ function profile(overrides: Record<string, unknown> = {}) {
     novelty_pref: null,
     cooking_tools: null,
     medical_conditions: null,
+    is_admin: false,
     ...overrides,
   }
 }
@@ -138,11 +139,52 @@ describe('마이 화면', () => {
   })
 })
 
-describe('저장한 레시피', () => {
+describe('내가 등록한 것으로 가는 길', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => vi.restoreAllMocks())
 
-  it('저장한 것이 없으면 어디서 저장하는지 알려준다', async () => {
+  it('내 레시피와 재료 등록으로 갈 수 있다', async () => {
+    // 서버에는 V2 때부터 있었는데 여기로 가는 길이 없어 아무도 못 썼다(2026-08-19까지).
+    signIn()
+    mockApi()
+    renderWithProviders(<MyPage />)
+
+    expect(await screen.findByRole('link', { name: /내 레시피/ })).toHaveAttribute(
+      'href',
+      '/my/recipes',
+    )
+    expect(screen.getByRole('link', { name: /재료 정보 등록/ })).toHaveAttribute(
+      'href',
+      '/my/ingredients',
+    )
+  })
+
+  it('관리자가 아니면 승인 대기 목록을 보여주지 않는다', async () => {
+    signIn()
+    mockApi()
+    renderWithProviders(<MyPage />)
+
+    await screen.findByText('최지수')
+    expect(screen.queryByRole('link', { name: /승인 대기 목록/ })).not.toBeInTheDocument()
+  })
+
+  it('관리자에게만 승인 대기 목록을 보여준다', async () => {
+    signIn()
+    mockApi({ profile: () => profile({ is_admin: true }) })
+    renderWithProviders(<MyPage />)
+
+    expect(await screen.findByRole('link', { name: /승인 대기 목록/ })).toHaveAttribute(
+      'href',
+      '/admin',
+    )
+  })
+})
+
+describe('즐겨찾기', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  it('담아둔 것이 없으면 어디서 담는지 알려준다', async () => {
     signIn()
     mockApi()
     renderWithProviders(<MyPage />)
@@ -150,7 +192,7 @@ describe('저장한 레시피', () => {
     expect(await screen.findByText(/여기에 모여요/)).toBeInTheDocument()
   })
 
-  it('저장한 레시피를 카드로 보여주고 상세로 이어준다', async () => {
+  it('담아둔 레시피를 카드로 보여주고 상세로 이어준다', async () => {
     // 이 기능이 없던 동안에는 마음에 든 레시피를 다시 찾을 방법이 검색뿐이었다.
     signIn()
     mockApi({
@@ -171,7 +213,7 @@ describe('저장한 레시피', () => {
     expect(card).toHaveAttribute('href', '/recipe/67')
   })
 
-  it('저장 목록을 못 받아도 계정 정보와 로그아웃은 보인다', async () => {
+  it('즐겨찾기 목록을 못 받아도 계정 정보와 로그아웃은 보인다', async () => {
     signIn()
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       if (String(input).includes('/favorites/')) return json({ detail: '오류' }, 500)

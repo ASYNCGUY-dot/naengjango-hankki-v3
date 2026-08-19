@@ -615,8 +615,8 @@ export interface paths {
         };
         /**
          * Get Popular Recipes
-         * @description 즐겨찾기 화면의 "요즘 인기 있는 레시피" 섹션(2026-07-21, #req5) - 로그인 여부와
-         *     무관하게 볼 수 있는 공개 정보라 인가를 요구하지 않는다(search_all_recipes와 동일한 방침).
+         * @description 홈의 "많이 추천한 메뉴" 줄 - 로그인 여부와 무관하게 볼 수 있는 공개 정보라
+         *     인가를 요구하지 않는다(search_all_recipes와 동일한 방침).
          */
         get: operations["get_popular_recipes_recommendation_recipes_popular_get"];
         put?: never;
@@ -1311,6 +1311,8 @@ export interface components {
             category: string | null;
             /** Id */
             id: number;
+            /** Image Url */
+            image_url: string | null;
             /** Like Count */
             like_count: number;
             /** Menu Name */
@@ -1371,6 +1373,11 @@ export interface components {
             health_goal?: string | null;
             /** Household Size */
             household_size?: number | null;
+            /**
+             * Is Admin
+             * @default false
+             */
+            is_admin: boolean;
             /** Medical Conditions */
             medical_conditions?: string | null;
             /** Name */

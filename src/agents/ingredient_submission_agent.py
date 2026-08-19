@@ -86,11 +86,16 @@ def update_ingredient_submission(
     fat_g: float | None,
     sodium_mg: float | None,
     price_per_100g: float | None,
+    official_match_exists: bool = False,
 ) -> str | None:
     """
     본인이 등록한 재료 정보를 수정한다 (기존에는 삭제 후 재등록만 가능했음).
-    이름을 다른(자기 자신이 아닌) 승인된 항목과 겹치게 바꾸면 다시 관리자 승인 대기로 바뀐다.
-    본인 소유가 아니면 None을 반환한다.
+    이름을 다른(자기 자신이 아닌) 승인된 항목이나 공식 DB에 있는 이름과 겹치게 바꾸면
+    다시 관리자 승인 대기로 바뀐다. 본인 소유가 아니면 None을 반환한다.
+
+    official_match_exists를 안 보던 시절에는 가드가 반쪽이었다(2026-08-19에 발견).
+    새 이름으로 승인을 받은 뒤 공식 DB에 있는 이름으로 고치면 승인 상태가 그대로
+    남아서, submit에서 막는 것을 update로 우회할 수 있었다.
     """
     cur.execute("SELECT id FROM ingredient_submissions WHERE id = ? AND submitted_by = ?", (submission_id, user_id))
     if cur.fetchone() is None:
@@ -101,7 +106,9 @@ def update_ingredient_submission(
         (submission_id,)
     )
     target = _normalize_name(ingredient_name)
-    is_duplicate = any(_normalize_name(row[1] or "") == target for row in cur.fetchall())
+    is_duplicate = official_match_exists or any(
+        _normalize_name(row[1] or "") == target for row in cur.fetchall()
+    )
     status = "pending" if is_duplicate else "approved"
 
     cur.execute("""

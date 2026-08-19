@@ -1079,6 +1079,17 @@
             "title": "Id",
             "type": "integer"
           },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "like_count": {
             "title": "Like Count",
             "type": "integer"
@@ -1093,6 +1104,7 @@
           "menu_name",
           "category",
           "calorie",
+          "image_url",
           "like_count"
         ],
         "title": "PopularRecipeItem",
@@ -1278,6 +1290,11 @@
               }
             ],
             "title": "Household Size"
+          },
+          "is_admin": {
+            "default": false,
+            "title": "Is Admin",
+            "type": "boolean"
           },
           "medical_conditions": {
             "anyOf": [
@@ -4782,7 +4799,7 @@
     },
     "/recommendation/recipes/popular": {
       "get": {
-        "description": "즐겨찾기 화면의 \"요즘 인기 있는 레시피\" 섹션(2026-07-21, #req5) - 로그인 여부와\n무관하게 볼 수 있는 공개 정보라 인가를 요구하지 않는다(search_all_recipes와 동일한 방침).",
+        "description": "홈의 \"많이 추천한 메뉴\" 줄 - 로그인 여부와 무관하게 볼 수 있는 공개 정보라\n인가를 요구하지 않는다(search_all_recipes와 동일한 방침).",
         "operationId": "get_popular_recipes_recommendation_recipes_popular_get",
         "parameters": [
           {

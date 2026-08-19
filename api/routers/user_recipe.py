@@ -1,8 +1,7 @@
 """
 V1의 user_recipe_agent.py 로직을 HTTP 엔드포인트로 감싸는 얇은 래퍼.
-submit/update/get_my_recipes/get_my_recipe_detail/delete만 노출한다 - 관리자 승인
-기능(get_pending_recipes/approve_recipe/reject_recipe)은 관리자 화면이 아직 없어서
-이번 범위에서는 다루지 않는다.
+submit/update/get_my_recipes/get_my_recipe_detail/delete를 노출한다. 관리자 승인
+기능(get_pending_recipes/approve_recipe/reject_recipe)은 api/routers/admin.py에 있다.
 """
 
 import sqlite3

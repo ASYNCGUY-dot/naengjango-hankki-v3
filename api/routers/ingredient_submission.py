@@ -1,8 +1,8 @@
 """
 V1의 ingredient_submission_agent.py 로직을 HTTP 엔드포인트로 감싸는 얇은 래퍼.
-submit/update/get_my_ingredient_submissions/get_ingredient_submission_detail만 노출한다
-- 관리자 승인 기능(get_pending_ingredients/approve_ingredient/reject_ingredient)은
-  관리자 화면(별도 작업)에서 다룬다.
+submit/update/get_my_ingredient_submissions/get_ingredient_submission_detail을 노출한다.
+관리자 승인 기능(get_pending_ingredients/approve_ingredient/reject_ingredient)은
+api/routers/admin.py에 있다.
 
 공식 API(ingredient_agent.match_nutrition)는 매번 실시간 호출이라 비용이 크므로,
 official_match_exists 판단은 이미 로컬에 벌크 수집해둔 ingredient_catalog 테이블에서
@@ -121,6 +121,7 @@ def update_submission(
     status = ingredient_submission_agent.update_ingredient_submission(
         cur, submission_id, user_id, body.ingredient_name, body.calorie, body.carbs_g,
         body.protein_g, body.fat_g, body.sodium_mg, body.price_per_100g,
+        official_match_exists=_official_match_exists(cur, body.ingredient_name),
     )
     if status is None:
         raise HTTPException(status_code=404, detail="본인이 등록한 재료 정보가 아니거나 존재하지 않습니다.")

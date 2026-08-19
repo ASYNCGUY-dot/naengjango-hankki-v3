@@ -55,3 +55,5 @@ def test_get_popular_recipes_orders_by_like_count_desc(client):
     assert by_id[1]["like_count"] == 1
     # 좋아요 개수 내림차순
     assert ids.index(3) < ids.index(1)
+    # 카드를 그리려면 사진이 필요하다. 이게 없으면 화면이 레시피 상세를 열 번 더 부른다.
+    assert "image_url" in by_id[3]

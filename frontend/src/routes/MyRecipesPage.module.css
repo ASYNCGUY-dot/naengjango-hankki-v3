@@ -1,0 +1,225 @@
+.page {
+  padding: var(--space-4);
+}
+
+.page h1 {
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  margin-bottom: var(--space-4);
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-surface-sunken);
+}
+
+.button:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.primary {
+  composes: button;
+  border-color: transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  margin-bottom: var(--space-4);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
+
+/* 목록 안의 작은 버튼들. 폭을 채우지 않는다. */
+.ghost {
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.danger {
+  composes: ghost;
+  color: var(--color-danger-text);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.form label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.form input,
+.form select,
+.form textarea {
+  min-height: var(--touch-target-min);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.form textarea {
+  line-height: var(--line-height-loose);
+  resize: vertical;
+}
+
+/* 알레르기 판단이 이 칸의 글자에 달려 있다. 라벨보다 눈에 띄어야 한다. */
+.hint {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-loose);
+}
+
+/* 영양 항목처럼 라벨과 입력이 짝지어 반복되는 줄. */
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.formActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.formActions .primary {
+  margin-bottom: 0;
+}
+
+/* 승인 대기 화면이 레시피와 재료 두 묶음을 나눠 보여줄 때 쓴다. */
+.subhead {
+  margin: var(--space-6) 0 var(--space-3);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+}
+
+.list {
+  list-style: none;
+}
+
+.list > li {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.list > li + li {
+  margin-top: var(--space-2);
+}
+
+.itemHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.itemName {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+/* 색만으로 구분하지 않는다 - 글자가 "공개"와 "승인 대기"로 다르다. */
+.status {
+  flex-shrink: 0;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-fill);
+  color: var(--color-text-on-fill);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.approved {
+  background: var(--color-success-fill);
+}
+
+.itemMeta {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.itemActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.notice {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-loose);
+}
+
+.error {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-danger-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.empty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.guest {
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+
+.guest p {
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}

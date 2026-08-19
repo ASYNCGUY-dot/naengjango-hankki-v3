@@ -5,6 +5,8 @@ import { ApiError, TimeoutError, toHttps } from '../api/client'
 import FavoriteButton from '../components/FavoriteButton'
 import MissingIngredientsCard from '../components/MissingIngredientsCard'
 import NutritionFitCard from '../components/NutritionFitCard'
+import RecommendButton from '../components/RecommendButton'
+import ReviewSection from '../components/ReviewSection'
 import {
   describeAmount,
   getRecipe,
@@ -132,9 +134,14 @@ export default function RecipeDetailPage() {
         </div>
       </div>
 
-      {/* 제목 바로 아래에 둔다. 저장은 "이 레시피가 마음에 든다"는 판단이고, 그 판단은
-          사진과 이름을 본 직후에 생긴다. */}
-      <FavoriteButton recipeId={recipe.id} />
+      {/* 제목 바로 아래에 둔다. "마음에 든다"는 판단은 사진과 이름을 본 직후에 생긴다.
+          둘을 나란히 놓는 이유는 서로 다른 행동이기 때문이다 - 추천은 남에게 보이는
+          공개 지표이고, 즐겨찾기는 내가 다시 보려고 담는 것이다. 하나만 두면 사용자는
+          자기가 무엇을 한 건지 모른다. */}
+      <div className={styles.reactions}>
+        <RecommendButton recipeId={recipe.id} />
+        <FavoriteButton recipeId={recipe.id} />
+      </div>
 
       {/* 이름을 주면 화면 낭독기가 "영양 정보 목록"으로 읽어준다. 화면에는 제목이
           없어서 이 목록이 무엇인지 소리로는 알 수 없다. */}
@@ -200,6 +207,10 @@ export default function RecipeDetailPage() {
           ))}
         </ol>
       )}
+
+      {/* 조리 순서 다음에 둔다. "만들었다"가 후기의 전제라 순서를 다 본 뒤가 자연스럽고,
+          아직 안 만든 사람에게는 다른 사람이 해본 결과가 마지막 판단 재료가 된다. */}
+      <ReviewSection recipeId={recipe.id} />
 
       {youtubeUrl && (
         <div className={styles.actions}>

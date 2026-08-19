@@ -33,17 +33,19 @@ type Theme = {
   recipes: Recipe[]
 }
 
-/** 검색·분류·테마 세 종류의 요청이 오므로 경로로 갈라서 답한다. */
+/** 검색·분류·테마·인기 네 종류의 요청이 오므로 경로로 갈라서 답한다. */
 function mockApi(handlers: {
   search?: (url: URL) => Recipe[]
   categories?: () => { category: string; count: number }[]
   themes?: () => Theme[]
+  popular?: () => (Recipe & { like_count: number })[]
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(input as string)
     let body: unknown
     if (url.pathname.endsWith('/categories')) body = handlers.categories?.() ?? []
     else if (url.pathname.endsWith('/themes')) body = handlers.themes?.() ?? []
+    else if (url.pathname.endsWith('/popular')) body = handlers.popular?.() ?? []
     else body = handlers.search?.(url) ?? []
     return new Response(JSON.stringify(body), {
       status: 200,

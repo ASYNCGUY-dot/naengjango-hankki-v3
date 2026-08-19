@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ApiError, TimeoutError } from '../api/client'
+import { listPopularRecipes, type PopularRecipeItem } from '../api/likes'
 import {
   ALL_CATEGORIES,
   PAGE_SIZE,
@@ -26,9 +27,13 @@ function describe(caught: unknown): string {
 /**
  * 홈 = 레시피 둘러보기.
  *
- * 시안에는 "인기 레시피"였는데 바꿨다. 인기 순위는 좋아요를 기준으로 하는데 지금 DB에
- * 좋아요가 4개뿐이고 그마저 개발자 본인이 누른 것이라, 그 섹션은 카드 4장으로 끝난다.
- * 1,148개를 분류로 훑어보는 쪽이 지금 데이터로 성립한다. 좋아요가 쌓이면 그때 되살린다.
+ * 시안의 "인기 레시피"를 한 번 뺐다가 되살렸다(2026-08-19). 뺐던 이유는 순위 기준인
+ * 추천이 DB에 4개뿐이라 카드 네 장으로 끝나기 때문이었는데, 진짜 원인은 데이터가 아니라
+ * 화면에 추천 버튼이 없어서 아무도 누를 수 없었던 것이다. 버튼을 붙였으니 결과를 보여줄
+ * 자리도 있어야 한다 - 내 행동이 어디에 쓰이는지 안 보이면 누를 이유가 없다.
+ *
+ * 대신 비어 있으면 줄째로 감춘다. 서버가 추천 0인 레시피를 아예 빼고 주므로(INNER JOIN)
+ * 아무도 안 누른 동안에는 빈 배열이 오고, 그때 빈 제목만 남기면 고장으로 보인다.
  *
  * 테마 줄을 얹었다(2026-08-18). "두서 없고 어지럽다"는 피드백을 받았는데, 원인은 테마가
  * 없는 것만이 아니라 가나다순 20개가 한 덩어리로 쏟아지는 것이었다 - "가지겉절이,
@@ -43,6 +48,7 @@ export default function HomePage() {
   const [category, setCategory] = useState(ALL_CATEGORIES)
   const [categories, setCategories] = useState<CategoryCount[]>([])
   const [themes, setThemes] = useState<RecipeTheme[]>([])
+  const [popular, setPopular] = useState<PopularRecipeItem[]>([])
   const [recipes, setRecipes] = useState<RecipeSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -84,6 +90,10 @@ export default function HomePage() {
       // 덤이라 그럴 값이 없다. 실제로 테스트에서 그렇게 빈 화면이 나왔다.
       .then((rows) => setThemes(rows.filter((row) => Array.isArray(row?.recipes))))
       // 못 받아도 아래 목록으로 둘러볼 수 있다.
+      .catch(() => {})
+    listPopularRecipes(10, controller.signal)
+      .then(setPopular)
+      // 덤이다. 못 받으면 그 줄만 없다.
       .catch(() => {})
     return () => controller.abort()
   }, [])
@@ -128,6 +138,24 @@ export default function HomePage() {
           onChange={(e) => setKeyword(e.target.value)}
         />
       </div>
+
+      {/* 추천이 하나도 없으면 줄째로 감춘다. 다른 사람이 실제로 눌렀을 때만 의미가 있다. */}
+      {isBrowsing && popular.length > 0 && (
+        <section className={styles.theme} aria-labelledby="theme-popular">
+          <div className={styles.themeHead}>
+            <h2 id="theme-popular">많이 추천한 메뉴</h2>
+            <span className={styles.themeCount}>{popular.length}개</span>
+          </div>
+          <p className={styles.themeSubtitle}>다른 사람들이 추천한 레시피예요</p>
+          <ul className={styles.themeRow}>
+            {popular.map((recipe) => (
+              <li key={recipe.id}>
+                <RecipeCard recipe={recipe} note={`${recipe.like_count}명이 추천`} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* 찾는 게 분명한 사람(검색어·분류를 건 사람)에게 테마는 방해다. */}
       {isBrowsing &&

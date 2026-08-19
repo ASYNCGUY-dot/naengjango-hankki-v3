@@ -1,0 +1,47 @@
+/* 즐겨찾기와 나란히 놓이므로 폭을 반씩 나눠 갖는다(RecipeDetailPage의 .actions). */
+.button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target-min);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--color-surface-sunken);
+}
+
+/* 추천한 상태. 색만으로 구분하지 않는다 - 글자가 "추천함"으로 바뀌고 하트도 채워진다. */
+.on {
+  border-color: var(--color-danger-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-danger-text);
+}
+
+/* 누적 수. 이 숫자가 이 버튼의 존재 이유라 늘 보이게 둔다. */
+.count {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.on .count {
+  background: var(--color-surface-raised);
+}
+
+.error {
+  flex-basis: 100%;
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-danger-text);
+}

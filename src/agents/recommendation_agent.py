@@ -154,8 +154,13 @@ STAPLE_SEASONINGS = {
 
 
 # 유저가 등록한 레시피(recipes.source_api == "user")는 검증되지 않은 데이터라서,
-# 다른 유저들의 추천(좋아요)이 이 개수 이상 쌓이기 전까지는 AI 추천 후보에 넣지 않는다.
-USER_RECIPE_MIN_LIKES = 100
+# 다른 유저들의 추천이 이 개수 이상 쌓이기 전까지는 AI 추천 후보에 넣지 않는다.
+#
+# V2에서는 100이었는데 3으로 내렸다(2026-08-19). 28일 운영 동안 서비스 전체에 쌓인 추천이
+# 4개였다 - 레시피 하나에 100개는 그때까지 나온 전체의 25배라 도달할 수 없는 수였고,
+# 그래서 유저가 등록한 레시피는 등록한 본인에게만 보이는 상태로 남았다. 승격이 한 번도
+# 일어나지 않는 기준은 품질 장치가 아니라 기능을 끄는 스위치다.
+USER_RECIPE_MIN_LIKES = 3
 
 
 @lru_cache(maxsize=8192)
@@ -237,7 +242,7 @@ def get_user_profile(cur, user_id: int) -> dict | None:
     cur.execute("""
         SELECT id, gender, age_group, allergy, health_goal, purpose,
                cooking_level, supplements, household_size, novelty_pref, cooking_tools,
-               medical_conditions, username, name
+               medical_conditions, username, name, is_admin
         FROM users WHERE id = ?
     """, (user_id,))
     row = cur.fetchone()
@@ -246,8 +251,11 @@ def get_user_profile(cur, user_id: int) -> dict | None:
 
     columns = ["id", "gender", "age_group", "allergy", "health_goal", "purpose",
                "cooking_level", "supplements", "household_size", "novelty_pref", "cooking_tools",
-               "medical_conditions", "username", "name"]
-    return dict(zip(columns, row))
+               "medical_conditions", "username", "name", "is_admin"]
+    profile = dict(zip(columns, row))
+    # sqlite는 0/1로, Postgres는 boolean으로 준다. 화면이 그 차이를 알 필요는 없다.
+    profile["is_admin"] = bool(profile["is_admin"])
+    return profile
 
 
 def _has_placeholder_nutrition(calorie, nutrients_json: str | None) -> bool:

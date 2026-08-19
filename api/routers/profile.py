@@ -71,6 +71,9 @@ class ProfileGetResponse(BaseModel):
     # 재방문 시 동의 상태를 화면에 그대로 복원하기 위해 함께 준다. 이미 동의한 사람에게
     # 빈 체크박스를 보여주면 "동의한 적 없다"는 잘못된 인상을 준다.
     health_data_consent: bool = False
+    # 마이 화면이 승인 대기 목록 링크를 보여줄지 정하는 데 쓴다(2026-08-19). 화면에서
+    # 감추는 것은 편의일 뿐이고, 실제 권한은 /admin의 모든 엔드포인트가 다시 확인한다.
+    is_admin: bool = False
 
 
 class AllergyOption(BaseModel):

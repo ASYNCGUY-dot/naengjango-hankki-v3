@@ -26,13 +26,14 @@ class PopularRecipeItem(BaseModel):
     menu_name: str
     category: str | None
     calorie: float | None
+    image_url: str | None
     like_count: int
 
 
 @router.get("/popular", response_model=list[PopularRecipeItem])
 def get_popular_recipes(limit: int = 10, cur: sqlite3.Cursor = Depends(get_db)):
-    """즐겨찾기 화면의 "요즘 인기 있는 레시피" 섹션(2026-07-21, #req5) - 로그인 여부와
-    무관하게 볼 수 있는 공개 정보라 인가를 요구하지 않는다(search_all_recipes와 동일한 방침)."""
+    """홈의 "많이 추천한 메뉴" 줄 - 로그인 여부와 무관하게 볼 수 있는 공개 정보라
+    인가를 요구하지 않는다(search_all_recipes와 동일한 방침)."""
     return like_agent.get_popular_recipes(cur, limit)
 
 

@@ -1,0 +1,141 @@
+.section {
+  margin: var(--space-6) var(--space-4);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.head h2 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+}
+
+.head span {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.ratingLabel,
+.textLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* 별점 라벨과 선택은 한 줄, 후기 라벨부터는 줄을 바꾼다. */
+.textLabel {
+  flex-basis: 100%;
+}
+
+.rating {
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.text {
+  flex-basis: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-loose);
+  resize: vertical;
+}
+
+.submit {
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-4);
+  margin-left: auto;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.submit:disabled {
+  background: var(--color-border-strong);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+.error {
+  flex-basis: 100%;
+  font-size: var(--font-size-xs);
+  color: var(--color-danger-text);
+}
+
+.empty {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.list {
+  list-style: none;
+  margin-top: var(--space-3);
+}
+
+.list > li {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+}
+
+.list > li + li {
+  margin-top: var(--space-2);
+}
+
+.itemHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.stars {
+  color: var(--color-accent-text);
+  font-size: var(--font-size-sm);
+}
+
+.author {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.date {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.body {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-loose);
+  white-space: pre-wrap;
+}

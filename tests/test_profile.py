@@ -99,3 +99,17 @@ def test_anonymous_profile_creation_is_gone(client, db_conn):
 
     after = db_conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
     assert after == before, "인증 없는 요청으로 계정이 생기면 안 된다"
+
+
+def test_profile_says_whether_i_am_an_admin(client, db_conn):
+    """마이 화면이 승인 대기 목록 링크를 보여줄지 정하는 데 쓴다.
+
+    화면에서 감추는 것은 편의일 뿐이라, 일반 사용자에게 False가 가는 것 자체보다
+    /admin 엔드포인트가 다시 막는 것이 실제 방어선이다(test_admin.py).
+    """
+    user_id, headers = _signup(client, "u_profile_admin")
+
+    assert client.get(f"/profile/{user_id}", headers=headers).json()["is_admin"] is False
+
+    db_conn.execute("UPDATE users SET is_admin = 1 WHERE id = ?", (user_id,))
+    assert client.get(f"/profile/{user_id}", headers=headers).json()["is_admin"] is True

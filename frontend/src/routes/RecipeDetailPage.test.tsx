@@ -19,6 +19,24 @@ function json(body: unknown, status = 200) {
 }
 
 /**
+ * 상세 화면은 이제 레시피 말고도 여러 곳을 부른다(후기·추천·즐겨찾기·영양 적합도·
+ * 대체 재료). 전부 같은 답을 주면 후기 자리에 레시피 객체가 들어가는 식으로 어긋나므로
+ * 경로로 갈라 답한다.
+ */
+function mockDetailApi(recipe: RecipeDetail = detail(), overrides: Record<string, unknown> = {}) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    const path = new URL(input as string).pathname
+    for (const [fragment, body] of Object.entries(overrides)) {
+      if (path.includes(fragment)) return json(body)
+    }
+    if (path.startsWith('/reviews/')) return json([])
+    if (path.includes('/like')) return json({ liked: false, like_count: 0 })
+    if (path.startsWith('/favorites/')) return json([])
+    return json(recipe)
+  })
+}
+
+/**
  * 실제 라우트로 감싼다. MemoryRouter에 컴포넌트만 넣으면 ":recipeId" 매칭이 없어
  * useParams가 비고, 화면이 전부 "없는 레시피"로 빠진다.
  */
@@ -124,7 +142,7 @@ describe('레시피 상세 화면', () => {
 
   it('로그인 없이도 재료까지 다 보인다', async () => {
     // 링크를 받은 사람은 대개 로그인돼 있지 않다. 재료가 안 보이면 레시피가 아니다.
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json(detail()))
+    mockDetailApi(detail())
     renderDetail('/recipe/67')
 
     expect(await screen.findByRole('heading', { level: 1, name: '블랙빈 곤약국수' })).toBeInTheDocument()
@@ -135,7 +153,7 @@ describe('레시피 상세 화면', () => {
   })
 
   it('조리 순서에 번호가 겹치지 않는다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json(detail()))
+    mockDetailApi(detail())
     renderDetail('/recipe/67')
 
     expect(await screen.findByText('검은콩을 1시간 찬물에 담가 불린다.')).toBeInTheDocument()
@@ -143,7 +161,7 @@ describe('레시피 상세 화면', () => {
   })
 
   it('사진 주소를 https로 바꾼다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json(detail()))
+    mockDetailApi(detail())
     const { container } = renderDetail('/recipe/67')
 
     await screen.findByRole('heading', { level: 1 })
@@ -154,9 +172,7 @@ describe('레시피 상세 화면', () => {
   })
 
   it('영양 정보가 없으면 0이 아니라 -로 표시한다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
-      json(detail({ nutrients_json: null, calorie: null })),
-    )
+    mockDetailApi(detail({ nutrients_json: null, calorie: null }))
     renderDetail('/recipe/67')
 
     await screen.findByRole('heading', { level: 1 })
@@ -165,7 +181,7 @@ describe('레시피 상세 화면', () => {
   })
 
   it('사진이 없어도 깨지지 않는다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json(detail({ image_url: null })))
+    mockDetailApi(detail({ image_url: null }))
     const { container } = renderDetail('/recipe/67')
 
     await screen.findByRole('heading', { level: 1 })
@@ -191,7 +207,7 @@ describe('레시피 상세 화면', () => {
   })
 
   it('유튜브 링크는 새 탭에서 열고 opener를 넘기지 않는다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json(detail()))
+    mockDetailApi(detail())
     renderDetail('/recipe/67')
 
     const link = await screen.findByRole('link', { name: /유튜브/ })
@@ -201,7 +217,7 @@ describe('레시피 상세 화면', () => {
 
   it('유튜브 링크가 없으면 버튼도 없다', async () => {
     // 1,148개 중 23개가 링크 없이 등록돼 있다.
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json(detail({ youtube_url: null })))
+    mockDetailApi(detail({ youtube_url: null }))
     renderDetail('/recipe/67')
 
     await screen.findByRole('heading', { level: 1 })

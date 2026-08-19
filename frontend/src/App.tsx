@@ -1,9 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import AppLayout from './components/AppLayout'
+import AdminPage from './routes/AdminPage'
 import AuthPage from './routes/AuthPage'
 import HomePage from './routes/HomePage'
+import IngredientSubmissionPage from './routes/IngredientSubmissionPage'
 import MyPage from './routes/MyPage'
+import MyRecipesPage from './routes/MyRecipesPage'
 import OnboardingPage from './routes/OnboardingPage'
 import PantryPage from './routes/PantryPage'
 import { ForgotPasswordPage, ResetPasswordPage } from './routes/PasswordResetPage'
@@ -39,6 +42,12 @@ export default function App() {
         <Route path="/recommend" element={<RecommendPage />} />
         <Route path="/recipe/:recipeId" element={<RecipeDetailPage />} />
         <Route path="/my" element={<MyPage />} />
+        {/* 내가 올린 것들. 마이 안에 두는 게 아니라 주소를 나눈 이유는 목록이 길어질 수
+            있고, 등록하다 만 상태에서 뒤로가기가 자연스러워야 하기 때문이다. */}
+        <Route path="/my/recipes" element={<MyRecipesPage />} />
+        <Route path="/my/ingredients" element={<IngredientSubmissionPage />} />
+        {/* 권한은 서버가 확인한다. 관리자가 아니면 403이 오고 화면이 안내로 바뀐다. */}
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
       </Route>
       {/* 없는 주소는 홈으로. 지인 테스트에서 오타 링크를 받아도 빈 화면을 보지 않게 한다. */}

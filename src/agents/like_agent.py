@@ -25,15 +25,18 @@ def get_like_count(cur, recipe_id: int) -> int:
 
 
 def get_popular_recipes(cur, limit: int = 10) -> list[dict]:
-    """좋아요(추천)가 많은 순으로 승인된 레시피를 가져온다.
-    "즐겨찾기" 화면의 "요즘 인기 있는 레시피" 섹션에서 쓴다(2026-07-21, #req5)."""
+    """추천이 많은 순으로 승인된 레시피를 가져온다. 홈의 "많이 추천한 메뉴" 줄에서 쓴다.
+
+    image_url을 함께 준다(2026-08-19). 다른 목록 API는 전부 주는데 이것만 빠져 있어서,
+    화면이 카드를 그리려면 레시피 상세를 열 번 더 불러야 했다.
+    """
     cur.execute(
         """
-        SELECT r.id, r.menu_name, r.category, r.calorie, COUNT(l.id) AS like_count
+        SELECT r.id, r.menu_name, r.category, r.calorie, r.image_url, COUNT(l.id) AS like_count
         FROM recipes r
         JOIN recipe_likes l ON l.recipe_id = r.id
         WHERE r.status = 'approved'
-        GROUP BY r.id, r.menu_name, r.category, r.calorie
+        GROUP BY r.id, r.menu_name, r.category, r.calorie, r.image_url
         ORDER BY like_count DESC, r.menu_name
         LIMIT ?
         """,
@@ -41,7 +44,8 @@ def get_popular_recipes(cur, limit: int = 10) -> list[dict]:
     )
     rows = cur.fetchall()
     return [
-        {"id": r[0], "menu_name": r[1], "category": r[2], "calorie": r[3], "like_count": r[4]}
+        {"id": r[0], "menu_name": r[1], "category": r[2], "calorie": r[3],
+         "image_url": r[4], "like_count": r[5]}
         for r in rows
     ]
 

@@ -39,7 +39,7 @@ function mockApi(options: { saved?: number[]; toggleFails?: boolean } = {}) {
   })
 }
 
-describe('레시피 저장', () => {
+describe('즐겨찾기', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => vi.restoreAllMocks())
 
@@ -51,19 +51,19 @@ describe('레시피 저장', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('이미 저장한 레시피는 저장된 상태로 보여준다', async () => {
-    // 저장해뒀는데 빈 하트가 보이면 "저장 안 됨"이라는 틀린 정보를 준다.
+  it('이미 담아둔 레시피는 담긴 상태로 보여준다', async () => {
+    // 담아뒀는데 빈 별이 보이면 "안 담김"이라는 틀린 정보를 준다.
     signIn()
     mockApi({ saved: [67] })
     renderWithProviders(<FavoriteButton recipeId={67} />)
 
-    const button = await screen.findByRole('button', { name: /저장됨/ })
+    const button = await screen.findByRole('button', { name: /즐겨찾기됨/ })
     expect(button).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('누르면 서버 응답을 기다리지 않고 먼저 바뀐다', async () => {
-    // 무료 서버에서 왕복이 2초 넘게 걸릴 수 있다. 그동안 하트가 그대로면 안 눌린 줄
-    // 알고 또 누르고, 그러면 껐다 켜져서 저장이 풀린다.
+    // 무료 서버에서 왕복이 2초 넘게 걸릴 수 있다. 그동안 별이 그대로면 안 눌린 줄
+    // 알고 또 누르고, 그러면 껐다 켜져서 담긴 것이 풀린다.
     const user = userEvent.setup()
     signIn()
     let releaseToggle: () => void = () => {}
@@ -79,32 +79,32 @@ describe('레시피 저장', () => {
     })
     renderWithProviders(<FavoriteButton recipeId={67} />)
 
-    await user.click(await screen.findByRole('button', { name: /저장하기/ }))
-    expect(screen.getByRole('button', { name: /저장됨/ })).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: /즐겨찾기/ }))
+    expect(screen.getByRole('button', { name: /즐겨찾기됨/ })).toBeInTheDocument()
 
     releaseToggle()
   })
 
-  it('저장에 실패하면 되돌리고 알린다', async () => {
-    // 실패했는데 저장된 것처럼 두면 나중에 마이 화면에서 없는 것을 보고 당황한다.
+  it('담기에 실패하면 되돌리고 알린다', async () => {
+    // 실패했는데 담긴 것처럼 두면 나중에 마이 화면에서 없는 것을 보고 당황한다.
     const user = userEvent.setup()
     signIn()
     mockApi({ toggleFails: true })
     renderWithProviders(<FavoriteButton recipeId={67} />)
 
-    await user.click(await screen.findByRole('button', { name: /저장하기/ }))
+    await user.click(await screen.findByRole('button', { name: /즐겨찾기/ }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('저장하지 못했어요')
+    expect(await screen.findByRole('alert')).toHaveTextContent('즐겨찾기에 담지 못했어요')
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /저장하기/ })).toHaveAttribute(
+      expect(screen.getByRole('button', { name: /즐겨찾기/ })).toHaveAttribute(
         'aria-pressed',
         'false',
       ),
     )
   })
 
-  it('목록을 못 받으면 하트를 아예 안 보여준다', async () => {
-    // 지금 상태를 모르는데 빈 하트를 보여주면 틀린 정보가 된다.
+  it('목록을 못 받으면 별을 아예 안 보여준다', async () => {
+    // 지금 상태를 모르는데 빈 별을 보여주면 틀린 정보가 된다.
     signIn()
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json({ detail: '오류' }, 500))
     const { container } = renderWithProviders(<FavoriteButton recipeId={67} />)

@@ -120,12 +120,12 @@ export default function MyPage() {
 
       <section className={styles.saved} aria-labelledby="saved-heading">
         <div className={styles.savedHead}>
-          <h2 id="saved-heading">저장한 레시피</h2>
+          <h2 id="saved-heading">즐겨찾기</h2>
           {favorites.length > 0 && <span>{favorites.length}개</span>}
         </div>
         {favorites.length === 0 ? (
           <p className={styles.savedEmpty}>
-            레시피 화면에서 <strong>저장하기</strong>를 누르면 여기에 모여요.
+            레시피 화면에서 <strong>즐겨찾기</strong>를 누르면 여기에 모여요.
           </p>
         ) : (
           <ul className={styles.savedGrid}>
@@ -137,6 +137,24 @@ export default function MyPage() {
           </ul>
         )}
       </section>
+
+      {/* 내가 올린 것들. 등록 화면이 없던 동안에는 서버에만 있고 아무도 못 쓰던 기능이다. */}
+      <nav className={styles.links} aria-label="내가 등록한 것">
+        <Link className={styles.link} to="/my/recipes">
+          <span>내 레시피</span>
+          <small>직접 만든 레시피를 올리고 상태를 확인해요</small>
+        </Link>
+        <Link className={styles.link} to="/my/ingredients">
+          <span>재료 정보 등록</span>
+          <small>공식 DB에 없는 재료의 영양 정보를 알려주세요</small>
+        </Link>
+        {profile?.is_admin && (
+          <Link className={styles.link} to="/admin">
+            <span>승인 대기 목록</span>
+            <small>다른 사람이 올린 레시피와 재료를 검토해요</small>
+          </Link>
+        )}
+      </nav>
 
       <button
         className={styles.button}
