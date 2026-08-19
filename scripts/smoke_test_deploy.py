@@ -357,7 +357,13 @@ if my_recipe_id is not None:
         )
         tags = {row[0] for row in cur.fetchall()}
         conn.close()
-        check("등록 레시피에 알레르기 태그", "계란" in tags, ", ".join(sorted(tags)) or "없음")
+        # "계란"은 이름이 그대로 있으니 원래도 잡혔다. "대두"는 재료가 "두부"뿐이라
+        # 파생 재료 사전이 실제로 배포에 반영됐을 때만 잡힌다(2026-08-19).
+        check(
+            "등록 레시피에 알레르기 태그(파생 포함)",
+            {"계란", "대두"} <= tags,
+            ", ".join(sorted(tags)) or "없음",
+        )
     except Exception as exc:  # noqa: BLE001
         check("등록 레시피에 알레르기 태그", False, f"{type(exc).__name__}: {exc}")
 

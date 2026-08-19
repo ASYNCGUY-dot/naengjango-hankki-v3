@@ -120,3 +120,16 @@ def test_ingredient_submissions_require_a_token(client, method, path):
         params={"user_id": 1}, json={"ingredient_name": "x"},
     )
     assert res.status_code == 401
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("ingredient_name", "가" * 41), ("ingredient_name", ""), ("calorie", -1), ("carbs_g", 101)],
+)
+def test_submission_limits_are_enforced_by_the_server(client, field, value):
+    """영양값은 100g 기준이라 상한이 명확하다 - g 단위 성분이 100을 넘을 수 없다."""
+    user_id, headers = _signup(client, f"u_sub_limit_{field}_{len(str(value))}")
+
+    res = _submit(client, user_id, headers, **{field: value})
+
+    assert res.status_code == 422

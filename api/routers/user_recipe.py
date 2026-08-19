@@ -8,7 +8,7 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.auth_token import get_current_user_id, require_self
 from api.deps import get_db
@@ -18,11 +18,14 @@ router = APIRouter(prefix="/my-recipes", tags=["user-recipes"])
 
 
 class RecipeSubmitRequest(BaseModel):
-    menu_name: str
-    category: str
-    calorie: float | None = None
-    ingredients_text: str
-    steps_text: str
+    # 길이 상한을 서버가 건다. 화면에도 maxLength가 있지만 그건 편의일 뿐이고,
+    # API를 직접 부르면 얼마든지 큰 값이 들어온다. 이 글은 다른 사용자에게 그대로
+    # 보이는 공개 콘텐츠라 더 그렇다.
+    menu_name: str = Field(min_length=1, max_length=60)
+    category: str = Field(min_length=1, max_length=20)
+    calorie: float | None = Field(default=None, ge=0, le=10000)
+    ingredients_text: str = Field(min_length=1, max_length=2000)
+    steps_text: str = Field(min_length=1, max_length=4000)
 
 
 class RecipeSubmitResponse(BaseModel):

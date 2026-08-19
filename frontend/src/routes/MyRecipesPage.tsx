@@ -10,6 +10,7 @@ import {
   updateMyRecipe,
   type MyRecipeItem,
 } from '../api/myRecipes'
+import { listCategories } from '../api/recipes'
 import { useAuth } from '../auth/context'
 import styles from './MyRecipesPage.module.css'
 
@@ -20,9 +21,6 @@ const EMPTY_FORM = {
   ingredients_text: '',
   steps_text: '',
 }
-
-/** 서버가 아는 분류. 홈의 분류 칩과 같은 값이라 새 값을 만들면 어디에도 안 걸린다. */
-const CATEGORIES = ['반찬', '일품', '국&찌개', '밥', '후식', '기타']
 
 function describe(caught: unknown): string {
   if (caught instanceof ApiError || caught instanceof TimeoutError) return caught.message
@@ -43,6 +41,9 @@ export default function MyRecipesPage() {
   const { userId, isAuthenticated } = useAuth()
 
   const [recipes, setRecipes] = useState<MyRecipeItem[]>([])
+  // 분류 목록은 서버가 준다. 화면이 따로 들고 있으면 서버가 아는 값과 조용히
+  // 어긋난다 - V3_HANDOFF 8.-5에 같은 사고 네 건이 적혀 있다.
+  const [categories, setCategories] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -63,6 +64,11 @@ export default function MyRecipesPage() {
       .finally(() => {
         if (!controller.signal.aborted) setIsLoading(false)
       })
+    listCategories(controller.signal)
+      .then((rows) => setCategories(rows.map((row) => row.category)))
+      // 못 받으면 지금 고른 값 하나만 남는다. 목록 자체는 등록을 막을 만큼
+      // 중요하지 않아서 실패해도 화면을 세우지 않는다.
+      .catch(() => {})
     return () => controller.abort()
   }, [userId])
 
@@ -191,7 +197,7 @@ export default function MyRecipesPage() {
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
           >
-            {CATEGORIES.map((value) => (
+            {(categories.length > 0 ? categories : [form.category]).map((value) => (
               <option key={value} value={value}>
                 {value}
               </option>
@@ -280,10 +286,16 @@ export default function MyRecipesPage() {
                 >
                   수정
                 </button>
+                {/* 삭제는 레시피와 딸린 재료·조리순서를 함께 지우고 되돌릴 수 없다.
+                    목록 안의 작은 버튼이라 잘못 누르기 쉬워서 한 번 묻는다. */}
                 <button
                   className={styles.danger}
                   type="button"
-                  onClick={() => void handleDelete(recipe.id)}
+                  onClick={() => {
+                    if (window.confirm(`"${recipe.menu_name}"을 삭제할까요? 되돌릴 수 없어요.`)) {
+                      void handleDelete(recipe.id)
+                    }
+                  }}
                 >
                   삭제
                 </button>

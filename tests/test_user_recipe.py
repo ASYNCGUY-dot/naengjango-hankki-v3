@@ -202,3 +202,25 @@ def test_a_user_recipe_stays_hidden_until_enough_people_recommend_it(client, db_
 def test_my_recipes_requires_a_token(client, method, path):
     res = client.request(method, f"/my-recipes{path}", params={"user_id": 1}, json={})
     assert res.status_code == 401
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("menu_name", "가" * 61),
+        ("menu_name", ""),
+        ("ingredients_text", "가" * 2001),
+        ("steps_text", "가" * 4001),
+        ("calorie", -1),
+    ],
+)
+def test_submission_limits_are_enforced_by_the_server(client, field, value):
+    """화면의 maxLength는 편의일 뿐이다. API를 직접 부르면 얼마든지 큰 값이 들어온다.
+
+    등록한 글은 다른 사용자에게 그대로 보이는 공개 콘텐츠라 서버가 막아야 한다.
+    """
+    user_id, headers = _signup(client, f"u_limit_{field}_{len(str(value))}")
+
+    res = _submit(client, user_id, headers, **{field: value})
+
+    assert res.status_code == 422

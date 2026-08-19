@@ -38,14 +38,20 @@ function postedBody(fetchMock: FetchMock): Record<string, unknown> {
   return JSON.parse((call[1] as RequestInit).body as string)
 }
 
-/** 목록(GET)과 등록(POST)을 method로 갈라 답한다. */
-function mockApi(options: { items?: unknown[]; submitStatus?: string } = {}) {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+/** 목록·분류(GET)와 등록(POST)을 경로·method로 갈라 답한다. */
+function mockApi(
+  options: { items?: unknown[]; submitStatus?: string; categories?: string[] } = {},
+) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const method = (init as RequestInit | undefined)?.method
     if (method === 'POST' || method === 'PUT') {
       return json({ recipe_id: 1, status: options.submitStatus ?? 'approved' })
     }
     if (method === 'DELETE') return json({ deleted: true })
+    if (String(input).includes('/categories')) {
+      const rows = options.categories ?? ['반찬', '일품']
+      return json(rows.map((category) => ({ category, count: 1 })))
+    }
     return json(options.items ?? [])
   })
 }
@@ -148,5 +154,41 @@ describe('내 레시피', () => {
     await user.click(screen.getByRole('button', { name: '등록하기' }))
 
     await waitFor(() => expect(postedBody(fetchMock).calorie).toBeNull())
+  })
+})
+
+describe('분류 목록', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  it('서버가 준 분류만 고를 수 있다', async () => {
+    // 화면이 목록을 따로 들고 있으면 서버가 아는 값과 조용히 어긋난다.
+    // V3_HANDOFF 8.-5에 같은 사고 네 건이 적혀 있다.
+    const user = userEvent.setup()
+    signIn()
+    mockApi({ categories: ['반찬', '일품', '국&찌개'] })
+    renderWithProviders(<MyRecipesPage />)
+
+    await user.click(await screen.findByRole('button', { name: '새 레시피 등록' }))
+
+    const options = within(screen.getByLabelText('분류')).getAllByRole('option')
+    expect(options.map((o) => o.textContent)).toEqual(['반찬', '일품', '국&찌개'])
+  })
+
+  it('삭제는 확인을 받고 나서만 보낸다', async () => {
+    // 레시피와 딸린 재료·조리순서를 함께 지우고 되돌릴 수 없다.
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi({ items: [item()] })
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderWithProviders(<MyRecipesPage />)
+
+    await user.click(await screen.findByRole('button', { name: '삭제' }))
+
+    expect(confirmSpy).toHaveBeenCalled()
+    const deletes = fetchMock.mock.calls.filter(
+      ([, init]) => (init as RequestInit)?.method === 'DELETE',
+    )
+    expect(deletes).toHaveLength(0)
   })
 })

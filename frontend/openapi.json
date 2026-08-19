@@ -1674,6 +1674,8 @@
           "calorie": {
             "anyOf": [
               {
+                "maximum": 10000.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -1683,18 +1685,26 @@
             "title": "Calorie"
           },
           "category": {
+            "maxLength": 20,
+            "minLength": 1,
             "title": "Category",
             "type": "string"
           },
           "ingredients_text": {
+            "maxLength": 2000,
+            "minLength": 1,
             "title": "Ingredients Text",
             "type": "string"
           },
           "menu_name": {
+            "maxLength": 60,
+            "minLength": 1,
             "title": "Menu Name",
             "type": "string"
           },
           "steps_text": {
+            "maxLength": 4000,
+            "minLength": 1,
             "title": "Steps Text",
             "type": "string"
           }
@@ -2330,6 +2340,8 @@
           "calorie": {
             "anyOf": [
               {
+                "maximum": 1000.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2341,6 +2353,8 @@
           "carbs_g": {
             "anyOf": [
               {
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2352,6 +2366,8 @@
           "fat_g": {
             "anyOf": [
               {
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2361,12 +2377,16 @@
             "title": "Fat G"
           },
           "ingredient_name": {
+            "maxLength": 40,
+            "minLength": 1,
             "title": "Ingredient Name",
             "type": "string"
           },
           "price_per_100g": {
             "anyOf": [
               {
+                "maximum": 10000000.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2378,6 +2398,8 @@
           "protein_g": {
             "anyOf": [
               {
+                "maximum": 100.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -2389,6 +2411,8 @@
           "sodium_mg": {
             "anyOf": [
               {
+                "maximum": 100000.0,
+                "minimum": 0.0,
                 "type": "number"
               },
               {

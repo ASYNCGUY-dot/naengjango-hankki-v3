@@ -13,7 +13,7 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.auth_token import get_current_user_id, require_self
 from api.deps import get_db
@@ -23,13 +23,15 @@ router = APIRouter(prefix="/ingredient-submissions", tags=["ingredient-submissio
 
 
 class SubmissionRequest(BaseModel):
-    ingredient_name: str
-    calorie: float | None = None
-    carbs_g: float | None = None
-    protein_g: float | None = None
-    fat_g: float | None = None
-    sodium_mg: float | None = None
-    price_per_100g: float | None = None
+    # 화면의 maxLength는 편의일 뿐이라 서버가 다시 건다(user_recipe.py와 같은 이유).
+    # 영양값은 100g 기준이므로 상한이 명확하다 - g 단위 성분이 100을 넘을 수 없다.
+    ingredient_name: str = Field(min_length=1, max_length=40)
+    calorie: float | None = Field(default=None, ge=0, le=1000)
+    carbs_g: float | None = Field(default=None, ge=0, le=100)
+    protein_g: float | None = Field(default=None, ge=0, le=100)
+    fat_g: float | None = Field(default=None, ge=0, le=100)
+    sodium_mg: float | None = Field(default=None, ge=0, le=100000)
+    price_per_100g: float | None = Field(default=None, ge=0, le=10000000)
 
 
 class SubmissionResponse(BaseModel):
