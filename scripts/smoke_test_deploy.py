@@ -180,8 +180,23 @@ res = requests.get(f"{API}/profile/allergy-options", headers=headers, timeout=60
 check("알레르기 목록(V3 신규)", res.status_code == 200 and len(res.json()) > 0,
       f"{res.status_code}, {len(res.json()) if res.status_code == 200 else 0}개")
 
+# 화면의 선택지가 전부 서버에서 온 것인지 본다. 화면이 목록을 따로 들고 있으면
+# 사용자가 고른 값이 조용히 무시된다(V3_HANDOFF 8.-5).
+res = requests.get(f"{API}/profile/options", timeout=60)
+options = res.json() if res.status_code == 200 else {}
+check(
+    "가입 선택지(성별·연령대·병력)",
+    res.status_code == 200
+    and all(options.get(key) for key in ("genders", "age_groups", "medical_conditions")),
+    f"{res.status_code}, 연령대 {len(options.get('age_groups', []))}개",
+)
+
 res = requests.post(f"{API}/pantry/{user_id}", json={"name": "두부"}, headers=headers, timeout=60)
 check("재료 추가", res.status_code == 200, str(res.status_code))
+
+res = requests.get(f"{API}/pantry/suggest", params={"keyword": "두"}, timeout=60)
+check("재료 자동완성", res.status_code == 200 and len(res.json()) > 0,
+      f"{res.status_code}, {len(res.json()) if res.status_code == 200 else 0}개")
 
 res = requests.get(f"{API}/pantry/{user_id}", headers=headers, timeout=60)
 check("냉장고 조회", res.status_code == 200, f"{res.status_code}, {len(res.json())}개")
@@ -200,6 +215,44 @@ check("레시피 상세(비로그인 - 링크 공유)", res.status_code == 200 a
 res = requests.get(f"{API}/recommendation/recipes/categories", timeout=60)
 check("분류 목록(V3 신규)", res.status_code == 200 and len(res.json()) > 0,
       f"{res.status_code}, {len(res.json()) if res.status_code == 200 else 0}개")
+
+res = requests.get(f"{API}/recommendation/recipes/themes", timeout=120)
+themes = res.json() if res.status_code == 200 else []
+check(
+    "홈 테마",
+    res.status_code == 200 and all(t.get("recipes") for t in themes),
+    f"{res.status_code}, " + ", ".join(f"{t['title']} {len(t['recipes'])}개" for t in themes),
+)
+
+res = requests.get(
+    f"{API}/recommendation/recipes/67/nutrition-fit",
+    params={"user_id": user_id}, headers=headers, timeout=60,
+)
+fit = res.json() if res.status_code == 200 else {}
+check(
+    "영양 적합도",
+    res.status_code == 200 and fit.get("available") and bool(fit.get("rows")),
+    f"{res.status_code}, {fit.get('bracket_label')}, {len(fit.get('rows', []))}행",
+)
+
+res = requests.get(
+    f"{API}/recommendation/recipes/67/substitution",
+    params={"user_id": user_id}, headers=headers, timeout=60,
+)
+check(
+    "부족한 재료·대체안",
+    res.status_code == 200 and "missing_ingredients" in res.json(),
+    f"{res.status_code}, 부족 {len(res.json().get('missing_ingredients', []))}개",
+)
+
+res = requests.post(f"{API}/favorites/{user_id}/67/toggle", headers=headers, timeout=60)
+saved = res.status_code == 200 and res.json().get("favorited") is True
+res = requests.get(f"{API}/favorites/{user_id}", headers=headers, timeout=60)
+check(
+    "레시피 저장",
+    saved and res.status_code == 200 and any(r["id"] == 67 for r in res.json()),
+    f"토글 {saved}, 목록 {res.status_code}",
+)
 
 print("\n4) 사용 로그가 운영 DB에 쌓였는가")
 try:
