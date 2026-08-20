@@ -112,13 +112,31 @@ describe('자랑하기 피드', () => {
     })
   })
 
-  it('로그인하지 않으면 좋아요 수만 보여주고 글쓰기를 감춘다', async () => {
-    mockApi({ brags: [brag()] })
+  it('더 보기로 이어붙일 때 겹치는 글을 두 번 넣지 않는다', async () => {
+    // offset은 첫 쪽을 받은 시점의 개수다. 그 사이 누가 올리면 목록이 밀려서 같은
+    // 글이 두 번 온다. 그러면 React key가 겹쳐 화면이 어긋난다.
+    const user = userEvent.setup()
+    signIn()
+    const firstPage = Array.from({ length: 20 }, (_, i) => brag({ id: i + 1 }))
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(input as string)
+      if (url.pathname.startsWith('/profile/')) return json({ has_profile: true, username: 'me' })
+      // 두 번째 쪽이 첫 쪽의 마지막 글을 다시 준다(밀린 상황).
+      return json(
+        url.searchParams.get('offset') === '20'
+          ? [brag({ id: 20 }), brag({ id: 21, body: '진짜 새 글' })]
+          : firstPage,
+      )
+    })
     renderWithProviders(<BragPage />)
 
-    await screen.findByText('간이 딱 맞았어요.')
-    expect(screen.queryByRole('button', { name: /좋아요/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '글쓰기' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: '더 보기' }))
+
+    expect(await screen.findByText('진짜 새 글')).toBeInTheDocument()
+    // id 20이 두 번 들어가면 21장이 된다.
+    await waitFor(() =>
+      expect(screen.getAllByRole('link', { name: /레시피 보기/ })).toHaveLength(21),
+    )
   })
 
   it('내 글에만 삭제를 보여준다', async () => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
-import { ApiError, TimeoutError, toHttps } from '../api/client'
+import { ApiError, TimeoutError } from '../api/client'
 import { MAX_PHOTO_BYTES, createBrag, shrinkForUpload, uploadBragPhoto } from '../api/brags'
 import { getRecipe } from '../api/recipeDetail'
 import { searchRecipes, type RecipeSummary } from '../api/recipes'
@@ -174,8 +174,10 @@ export default function BragWritePage() {
           accept="image/jpeg,image/png,image/webp"
           onChange={(event) => handlePick(event.target.files?.[0])}
         />
+        {/* 미리보기는 blob: 주소라 toHttps를 거치지 않는다(거쳐도 그대로 통과하지만,
+            바깥에서 온 주소처럼 보이면 읽는 사람이 헷갈린다). */}
         {preview !== null && (
-          <img className={styles.preview} src={toHttps(preview) ?? preview} alt="올릴 사진 미리보기" />
+          <img className={styles.preview} src={preview} alt="올릴 사진 미리보기" />
         )}
 
         <label className={styles.label} htmlFor="brag-body">

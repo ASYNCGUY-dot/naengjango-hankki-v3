@@ -144,14 +144,6 @@
   background: var(--color-surface-raised);
 }
 
-/* 비로그인은 누를 수 없으니 버튼이 아니라 숫자만 보여준다. */
-.likeReadonly {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
 
 .delete {
   min-height: var(--touch-target-min);
