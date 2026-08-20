@@ -238,13 +238,12 @@ describe('로그인 화면', () => {
     expect(screen.queryByLabelText('연락처')).not.toBeInTheDocument()
   })
 
-  it('로그인 없이 둘러보기로 홈에 갈 수 있다', async () => {
-    const user = userEvent.setup()
+  it('둘러보기 링크를 두지 않는다', () => {
+    // 홈이 로그인 화면이 되면서 그 링크가 자기 자신을 가리키게 됐다(2026-08-20).
+    // 로그인 없이 열리는 것은 공유받은 레시피 상세 하나뿐이고, 그건 여기서 갈 곳이 아니다.
     renderWithProviders(<App />, { route: '/login' })
 
-    await user.click(screen.getByRole('link', { name: '로그인 없이 둘러보기' }))
-
-    expect(screen.getByRole('heading', { level: 1, name: '오늘 뭐 먹지?' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '로그인 없이 둘러보기' })).not.toBeInTheDocument()
     expect(tokenStore.get()).toBeNull()
   })
 })

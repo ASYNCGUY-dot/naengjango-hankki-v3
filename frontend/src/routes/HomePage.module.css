@@ -219,3 +219,40 @@
   opacity: 0.7;
   cursor: progress;
 }
+
+/* 유튜브 인기 영상 카드. 레시피 카드(RecipeCard)와 달리 우리 상세로 가지 않고
+   유튜브로 나가므로, 같은 모양을 쓰지 않고 썸네일 비율(16:9)을 그대로 살린다. */
+.video {
+  display: block;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.video img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.videoTitle {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  /* 제목이 길어서 카드 높이가 제각각이 되는 것을 막는다. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.videoMeta {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

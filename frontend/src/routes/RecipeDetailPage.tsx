@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, TimeoutError, toHttps } from '../api/client'
 import FavoriteButton from '../components/FavoriteButton'
@@ -7,6 +7,7 @@ import MissingIngredientsCard from '../components/MissingIngredientsCard'
 import NutritionFitCard from '../components/NutritionFitCard'
 import RecommendButton from '../components/RecommendButton'
 import ReviewSection from '../components/ReviewSection'
+import { useAuth } from '../auth/context'
 import {
   describeAmount,
   getRecipe,
@@ -28,6 +29,7 @@ import styles from './RecipeDetailPage.module.css'
 export default function RecipeDetailPage() {
   const { recipeId } = useParams<{ recipeId: string }>()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
 
   const [recipe, setRecipe] = useState<RecipeDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -206,6 +208,17 @@ export default function RecipeDetailPage() {
             </li>
           ))}
         </ol>
+      )}
+
+      {/* 조리 순서를 다 본 직후가 "만들었다"에 가장 가까운 자리다. 자랑하기 탭에서
+          레시피를 다시 검색해 고르는 것보다, 지금 보고 있는 이 화면에서 바로 올리는
+          쪽이 실제 흐름이다. */}
+      {isAuthenticated && (
+        <div className={styles.actions}>
+          <Link className={styles.linkButton} to={`/brags/new?recipe=${recipe.id}`}>
+            <span aria-hidden="true">📸</span> 이거 만들었어요
+          </Link>
+        </div>
       )}
 
       {/* 조리 순서 다음에 둔다. "만들었다"가 후기의 전제라 순서를 다 본 뒤가 자연스럽고,

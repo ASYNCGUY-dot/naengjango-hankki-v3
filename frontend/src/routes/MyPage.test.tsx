@@ -132,7 +132,8 @@ describe('마이 화면', () => {
     await screen.findByText('최지수')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     // 알레르기가 바뀔 수 있으니 고친 뒤에도 다시 들어갈 길은 남겨둔다.
-    expect(screen.getByRole('link', { name: '식단 정보 수정하기' })).toHaveAttribute(
+    // 그 길은 아래 메뉴에 있다(2026-08-20에 위쪽 중복 링크를 뺐다).
+    expect(screen.getByRole('link', { name: /식단 정보 수정/ })).toHaveAttribute(
       'href',
       '/onboarding',
     )

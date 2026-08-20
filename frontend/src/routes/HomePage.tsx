@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { ApiError, TimeoutError } from '../api/client'
+import { ApiError, TimeoutError, toHttps } from '../api/client'
 import { listPopularRecipes, type PopularRecipeItem } from '../api/likes'
+import { listPopularVideos, listVideoCategories, type PopularVideo } from '../api/videos'
 import {
   ALL_CATEGORIES,
   PAGE_SIZE,
@@ -49,6 +50,9 @@ export default function HomePage() {
   const [categories, setCategories] = useState<CategoryCount[]>([])
   const [themes, setThemes] = useState<RecipeTheme[]>([])
   const [popular, setPopular] = useState<PopularRecipeItem[]>([])
+  const [videos, setVideos] = useState<PopularVideo[]>([])
+  const [videoCategory, setVideoCategory] = useState<string | null>(null)
+  const [videoCategories, setVideoCategories] = useState<string[]>([])
   const [recipes, setRecipes] = useState<RecipeSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -95,8 +99,32 @@ export default function HomePage() {
       .then(setPopular)
       // 덤이다. 못 받으면 그 줄만 없다.
       .catch(() => {})
+    listVideoCategories(controller.signal)
+      .then((rows) => {
+        // 문자열이 아닌 것은 버린다. 렌더링 중에 터지면 홈 전체가 비는데, 영상 줄은
+        // 덤이라 그럴 값이 없다. 테마 줄에서 실제로 그렇게 빈 화면이 나온 적이 있다.
+        const names = Array.isArray(rows) ? rows.filter((row) => typeof row === 'string') : []
+        setVideoCategories(names)
+        // 첫 분류를 기본으로 연다. 어느 것이 기본이어야 하는지 정할 근거가 아직 없다 -
+        // 지인 테스트에서 무엇을 누르는지 보고 정한다.
+        if (names.length > 0) setVideoCategory(names[0])
+      })
+      .catch(() => {})
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    if (videoCategory === null) return
+    const controller = new AbortController()
+    listPopularVideos(videoCategory, 10, controller.signal)
+      .then((rows) =>
+        setVideos(
+          Array.isArray(rows) ? rows.filter((row) => typeof row?.video_id === 'string') : [],
+        ),
+      )
+      .catch(() => setVideos([]))
+    return () => controller.abort()
+  }, [videoCategory])
 
   useEffect(() => {
     const timer = setTimeout(() => void load(keyword, category), SEARCH_DEBOUNCE_MS)
@@ -138,6 +166,54 @@ export default function HomePage() {
           onChange={(e) => setKeyword(e.target.value)}
         />
       </div>
+
+      {/* 유튜브 인기 영상을 최상단에 둔다. "오늘 뭐 먹지"에 가장 빨리 답하는 것이
+          남이 이미 검증한 영상이기 때문이다. 우리 레시피와 연결이 없어서 카드가 아니라
+          유튜브로 나가는 외부 링크다. */}
+      {isBrowsing && videos.length > 0 && (
+        <section className={styles.theme} aria-labelledby="theme-videos">
+          <div className={styles.themeHead}>
+            <h2 id="theme-videos">인기 요리 영상</h2>
+            <span className={styles.themeCount}>{videos.length}개</span>
+          </div>
+          <ul className={styles.chips}>
+            {videoCategories.map((category) => (
+              <li key={category}>
+                <button
+                  type="button"
+                  className={
+                    category === videoCategory ? `${styles.chip} ${styles.chipSelected}` : styles.chip
+                  }
+                  aria-pressed={category === videoCategory}
+                  onClick={() => setVideoCategory(category)}
+                >
+                  {category}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <ul className={styles.themeRow}>
+            {videos.map((video) => (
+              <li key={video.video_id}>
+                <a
+                  className={styles.video}
+                  href={toHttps(video.video_url) ?? video.video_url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <img
+                    src={toHttps(video.thumbnail_url) ?? ''}
+                    alt=""
+                    loading="lazy"
+                  />
+                  <p className={styles.videoTitle}>{video.video_title}</p>
+                  <p className={styles.videoMeta}>{video.channel_title}</p>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* 추천이 하나도 없으면 줄째로 감춘다. 다른 사람이 실제로 눌렀을 때만 의미가 있다. */}
       {isBrowsing && popular.length > 0 && (

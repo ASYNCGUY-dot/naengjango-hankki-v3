@@ -34,6 +34,9 @@
   text-decoration: none;
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
+  /* 라벨이 네 글자라 좁은 화면에서 줄바꿈될 수 있다. 두 줄이 되면 탭 높이가
+     들쭉날쭉해진다. */
+  white-space: nowrap;
 }
 
 .active {

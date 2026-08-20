@@ -33,17 +33,34 @@ type Theme = {
   recipes: Recipe[]
 }
 
-/** 검색·분류·테마·인기 네 종류의 요청이 오므로 경로로 갈라서 답한다. */
+type Video = {
+  video_title: string
+  channel_title: string
+  video_id: string
+  thumbnail_url: string
+  video_url: string
+  view_count: number
+  fetched_at: string
+}
+
+/** 검색·분류·테마·인기·영상 다섯 종류의 요청이 오므로 경로로 갈라서 답한다. */
 function mockApi(handlers: {
   search?: (url: URL) => Recipe[]
   categories?: () => { category: string; count: number }[]
   themes?: () => Theme[]
   popular?: () => (Recipe & { like_count: number })[]
+  videoCategories?: () => string[]
+  videos?: () => Video[]
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(input as string)
     let body: unknown
-    if (url.pathname.endsWith('/categories')) body = handlers.categories?.() ?? []
+    // 영상 쪽을 먼저 본다. "/popular-videos/categories"가 아래의 endsWith('/categories')에
+    // 먼저 걸리면 분류 칩 자리에 영상 분류가 들어간다.
+    if (url.pathname.startsWith('/popular-videos/categories')) {
+      body = handlers.videoCategories?.() ?? []
+    } else if (url.pathname.startsWith('/popular-videos/')) body = handlers.videos?.() ?? []
+    else if (url.pathname.endsWith('/categories')) body = handlers.categories?.() ?? []
     else if (url.pathname.endsWith('/themes')) body = handlers.themes?.() ?? []
     else if (url.pathname.endsWith('/popular')) body = handlers.popular?.() ?? []
     else body = handlers.search?.(url) ?? []
@@ -52,6 +69,19 @@ function mockApi(handlers: {
       headers: { 'Content-Type': 'application/json' },
     })
   })
+}
+
+function video(overrides: Partial<Video> = {}): Video {
+  return {
+    video_title: '김치전을 바삭바삭하게!',
+    channel_title: '백종원 PAIK JONG WON',
+    video_id: '47OIcvpqxlo',
+    thumbnail_url: 'https://i.ytimg.com/vi/47OIcvpqxlo/mqdefault.jpg',
+    video_url: 'https://www.youtube.com/watch?v=47OIcvpqxlo',
+    view_count: 11135969,
+    fetched_at: '2026-07-16T22:14:28',
+    ...overrides,
+  }
 }
 
 describe('홈 화면', () => {
@@ -296,5 +326,70 @@ describe('테마 줄', () => {
     expect(await screen.findByText('망가져도보인다')).toBeInTheDocument()
     expect(screen.queryByText('깨진테마')).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: '가볍게' })).toBeInTheDocument()
+  })
+})
+
+describe('인기 요리 영상', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  it('최상단에 영상을 보여주고 유튜브로 내보낸다', async () => {
+    // "오늘 뭐 먹지"에 가장 빨리 답하는 것이 남이 이미 검증한 영상이라 맨 위에 둔다.
+    // 우리 레시피와 연결이 없어서 카드가 아니라 외부 링크다.
+    mockApi({ videoCategories: () => ['쉐프 레시피'], videos: () => [video()] })
+    renderWithProviders(<HomePage />)
+
+    const link = await screen.findByRole('link', { name: /김치전을 바삭바삭하게/ })
+    expect(link).toHaveAttribute('href', 'https://www.youtube.com/watch?v=47OIcvpqxlo')
+    expect(link).toHaveAttribute('target', '_blank')
+    // opener를 넘기면 열린 쪽에서 우리 탭 주소를 바꿀 수 있다.
+    expect(link.getAttribute('rel')).toContain('noopener')
+  })
+
+  it('분류를 고르면 그 분류의 영상을 다시 받는다', async () => {
+    const user = userEvent.setup()
+    const fetchMock = mockApi({
+      videoCategories: () => ['쉐프 레시피', '자취요리'],
+      videos: () => [video()],
+    })
+    renderWithProviders(<HomePage />)
+
+    await user.click(await screen.findByRole('button', { name: '자취요리' }))
+
+    await waitFor(() => {
+      const called = fetchMock.mock.calls
+        .map((call) => new URL(call[0] as string).pathname)
+        .some((path) => path.includes(encodeURIComponent('자취요리')))
+      expect(called).toBe(true)
+    })
+  })
+
+  it('영상을 못 받으면 그 줄만 없고 목록은 나온다', async () => {
+    // 유튜브 목록은 덤이다. 이것 때문에 홈이 비면 안 된다.
+    mockApi({
+      videoCategories: () => [],
+      search: () => [recipe(1, { menu_name: '두부조림' })],
+    })
+    renderWithProviders(<HomePage />)
+
+    expect(await screen.findByText('두부조림')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '인기 요리 영상' })).not.toBeInTheDocument()
+  })
+})
+
+describe('영상 줄이 이상한 응답을 받아도', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  it('분류가 문자열이 아니어도 화면이 죽지 않는다', async () => {
+    // 이걸 안 막으면 홈 전체가 빈 화면이 된다. 테마 줄에서 이미 한 번 겪은 실패다.
+    mockApi({
+      videoCategories: () => [recipe(1) as unknown as string],
+      search: () => [recipe(2, { menu_name: '영상이상해도보인다' })],
+    })
+    renderWithProviders(<HomePage />)
+
+    expect(await screen.findByText('영상이상해도보인다')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '인기 요리 영상' })).not.toBeInTheDocument()
   })
 })

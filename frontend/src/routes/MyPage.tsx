@@ -93,14 +93,10 @@ export default function MyPage() {
 
       {profile !== null &&
         (profile.has_profile ? (
-          <>
-            <p className={styles.done}>
-              식단 정보를 입력해두셨어요. 알레르기와 건강목표가 추천에 반영됩니다.
-            </p>
-            <Link className={styles.edit} to="/onboarding">
-              식단 정보 수정하기
-            </Link>
-          </>
+          // 수정하러 가는 길은 아래 메뉴에 있다. 여기서는 반영되고 있다는 사실만 알린다.
+          <p className={styles.done}>
+            식단 정보를 입력해두셨어요. 알레르기와 건강목표가 추천에 반영됩니다.
+          </p>
         ) : (
           // 온보딩을 안 하면 users.allergy가 NULL이라 알레르기 제외가 아예 돌지 않는다.
           // 알레르기가 있는 사람에게는 위험할 수 있어 그냥 안내가 아니라 눈에 띄게 알린다.
@@ -138,8 +134,17 @@ export default function MyPage() {
         )}
       </section>
 
-      {/* 내가 올린 것들. 등록 화면이 없던 동안에는 서버에만 있고 아무도 못 쓰던 기능이다. */}
-      <nav className={styles.links} aria-label="내가 등록한 것">
+      {/* 냉장고는 하단 탭에서 빼고 여기로 넣었다(2026-08-20). 매일 여는 화면이 아니라
+          가끔 정리하는 화면이라, 네 칸 중 하나를 계속 차지할 자리가 아니라고 봤다. */}
+      <nav className={styles.links} aria-label="내 정보와 등록한 것">
+        <Link className={styles.link} to="/pantry">
+          <span>내 냉장고 재료</span>
+          <small>지금 있는 재료를 넣고 유통기한을 관리해요</small>
+        </Link>
+        <Link className={styles.link} to="/onboarding">
+          <span>식단 정보 수정</span>
+          <small>알레르기·건강목표·조리도구를 고쳐요</small>
+        </Link>
         <Link className={styles.link} to="/my/recipes">
           <span>내 레시피</span>
           <small>직접 만든 레시피를 올리고 상태를 확인해요</small>

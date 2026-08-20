@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { MIN_PASSWORD_LENGTH, type SignupBody } from '../api/auth'
-import { getProfileOptions, type ProfileOptions } from '../api/profile'
+import { MIN_PASSWORD_LENGTH, sessionStore, type SignupBody } from '../api/auth'
+import { getProfile, getProfileOptions, type ProfileOptions } from '../api/profile'
 import { ApiError, TimeoutError } from '../api/client'
 import { useAuth } from '../auth/context'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
@@ -35,6 +35,22 @@ const EMPTY_SIGNUP = {
   email: '',
   gender: '',
   age_group: '',
+}
+
+/**
+ * 로그인 직후 온보딩으로 보낼지 정한다.
+ *
+ * 프로필 조회가 실패하면 보내지 않는다. 확실하지 않은데 보내면, 이미 다 입력해둔
+ * 사람이 로그인할 때마다 같은 화면을 다시 보게 된다.
+ */
+async function needsOnboarding(): Promise<boolean> {
+  const userId = sessionStore.getUserId()
+  if (userId === null) return false
+  try {
+    return (await getProfile(userId)).has_profile === false
+  } catch {
+    return false
+  }
 }
 
 export default function AuthPage({ mode }: { mode: Mode }) {
@@ -118,7 +134,10 @@ export default function AuthPage({ mode }: { mode: Mode }) {
         }
         await auth.signup(body)
       }
-      navigate('/', { replace: true })
+      // 식단 정보를 아직 안 넣은 사람은 온보딩으로 보낸다. 알레르기가 없으면 필터가
+      // 아예 돌지 않으므로, 처음 들어온 사람에게 이 화면을 안 보여주면 그 사실을
+      // 알 방법이 없다. 건너뛸 수는 있게 해뒀다(OnboardingPage).
+      navigate(await needsOnboarding() ? '/onboarding' : '/', { replace: true })
     } catch (caught) {
       if (caught instanceof ApiError || caught instanceof TimeoutError) {
         setError(caught.message)
@@ -236,12 +255,9 @@ export default function AuthPage({ mode }: { mode: Mode }) {
         {copy.footQuestion} <Link to={copy.footTo}>{copy.footLink}</Link>
       </p>
 
-      <div className={styles.bottom}>
-        {/* 가입 없이 추천을 체험할 수 있다. 지인 5명에게 링크를 보낼 때 진입 문턱을 낮춘다. */}
-        <Link className={styles.ghost} to="/">
-          로그인 없이 둘러보기
-        </Link>
-      </div>
+      {/* "로그인 없이 둘러보기"가 여기 있었는데 뺐다(2026-08-20). 홈이 로그인 화면이
+          되면서 그 링크가 자기 자신을 가리키게 됐다. 로그인 없이 열리는 것은 레시피
+          상세 하나뿐이고, 그건 공유 링크로 들어오는 자리라 여기서 갈 곳이 아니다. */}
     </main>
   )
 }
