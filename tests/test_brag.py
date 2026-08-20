@@ -46,7 +46,11 @@ def test_posting_a_brag_returns_it_with_the_recipe_name(client):
 
 
 def test_the_feed_is_readable_without_logging_in(client):
-    # 남의 음식 사진이 이 앱에서 가장 강한 가입 유인이다. 로그인 벽 뒤에 두지 않는다.
+    """서버는 피드를 공개로 둔다. 다만 지금 화면은 로그인해야 열린다(AppLayout이 관문).
+
+    지금 이 경로로 들어올 화면이 없다는 뜻이라, "비로그인도 볼 수 있다"를 제품의
+    약속으로 읽으면 안 된다. 레시피 상세에 자랑 글을 붙이게 되면 그때 살아난다.
+    """
     user_id, headers = _signup(client, "u_brag_2")
     _post(client, user_id, headers, body="비로그인도 보이는 글")
 

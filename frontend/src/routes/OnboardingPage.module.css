@@ -173,3 +173,28 @@
   text-align: center;
   color: var(--color-text-secondary);
 }
+
+/* 저장이 주된 행동이라 건너뛰기는 눈에 덜 띄게 둔다. 다만 touch target은 지킨다 -
+   빠져나갈 길을 만들어놓고 누르기 어렵게 하면 안 만든 것과 같다. */
+.skip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  margin-top: var(--space-3);
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.skipNote {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-loose);
+  color: var(--color-text-secondary);
+  text-align: center;
+}

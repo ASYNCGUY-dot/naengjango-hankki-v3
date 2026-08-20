@@ -1,3 +1,4 @@
+import { Route, Routes } from 'react-router-dom'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -304,5 +305,69 @@ describe('식단 정보 입력', () => {
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled()
+  })
+})
+
+describe('가입 직후 흐름', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  function renderWithHome() {
+    return renderWithProviders(
+      <Routes>
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/" element={<h1>오늘 뭐 먹지?</h1>} />
+      </Routes>,
+      { route: '/onboarding' },
+    )
+  }
+
+  it('저장하면 오늘 뭐 먹지 화면으로 보낸다', async () => {
+    // 가입 직후 여기로 온 사람에게 마이는 막다른 곳이다. 방금 넣은 정보가 무엇을
+    // 바꾸는지 보여주는 화면은 홈과 추천이다.
+    const user = userEvent.setup()
+    signIn()
+    mockApi({})
+    renderWithHome()
+
+    await screen.findByRole('button', { name: '달걀' })
+    await fillRequired(user)
+    await user.click(screen.getByRole('button', { name: '저장하기' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '오늘 뭐 먹지?' }),
+    ).toBeInTheDocument()
+  })
+
+  it('프로필을 못 받아도 빠져나갈 길이 있다', async () => {
+    // 가입 직후 이 화면으로 바로 온다. 콜드스타트로 조회가 실패하면 폼이 안 그려져서
+    // 아래쪽 건너뛰기까지 같이 사라진다 - 가입하자마자 갇히는 자리가 된다.
+    const user = userEvent.setup()
+    signIn()
+    mockApi({ profileStatus: 500 })
+    renderWithHome()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('내 정보를 불러오지 못했어요')
+    await user.click(screen.getByRole('button', { name: '나중에 할게요' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '오늘 뭐 먹지?' }),
+    ).toBeInTheDocument()
+  })
+
+  it('건너뛸 수 있고, 넘어가면 무엇이 안 되는지 알린다', async () => {
+    // 막으면 가입하고 그 자리에서 이탈한다. 다만 알레르기가 없으면 필터가 아예
+    // 안 도는 상태라 그 사실을 분명히 적어야 한다.
+    const user = userEvent.setup()
+    signIn()
+    mockApi({})
+    renderWithHome()
+
+    expect(await screen.findByText(/알레르기 제외가 동작하지 않아요/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '나중에 할게요' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '오늘 뭐 먹지?' }),
+    ).toBeInTheDocument()
   })
 })

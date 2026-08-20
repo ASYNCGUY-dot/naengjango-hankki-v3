@@ -160,7 +160,10 @@ export default function OnboardingPage() {
         health_data_consent: hasHealthData && healthConsent,
       }
       await updateProfile(userId, body)
-      navigate('/my', { replace: true })
+      // 저장하면 "오늘 뭐 먹지?" 화면으로 보낸다(2026-08-20). 예전에는 마이로 갔는데,
+      // 가입 직후 여기로 온 사람에게는 마이가 막다른 곳이다 - 방금 넣은 정보가
+      // 실제로 무엇을 바꾸는지 보여주는 화면은 홈과 추천이다.
+      navigate('/', { replace: true })
     } catch (caught) {
       setError(describe(caught))
     } finally {
@@ -186,9 +189,21 @@ export default function OnboardingPage() {
       <div className={styles.page}>
         <h1>식단 정보</h1>
         {error !== null ? (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
+          <>
+            <p className={styles.error} role="alert">
+              {error}
+            </p>
+            {/* 빠져나갈 길을 여기에도 둔다. 가입 직후 이 화면으로 바로 오는데,
+                콜드스타트로 조회가 실패하면 폼이 안 그려져서 아래의 건너뛰기까지
+                같이 사라진다. 가입하자마자 갇히는 자리가 된다. */}
+            <button
+              className={styles.skip}
+              type="button"
+              onClick={() => navigate('/', { replace: true })}
+            >
+              나중에 할게요
+            </button>
+          </>
         ) : (
           <p className={styles.notice} role="status">
             불러오는 중이에요…
@@ -353,6 +368,22 @@ export default function OnboardingPage() {
         <button className={styles.cta} type="submit" disabled={isSaving}>
           {isSaving ? '저장 중…' : '저장하기'}
         </button>
+
+        {/* 가입 직후 이 화면으로 바로 오게 되면서(2026-08-20) 빠져나갈 길이 필요해졌다.
+            막으면 가입하고 그 자리에서 이탈하는 사람이 생긴다. 다만 알레르기가 안
+            들어가면 필터가 아예 안 도는 상태라, 그냥 넘어간다는 사실을 분명히 적는다. */}
+        <button
+          className={styles.skip}
+          type="button"
+          disabled={isSaving}
+          onClick={() => navigate('/', { replace: true })}
+        >
+          나중에 할게요
+        </button>
+        <p className={styles.skipNote}>
+          지금 넘어가면 <strong>알레르기 제외가 동작하지 않아요.</strong> 마이 탭에서
+          언제든 입력할 수 있어요.
+        </p>
       </form>
     </div>
   )
