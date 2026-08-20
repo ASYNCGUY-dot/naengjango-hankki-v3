@@ -25,6 +25,142 @@
         "title": "AllergyOption",
         "type": "object"
       },
+      "Body_upload_photo_brags_photo_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_photo_brags_photo_post",
+        "type": "object"
+      },
+      "BragItem": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "like_count": {
+            "title": "Like Count",
+            "type": "integer"
+          },
+          "liked_by_me": {
+            "title": "Liked By Me",
+            "type": "boolean"
+          },
+          "menu_name": {
+            "title": "Menu Name",
+            "type": "string"
+          },
+          "recipe_id": {
+            "title": "Recipe Id",
+            "type": "integer"
+          },
+          "recipe_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipe Image Url"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "recipe_id",
+          "image_url",
+          "body",
+          "created_at",
+          "username",
+          "menu_name",
+          "recipe_image_url",
+          "like_count",
+          "liked_by_me"
+        ],
+        "title": "BragItem",
+        "type": "object"
+      },
+      "BragLikeStatus": {
+        "properties": {
+          "like_count": {
+            "title": "Like Count",
+            "type": "integer"
+          },
+          "liked": {
+            "title": "Liked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "liked",
+          "like_count"
+        ],
+        "title": "BragLikeStatus",
+        "type": "object"
+      },
+      "BragRequest": {
+        "properties": {
+          "body": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "recipe_id": {
+            "title": "Recipe Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "recipe_id",
+          "body"
+        ],
+        "title": "BragRequest",
+        "type": "object"
+      },
       "CategoryCount": {
         "properties": {
           "category": {
@@ -2505,6 +2641,19 @@
         "title": "ToggleResponse",
         "type": "object"
       },
+      "UploadResponse": {
+        "properties": {
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image_url"
+        ],
+        "title": "UploadResponse",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -3213,6 +3362,347 @@
         "summary": "Signup",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/brags": {
+      "get": {
+        "operationId": "list_brags_brags_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BragItem"
+                  },
+                  "title": "Response List Brags Brags Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Brags",
+        "tags": [
+          "brags"
+        ]
+      },
+      "post": {
+        "operationId": "create_brag_brags_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BragRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BragItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Brag",
+        "tags": [
+          "brags"
+        ]
+      }
+    },
+    "/brags/photo": {
+      "post": {
+        "description": "사진 한 장을 올리고 공개 주소를 돌려준다. 글 작성과 분리돼 있다.\n\n나눈 이유는 두 가지다. 사진 업로드가 느린데(무료 티어) 글까지 한 요청에 묶으면\n실패했을 때 쓴 글이 통째로 날아간다. 그리고 사진을 먼저 올려두면 화면이 미리보기를\n보여줄 수 있다.",
+        "operationId": "upload_photo_brags_photo_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_photo_brags_photo_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Photo",
+        "tags": [
+          "brags"
+        ]
+      }
+    },
+    "/brags/{brag_id}": {
+      "delete": {
+        "operationId": "delete_brag_brags__brag_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "brag_id",
+            "required": true,
+            "schema": {
+              "title": "Brag Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Brag",
+        "tags": [
+          "brags"
+        ]
+      }
+    },
+    "/brags/{brag_id}/like/toggle": {
+      "post": {
+        "description": "이 좋아요는 글이 고른 레시피의 추천에도 반영된다 - 사람당 레시피당 1회.",
+        "operationId": "toggle_like_brags__brag_id__like_toggle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "brag_id",
+            "required": true,
+            "schema": {
+              "title": "Brag Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BragLikeStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Toggle Like",
+        "tags": [
+          "brags"
         ]
       }
     },

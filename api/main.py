@@ -22,6 +22,7 @@ from fastapi.responses import JSONResponse  # noqa: E402
 from api.routers import (  # noqa: E402
     admin,
     auth,
+    brag,
     favorite,
     ingredient_catalog,
     ingredient_submission,
@@ -121,6 +122,7 @@ app.include_router(shopping.router)
 # 기능상 첫 등록이 이겨서 동작은 했지만, OpenAPI 명세에 같은 오퍼레이션이 두 번 실려
 # 생성 타입의 이름이 어그러졌다(로컬에서 명세를 뽑으며 경고로 드러났다).
 app.include_router(ingredient_submission.router)
+app.include_router(brag.router)
 
 
 @app.get("/health")

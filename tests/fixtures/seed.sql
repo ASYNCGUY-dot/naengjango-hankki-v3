@@ -132,6 +132,31 @@ CREATE TABLE recipe_likes (
     user_id INTEGER,
     created_at TEXT,
     FOREIGN KEY (recipe_id) REFERENCES recipes(id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    -- migration/009가 운영에 거는 것과 같은 제약. 자랑 글 좋아요가 레시피 추천에
+    -- 반영되는 두 번째 경로가 생기면서 "사람당 레시피당 1회"를 DB가 강제한다.
+    UNIQUE (recipe_id, user_id)
+);
+
+-- 자랑하기 (migration/009). 만들어본 결과를 사진과 함께 올리고 서로 좋아요를 누른다.
+CREATE TABLE brags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    recipe_id INTEGER NOT NULL,
+    image_url TEXT,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id)
+);
+
+CREATE TABLE brag_likes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    brag_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (brag_id, user_id),
+    FOREIGN KEY (brag_id) REFERENCES brags(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 

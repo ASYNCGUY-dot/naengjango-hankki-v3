@@ -45,6 +45,18 @@ services:
       # ---------- 부가 기능 ----------
       # 지인 테스트의 핵심 흐름(가입-온보딩-재료-추천-상세)에는 필요 없다. 다만 해당
       # 화면을 누르면 그때 실패하므로, 그 기능을 열어둘 거라면 값을 채워야 한다.
+      # ---------- 자랑하기 사진 (2026-08-20에 추가) ----------
+      # Supabase Storage의 brag-photos 버킷에 올린다. 없으면 사진 없는 글만 올라간다
+      # (기능이 통째로 죽지는 않게 만들었다).
+      #
+      # SUPABASE_SERVICE_KEY는 DB 전체 권한을 가진 비밀키다. 서버에서만 쓰고 프론트로
+      # 절대 내보내지 않는다 - 브라우저는 우리 API에 사진을 보내고, 서버가 이 키로
+      # Supabase에 올린다. VITE_ 접두사를 붙이면 번들에 그대로 박히니 주의할 것.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+
       # 제휴 키 암호화(src/agents/crypto_utils.py). 한 번 정하면 절대 바꾸면 안 된다 -
       # 바꾸면 기존 암호문을 복호화할 수 없다.
       - key: APP_ENCRYPTION_KEY

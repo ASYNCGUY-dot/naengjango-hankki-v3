@@ -18,6 +18,7 @@ users를 바로 지우면 외래키 위반이 난다(2026-08-18에 실제로 났
 테이블만 CASCADE라 알아서 따라온다. migration/005가 삭제 순서를 지키는 이유와 같다.
 """
 
+import base64
 import json
 import os
 import sys
@@ -371,6 +372,76 @@ if my_recipe_id is not None:
         f"{API}/my-recipes/{my_recipe_id}", params={"user_id": user_id}, headers=headers, timeout=60
     )
     check("내 레시피 삭제", res.status_code == 200, str(res.status_code))
+
+# ---------- 자랑하기 ----------
+# 사진 업로드는 배포된 서버에 SUPABASE_URL/SUPABASE_SERVICE_KEY가 들어가 있어야 된다.
+# 이 두 개는 Render 대시보드에서만 넣을 수 있어서, 로컬 테스트로는 절대 안 걸린다.
+JPEG_1X1 = base64.b64decode(
+    "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a"
+    "HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA"
+    "AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q=="
+)
+res = requests.post(
+    f"{API}/brags/photo",
+    params={"user_id": user_id},
+    files={"file": ("check.jpg", JPEG_1X1, "image/jpeg")},
+    headers=headers, timeout=120,
+)
+photo_url = res.json().get("image_url") if res.status_code == 200 else None
+check(
+    "자랑 사진 업로드",
+    res.status_code == 200 and bool(photo_url),
+    str(res.status_code) + (" (Render에 SUPABASE_* 환경변수가 없다)" if res.status_code == 503 else ""),
+)
+if photo_url:
+    # 화면의 <img>가 하는 것과 같은 요청. 인증 없이 보여야 한다.
+    check("사진이 로그인 없이 보인다", requests.get(photo_url, timeout=60).status_code == 200,
+          photo_url.rsplit("/", 1)[-1])
+
+res = requests.post(
+    f"{API}/brags",
+    params={"user_id": user_id},
+    json={"recipe_id": 67, "body": f"배포 점검용 글 {USER}", "image_url": photo_url},
+    headers=headers, timeout=60,
+)
+brag_id = res.json().get("id") if res.status_code == 200 else None
+check("자랑 글 작성", res.status_code == 200 and bool(brag_id), str(res.status_code))
+
+# 피드는 로그인 없이 읽혀야 한다 - 남의 음식 사진이 가장 강한 가입 유인이다.
+res = requests.get(f"{API}/brags", timeout=60)
+check(
+    "자랑 피드(비로그인 열람)",
+    res.status_code == 200 and any(b["id"] == brag_id for b in res.json()),
+    f"{res.status_code}, {len(res.json()) if res.status_code == 200 else 0}개",
+)
+
+if brag_id:
+    # 좋아요가 레시피 추천에도 반영되는지. 확인 후 되돌린다.
+    before = requests.get(
+        f"{API}/recommendation/recipes/67/like", params={"user_id": user_id}, headers=headers, timeout=60
+    ).json().get("like_count")
+    requests.post(
+        f"{API}/brags/{brag_id}/like/toggle", params={"user_id": user_id}, headers=headers, timeout=60
+    )
+    after = requests.get(
+        f"{API}/recommendation/recipes/67/like", params={"user_id": user_id}, headers=headers, timeout=60
+    ).json().get("like_count")
+    check("자랑 좋아요가 레시피 추천에 반영", after == before + 1, f"{before} -> {after}")
+
+    requests.delete(f"{API}/brags/{brag_id}", params={"user_id": user_id}, headers=headers, timeout=60)
+    res = requests.get(f"{API}/brags", timeout=60)
+    check("자랑 글 삭제", all(b["id"] != brag_id for b in res.json()), str(res.status_code))
+
+# 올린 사진은 API로 지울 수 없으므로 저장소에서 직접 지운다. 검증 흔적을 남기지 않는다.
+if photo_url and os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_KEY"):
+    base = os.environ["SUPABASE_URL"].rstrip("/")
+    key = os.environ["SUPABASE_SERVICE_KEY"]
+    path = photo_url.split("/object/public/brag-photos/", 1)[-1]
+    res = requests.delete(
+        f"{base}/storage/v1/object/brag-photos/{path}",
+        headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=60,
+    )
+    check("올린 사진 정리", res.status_code == 200, str(res.status_code))
 
 # ---------- 재료 정보 등록 ----------
 res = requests.post(

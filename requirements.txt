@@ -3,5 +3,8 @@ python-dotenv
 openai
 cryptography
 fastapi
+# FastAPI의 UploadFile(자랑하기 사진 업로드)이 multipart 파싱에 쓴다. 없으면
+# 그 엔드포인트만 import 시점에 죽는다 - fastapi가 알아서 딸려오지 않는다.
+python-multipart
 uvicorn
 psycopg2-binary

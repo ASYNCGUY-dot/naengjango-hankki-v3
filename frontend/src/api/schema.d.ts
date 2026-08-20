@@ -218,6 +218,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/brags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Brags */
+        get: operations["list_brags_brags_get"];
+        put?: never;
+        /** Create Brag */
+        post: operations["create_brag_brags_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/brags/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Photo
+         * @description 사진 한 장을 올리고 공개 주소를 돌려준다. 글 작성과 분리돼 있다.
+         *
+         *     나눈 이유는 두 가지다. 사진 업로드가 느린데(무료 티어) 글까지 한 요청에 묶으면
+         *     실패했을 때 쓴 글이 통째로 날아간다. 그리고 사진을 먼저 올려두면 화면이 미리보기를
+         *     보여줄 수 있다.
+         */
+        post: operations["upload_photo_brags_photo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/brags/{brag_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Brag */
+        delete: operations["delete_brag_brags__brag_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/brags/{brag_id}/like/toggle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Toggle Like
+         * @description 이 좋아요는 글이 고른 레시피의 추천에도 반영된다 - 사람당 레시피당 1회.
+         */
+        post: operations["toggle_like_brags__brag_id__like_toggle_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/favorites/{user_id}": {
         parameters: {
             query?: never;
@@ -975,6 +1054,50 @@ export interface components {
             recipe_count: number;
             /** Value */
             value: string;
+        };
+        /** Body_upload_photo_brags_photo_post */
+        Body_upload_photo_brags_photo_post: {
+            /** File */
+            file: string;
+        };
+        /** BragItem */
+        BragItem: {
+            /** Body */
+            body: string;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Image Url */
+            image_url: string | null;
+            /** Like Count */
+            like_count: number;
+            /** Liked By Me */
+            liked_by_me: boolean;
+            /** Menu Name */
+            menu_name: string;
+            /** Recipe Id */
+            recipe_id: number;
+            /** Recipe Image Url */
+            recipe_image_url: string | null;
+            /** Username */
+            username: string;
+        };
+        /** BragLikeStatus */
+        BragLikeStatus: {
+            /** Like Count */
+            like_count: number;
+            /** Liked */
+            liked: boolean;
+        };
+        /** BragRequest */
+        BragRequest: {
+            /** Body */
+            body: string;
+            /** Image Url */
+            image_url?: string | null;
+            /** Recipe Id */
+            recipe_id: number;
         };
         /** CategoryCount */
         CategoryCount: {
@@ -1741,6 +1864,11 @@ export interface components {
             /** Favorited */
             favorited: boolean;
         };
+        /** UploadResponse */
+        UploadResponse: {
+            /** Image Url */
+            image_url: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -2156,6 +2284,184 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_brags_brags_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BragItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_brag_brags_post: {
+        parameters: {
+            query: {
+                user_id: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BragRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BragItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_photo_brags_photo_post: {
+        parameters: {
+            query: {
+                user_id: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_photo_brags_photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_brag_brags__brag_id__delete: {
+        parameters: {
+            query: {
+                user_id: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                brag_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    toggle_like_brags__brag_id__like_toggle_post: {
+        parameters: {
+            query: {
+                user_id: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                brag_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BragLikeStatus"];
                 };
             };
             /** @description Validation Error */
