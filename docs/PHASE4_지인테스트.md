@@ -232,7 +232,12 @@ SELECT username, allergy, health_goal, cooking_tools
 > | onboarding_done | 1 |
 > | pantry_add | 8 |
 > | recipe_view | 6 |
-> | recommend | 20 |
+> | recommend | 21 |
+> | brag_post | 1 |
+>
+> `brags` 1건과 `favorites` 1건도 이 계정 것이다. 자랑 글은 그대로 두기로 했다 —
+> 지인이 자랑하기 탭을 열었을 때 첫 글이 있는 편이 낫다는 판단이다. 집계할 때는
+> 이 한 건이 참가자 것이 아님을 기억할 것.
 >
 > 집계할 때 이 사람을 Phase 4 참가자와 섞을지 나눌지는 `users.created_at`으로 가른다.
 >
