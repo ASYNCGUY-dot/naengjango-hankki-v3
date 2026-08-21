@@ -35,6 +35,16 @@ WEB = "https://naengjango-hankki-v3-web.onrender.com"
 USER = "smoke_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 PW = "pw12345678"
 
+# 공개 레시피 검사에 쓰는 고정 레시피(고등어무조림). 비로그인 열람 정리에서 같은
+# 번호로 범위를 좁히므로 상수로 둔다.
+RECIPE_ID = 67
+
+# 이 실행이 시작된 시각. 비로그인으로 레시피 상세를 부르는 검사가 usage_events에
+# user_id NULL인 recipe_view를 남기는데, 지인 테스트 중에는 그게 "공유 링크를 받은
+# 사람의 열람"과 같은 모양이라 섞이면 유입 신호를 못 읽는다. 이 시각 이후에 생긴
+# 것만 골라 지운다.
+STARTED_AT = datetime.now(timezone.utc).isoformat()
+
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 failures: list[str] = []
@@ -80,9 +90,20 @@ def cleanup(username: str) -> None:
         for table, column in CHILD_TABLES:
             cur.execute(f"DELETE FROM public.{table} WHERE {column} = %s", (row[0],))
         cur.execute("DELETE FROM public.users WHERE id = %s", (row[0],))
+
+        # 이 실행이 남긴 비로그인 열람만. 시각만으로 자르면 같은 순간에 들어온 진짜
+        # 방문자의 열람까지 지우므로, 이 스크립트가 실제로 여는 레시피 번호로 한 번 더
+        # 좁힌다.
+        cur.execute(
+            "DELETE FROM public.usage_events "
+            "WHERE user_id IS NULL AND event = 'recipe_view' "
+            "AND recipe_id = %s AND created_at >= %s",
+            (RECIPE_ID, STARTED_AT),
+        )
+        anonymous = cur.rowcount
         conn.commit()
         conn.close()
-        print(f"\n정리: 검증 계정 {username} 삭제 완료")
+        print(f"\n정리: 검증 계정 {username} 삭제, 이번 실행이 남긴 비로그인 열람 {anonymous}행 삭제")
     except Exception as exc:  # noqa: BLE001
         print(f"\n정리 실패({type(exc).__name__}). 계정 {username}이 남아 있으니 직접 지우세요.")
 
@@ -129,7 +150,7 @@ allow_origin = res.headers.get("access-control-allow-origin", "")
 check("preflight(OPTIONS) 응답", res.status_code in (200, 204), str(res.status_code))
 check("allow-origin이 정적 사이트를 허용", allow_origin in (WEB, "*"), repr(allow_origin))
 
-res = requests.get(f"{API}/recommendation/recipes/67", headers={"Origin": WEB}, timeout=60)
+res = requests.get(f"{API}/recommendation/recipes/{RECIPE_ID}", headers={"Origin": WEB}, timeout=60)
 check(
     "실제 GET 응답에도 CORS 헤더",
     res.headers.get("access-control-allow-origin", "") in (WEB, "*"),
@@ -224,7 +245,7 @@ res = requests.get(
 check("추천", res.status_code == 200 and len(res.json()) > 0,
       f"{res.status_code}, {len(res.json()) if res.status_code == 200 else 0}개, {time.perf_counter()-start:.2f}s")
 
-res = requests.get(f"{API}/recommendation/recipes/67", timeout=60)
+res = requests.get(f"{API}/recommendation/recipes/{RECIPE_ID}", timeout=60)
 check("레시피 상세(비로그인 - 링크 공유)", res.status_code == 200 and res.json().get("ingredients"),
       f"{res.status_code}, 재료 {len(res.json().get('ingredients', []))}개")
 
@@ -241,7 +262,7 @@ check(
 )
 
 res = requests.get(
-    f"{API}/recommendation/recipes/67/nutrition-fit",
+    f"{API}/recommendation/recipes/{RECIPE_ID}/nutrition-fit",
     params={"user_id": user_id}, headers=headers, timeout=60,
 )
 fit = res.json() if res.status_code == 200 else {}
@@ -252,7 +273,7 @@ check(
 )
 
 res = requests.get(
-    f"{API}/recommendation/recipes/67/substitution",
+    f"{API}/recommendation/recipes/{RECIPE_ID}/substitution",
     params={"user_id": user_id}, headers=headers, timeout=60,
 )
 check(
@@ -261,12 +282,12 @@ check(
     f"{res.status_code}, 부족 {len(res.json().get('missing_ingredients', []))}개",
 )
 
-res = requests.post(f"{API}/favorites/{user_id}/67/toggle", headers=headers, timeout=60)
+res = requests.post(f"{API}/favorites/{user_id}/{RECIPE_ID}/toggle", headers=headers, timeout=60)
 saved = res.status_code == 200 and res.json().get("favorited") is True
 res = requests.get(f"{API}/favorites/{user_id}", headers=headers, timeout=60)
 check(
     "즐겨찾기",
-    saved and res.status_code == 200 and any(r["id"] == 67 for r in res.json()),
+    saved and res.status_code == 200 and any(r["id"] == RECIPE_ID for r in res.json()),
     f"토글 {saved}, 목록 {res.status_code}",
 )
 
@@ -274,24 +295,24 @@ check(
 # 공개 레시피라 다른 사람의 추천이 이미 있을 수 있다. 절대값이 아니라 증감을 본다.
 # 확인이 끝나면 다시 눌러 되돌린다 - 검증 흔적이 홈의 인기 목록에 남으면 안 된다.
 before = requests.get(
-    f"{API}/recommendation/recipes/67/like", params={"user_id": user_id}, headers=headers, timeout=60
+    f"{API}/recommendation/recipes/{RECIPE_ID}/like", params={"user_id": user_id}, headers=headers, timeout=60
 )
 base_count = before.json().get("like_count") if before.status_code == 200 else None
 
 on = requests.post(
-    f"{API}/recommendation/recipes/67/like/toggle",
+    f"{API}/recommendation/recipes/{RECIPE_ID}/like/toggle",
     params={"user_id": user_id}, headers=headers, timeout=60,
 )
 turned_on = on.status_code == 200 and on.json().get("liked") is True
 counted = base_count is not None and on.json().get("like_count") == base_count + 1
 
 popular = requests.get(f"{API}/recommendation/recipes/popular", timeout=60)
-in_popular = popular.status_code == 200 and any(r["id"] == 67 for r in popular.json())
+in_popular = popular.status_code == 200 and any(r["id"] == RECIPE_ID for r in popular.json())
 # 홈의 "많이 추천한 메뉴" 줄이 카드를 그리려면 사진이 필요하다.
 has_image_field = popular.status_code == 200 and all("image_url" in r for r in popular.json())
 
 off = requests.post(
-    f"{API}/recommendation/recipes/67/like/toggle",
+    f"{API}/recommendation/recipes/{RECIPE_ID}/like/toggle",
     params={"user_id": user_id}, headers=headers, timeout=60,
 )
 restored = off.status_code == 200 and off.json().get("like_count") == base_count
@@ -306,13 +327,13 @@ check("인기 목록에 반영", in_popular and has_image_field,
 
 # ---------- 후기 ----------
 res = requests.post(
-    f"{API}/reviews/67",
+    f"{API}/reviews/{RECIPE_ID}",
     json={"user_id": user_id, "rating": 5, "review_text": "배포 점검용 후기입니다."},
     headers=headers, timeout=60,
 )
 wrote = res.status_code == 200
 # 목록은 로그인 없이도 읽혀야 한다. 상세가 링크로 공유되는 공개 화면이기 때문이다.
-res = requests.get(f"{API}/reviews/67", timeout=60)
+res = requests.get(f"{API}/reviews/{RECIPE_ID}", timeout=60)
 check(
     "후기 작성(비로그인 열람)",
     wrote and res.status_code == 200 and any(r["review_text"].startswith("배포 점검용") for r in res.json()),
@@ -401,7 +422,7 @@ if photo_url:
 res = requests.post(
     f"{API}/brags",
     params={"user_id": user_id},
-    json={"recipe_id": 67, "body": f"배포 점검용 글 {USER}", "image_url": photo_url},
+    json={"recipe_id": RECIPE_ID, "body": f"배포 점검용 글 {USER}", "image_url": photo_url},
     headers=headers, timeout=60,
 )
 brag_id = res.json().get("id") if res.status_code == 200 else None
@@ -418,13 +439,13 @@ check(
 if brag_id:
     # 좋아요가 레시피 추천에도 반영되는지. 확인 후 되돌린다.
     before = requests.get(
-        f"{API}/recommendation/recipes/67/like", params={"user_id": user_id}, headers=headers, timeout=60
+        f"{API}/recommendation/recipes/{RECIPE_ID}/like", params={"user_id": user_id}, headers=headers, timeout=60
     ).json().get("like_count")
     requests.post(
         f"{API}/brags/{brag_id}/like/toggle", params={"user_id": user_id}, headers=headers, timeout=60
     )
     after = requests.get(
-        f"{API}/recommendation/recipes/67/like", params={"user_id": user_id}, headers=headers, timeout=60
+        f"{API}/recommendation/recipes/{RECIPE_ID}/like", params={"user_id": user_id}, headers=headers, timeout=60
     ).json().get("like_count")
     check("자랑 좋아요가 레시피 추천에 반영", after == before + 1, f"{before} -> {after}")
 
