@@ -153,6 +153,10 @@ export default function MyPage() {
           <span>재료 정보 등록</span>
           <small>공식 DB에 없는 재료의 영양 정보를 알려주세요</small>
         </Link>
+        <Link className={styles.link} to="/feedback">
+          <span>하고 싶은 말</span>
+          <small>불편했던 것을 알려주세요. 만든 사람만 읽어요</small>
+        </Link>
         {profile?.is_admin && (
           <Link className={styles.link} to="/admin">
             <span>승인 대기 목록</span>

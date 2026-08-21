@@ -5,6 +5,7 @@ import AdminPage from './routes/AdminPage'
 import AuthPage from './routes/AuthPage'
 import BragPage from './routes/BragPage'
 import BragWritePage from './routes/BragWritePage'
+import FeedbackPage from './routes/FeedbackPage'
 import HomePage from './routes/HomePage'
 import IngredientSubmissionPage from './routes/IngredientSubmissionPage'
 import MyPage from './routes/MyPage'
@@ -54,6 +55,8 @@ export default function App() {
         <Route path="/brags" element={<BragPage />} />
         <Route path="/brags/new" element={<BragWritePage />} />
         <Route path="/my" element={<MyPage />} />
+        {/* 초대 페이지의 "하고 싶은 말" 버튼이 여기를 가리킨다. 주소를 짧게 둔 이유다. */}
+        <Route path="/feedback" element={<FeedbackPage />} />
         {/* 내가 올린 것들. 마이 안에 두는 게 아니라 주소를 나눈 이유는 목록이 길어질 수
             있고, 등록하다 만 상태에서 뒤로가기가 자연스러워야 하기 때문이다. */}
         <Route path="/my/recipes" element={<MyRecipesPage />} />

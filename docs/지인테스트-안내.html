@@ -122,6 +122,17 @@
   .cta:hover { background: var(--accent-strong); }
   .cta:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
 
+  /* 두 번째 버튼. 맨 위 "열기"가 주된 행동이라 이쪽은 한 단계 낮춘다. */
+  .cta-quiet {
+    background: transparent;
+    color: var(--accent-ink);
+    border: 1px solid var(--accent);
+    font-size: 1rem;
+  }
+  .cta-quiet:hover {
+    background: var(--accent-surface);
+  }
+
   .cta-url {
     display: block;
     margin-top: 0.6rem;
@@ -372,6 +383,14 @@
       <li>재료 넣는 게 귀찮았는지 — 몇 개까지는 참을 만했는지</li>
       <li>안 쓰게 됐다면 며칠째에 그랬는지, 그때 뭐가 걸렸는지</li>
     </ul>
+
+    <a class="cta cta-quiet" href="https://naengjango-hankki-v3-web.onrender.com/feedback">
+      앱에서 바로 남기기
+    </a>
+    <p class="note">
+      앱 안 <span class="tab">마이</span> 탭 → <b>하고 싶은 말</b>에도 있어.
+      <b>다른 사람한테는 안 보여</b> — 나만 읽어. 카톡으로 말해줘도 되고.
+    </p>
   </section>
 
   <div class="fineprint">

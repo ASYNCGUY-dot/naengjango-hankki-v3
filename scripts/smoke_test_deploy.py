@@ -443,6 +443,31 @@ if photo_url and os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_KEY")
     )
     check("올린 사진 정리", res.status_code == 200, str(res.status_code))
 
+# ---------- 피드백 ----------
+res = requests.post(
+    f"{API}/feedback", params={"user_id": user_id},
+    json={"body": f"배포 점검용 피드백 {USER}"}, headers=headers, timeout=60,
+)
+feedback_id = res.json().get("id") if res.status_code == 200 else None
+check("피드백 작성", res.status_code == 200 and bool(feedback_id), str(res.status_code))
+
+res = requests.get(f"{API}/feedback", params={"user_id": user_id}, headers=headers, timeout=60)
+check(
+    "내 피드백만 보인다",
+    res.status_code == 200 and all(f["id"] == feedback_id for f in res.json()),
+    f"{res.status_code}, {len(res.json()) if res.status_code == 200 else 0}개",
+)
+
+# 여기가 새면 지인끼리 서로의 의견을 보게 되고 Phase 4의 답이 오염된다.
+res = requests.get(f"{API}/feedback/all", params={"user_id": user_id}, headers=headers, timeout=60)
+check("일반 계정은 전체 피드백을 못 본다", res.status_code == 403, str(res.status_code))
+
+if feedback_id:
+    res = requests.delete(
+        f"{API}/feedback/{feedback_id}", params={"user_id": user_id}, headers=headers, timeout=60
+    )
+    check("피드백 삭제", res.status_code == 200, str(res.status_code))
+
 # ---------- 재료 정보 등록 ----------
 res = requests.post(
     f"{API}/ingredient-submissions",

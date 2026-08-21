@@ -30,6 +30,9 @@ RECIPE_VIEW = "recipe_view"
 # 자랑 글 작성. 글 자체가 brags에 created_at과 함께 남지만, 이건 "만들어봤다"는
 # 이 앱의 최종 목표에 닿은 유일한 신호라 이탈 지점 분석에서 따로 세고 싶다.
 BRAG_POST = "brag_post"
+# 피드백 작성. 글 자체는 feedback에 남지만, "어디까지 갔나"를 한 쿼리로 보려면
+# 다른 단계와 같은 표에 있어야 한다.
+FEEDBACK_POST = "feedback_post"
 
 
 def record(cur, event: str, user_id: int | None = None, recipe_id: int | None = None) -> None:

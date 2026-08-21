@@ -138,6 +138,15 @@ CREATE TABLE recipe_likes (
     UNIQUE (recipe_id, user_id)
 );
 
+-- 피드백 (migration/010). 앱이 어땠는지. 레시피에 붙는 후기와 달리 붙을 레시피가 없다.
+CREATE TABLE feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 -- 자랑하기 (migration/009). 만들어본 결과를 사진과 함께 올리고 서로 좋아요를 누른다.
 CREATE TABLE brags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

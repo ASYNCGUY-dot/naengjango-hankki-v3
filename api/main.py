@@ -24,6 +24,7 @@ from api.routers import (  # noqa: E402
     auth,
     brag,
     favorite,
+    feedback,
     ingredient_catalog,
     ingredient_submission,
     like,
@@ -123,6 +124,7 @@ app.include_router(shopping.router)
 # 생성 타입의 이름이 어그러졌다(로컬에서 명세를 뽑으며 경고로 드러났다).
 app.include_router(ingredient_submission.router)
 app.include_router(brag.router)
+app.include_router(feedback.router)
 
 
 @app.get("/health")
