@@ -1,0 +1,389 @@
+<title>냉장고 한끼 미리 써보기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+
+<style>
+  /* 앱이 쓰는 design/tokens.css의 팔레트를 그대로 가져왔다. 안내 페이지가 앱과
+     다른 세계로 보이면 링크를 눌렀을 때 다른 서비스에 온 것처럼 느껴진다. */
+  :root {
+    --ground: #fdfdfb;
+    --raised: #ffffff;
+    --sunken: #f1f1ec;
+    --accent-surface: #eef6ee;
+    --ink: #1a1a17;
+    --ink-soft: #5c5c55;
+    --accent: #3e7b54;
+    --accent-strong: #2f5d40;
+    --accent-ink: #336547;
+    --on-accent: #fdfdfb;
+    --warn-ink: #8a5e22;
+    --warn-surface: #fbf1df;
+    --line: #d9d9d1;
+
+    --display: "Gowun Batang", "Nanum Myeongjo", Georgia, serif;
+    --body: "IBM Plex Sans KR", Pretendard, -apple-system, BlinkMacSystemFont,
+      "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #14140f;
+      --raised: #1f1f1a;
+      --sunken: #0e0e0a;
+      --accent-surface: #223026;
+      --ink: #f4f4ef;
+      --ink-soft: #b0b0a6;
+      --accent: #8fc47f;
+      --accent-strong: #a9d69b;
+      --accent-ink: #9fce90;
+      --on-accent: #12200f;
+      --warn-ink: #e8c68a;
+      --warn-surface: #2b2418;
+      --line: #3a3a33;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #14140f;
+    --raised: #1f1f1a;
+    --sunken: #0e0e0a;
+    --accent-surface: #223026;
+    --ink: #f4f4ef;
+    --ink-soft: #b0b0a6;
+    --accent: #8fc47f;
+    --accent-strong: #a9d69b;
+    --accent-ink: #9fce90;
+    --on-accent: #12200f;
+    --warn-ink: #e8c68a;
+    --warn-surface: #2b2418;
+    --line: #3a3a33;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 3rem 1.25rem 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  /* ---------- 머리말 ---------- */
+  .intro { display: flex; flex-direction: column; gap: 1rem; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 0;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(2rem, 8vw, 2.75rem);
+    line-height: 1.25;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .lead { margin: 0; color: var(--ink-soft); }
+  .lead strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- 행동 ---------- */
+  .cta {
+    display: block;
+    padding: 1.05rem 1.25rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    font-size: 1.0625rem;
+    text-align: center;
+    text-decoration: none;
+    transition: background 160ms ease;
+  }
+  .cta:hover { background: var(--accent-strong); }
+  .cta:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
+
+  .cta-url {
+    display: block;
+    margin-top: 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-align: center;
+    color: var(--ink-soft);
+    word-break: break-all;
+  }
+
+  /* ---------- 첫 접속 안내 ---------- */
+  /* 여기가 실제 이탈 지점이다. 고장 난 줄 알고 닫는 사람이 생기는 자리라
+     경고 상자로 숨기지 않고, 무엇이 보일지를 그대로 그려서 보여준다. */
+  .wait {
+    background: var(--warn-surface);
+    color: var(--warn-ink);
+    border-radius: 14px;
+    padding: 1.1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .wait p { margin: 0; font-size: 0.9375rem; }
+  .wait strong { font-weight: 600; }
+
+  .bar {
+    height: 5px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--warn-ink) 22%, transparent);
+    overflow: hidden;
+  }
+  .bar span {
+    display: block;
+    height: 100%;
+    width: 40%;
+    border-radius: 999px;
+    background: var(--warn-ink);
+    animation: creep 30s linear infinite;
+  }
+  @keyframes creep {
+    0%   { width: 4%; }
+    70%  { width: 82%; }
+    100% { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bar span { animation: none; width: 70%; }
+  }
+
+  /* ---------- 절 ---------- */
+  section { display: flex; flex-direction: column; gap: 1.1rem; }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    line-height: 1.35;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .note { margin: 0; color: var(--ink-soft); font-size: 0.9375rem; }
+
+  /* ---------- 순서 ---------- */
+  /* 번호를 붙이는 이유는 이게 진짜 순서이기 때문이다. 재료를 안 넣으면 추천이
+     안 되고, 식단 정보를 안 넣으면 알레르기가 안 걸린다. */
+  ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.65rem; }
+
+  ol.steps > li {
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 0.95rem 1.05rem;
+    display: grid;
+    grid-template-columns: 1.75rem 1fr;
+    gap: 0.85rem;
+    align-items: start;
+  }
+
+  .num {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-ink);
+    padding-top: 0.15rem;
+  }
+
+  .step-body { display: flex; flex-direction: column; gap: 0.3rem; }
+  .step-title { font-weight: 600; }
+  .step-why { font-size: 0.875rem; color: var(--ink-soft); }
+  .step-why strong { color: var(--accent-ink); font-weight: 600; }
+
+  /* 탭 이름은 화면에 보이는 그대로 적는다. */
+  .tab {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    background: var(--accent-surface);
+    color: var(--accent-ink);
+    border-radius: 6px;
+    padding: 0.1rem 0.4rem;
+    white-space: nowrap;
+  }
+
+  /* ---------- 덤 ---------- */
+  ul.extras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.9rem; }
+  ul.extras > li { display: flex; flex-direction: column; gap: 0.2rem; }
+  .extra-title { font-weight: 600; }
+  .extra-title .mark { color: var(--accent-ink); }
+  .extra-why { font-size: 0.875rem; color: var(--ink-soft); }
+
+  .starred {
+    background: var(--accent-surface);
+    border-radius: 14px;
+    padding: 0.95rem 1.05rem;
+  }
+  .starred .extra-why { color: var(--accent-ink); }
+
+  /* ---------- 물어볼 것 ---------- */
+  ul.asks { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  ul.asks li { padding-left: 0.2rem; }
+  ul.asks li::marker { color: var(--accent-ink); }
+
+  /* ---------- 잔글씨 ---------- */
+  .fineprint {
+    border-top: 1px solid var(--line);
+    padding-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    font-size: 0.875rem;
+    color: var(--ink-soft);
+  }
+  .fineprint p { margin: 0; }
+  .fineprint b { color: var(--ink); font-weight: 600; }
+  .fineprint a { color: var(--accent-ink); }
+
+  .sign {
+    font-family: var(--display);
+    font-size: 1rem;
+    color: var(--ink);
+    margin: 0;
+  }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <p class="eyebrow">먼저 써보는 사람에게</p>
+    <h1>냉장고에 있는 걸로<br>뭐 해먹을지 정해주는 앱</h1>
+    <p class="lead">
+      혼자 만든 앱인데 <strong>일주일만 써보고 솔직하게 말해줬으면</strong> 해.
+      냉장고에 지금 있는 재료를 넣으면 그걸로 만들 수 있는 레시피를 찾아주고,
+      알레르기를 넣어두면 그 재료가 든 메뉴는 빼고 보여줘.
+    </p>
+  </header>
+
+  <div>
+    <a class="cta" href="https://naengjango-hankki-v3-web.onrender.com">냉장고 한끼 열기</a>
+    <span class="cta-url">naengjango-hankki-v3-web.onrender.com</span>
+  </div>
+
+  <div class="wait">
+    <p><strong>처음 열면 30초쯤 멈춘 것처럼 보여.</strong> 고장 난 게 아니라 무료 서버라
+      잠들어 있다가 깨는 중이야. 화면에 “서버를 깨우는 중”이라고 뜨면 그냥 기다리면 돼.</p>
+    <div class="bar" role="presentation"><span></span></div>
+    <p>두 번째부터는 바로 열려.</p>
+  </div>
+
+  <section>
+    <h2>이 순서로 해줘</h2>
+    <p class="note">여기까지가 기본이야. 5분이면 돼.</p>
+    <ol class="steps">
+      <li>
+        <span class="num">01</span>
+        <div class="step-body">
+          <span class="step-title">회원가입</span>
+          <span class="step-why">아이디·비밀번호랑 이름, 연락처, 이메일을 받아.</span>
+        </div>
+      </li>
+      <li>
+        <span class="num">02</span>
+        <div class="step-body">
+          <span class="step-title">식단 정보 넣기</span>
+          <span class="step-why">가입하면 바로 이 화면이 떠. <strong>알레르기 있으면 꼭
+            넣어줘</strong> — 이게 있어야 그 재료가 든 메뉴를 빼줄 수 있어. 나중에 해도
+            되는데 그전까진 안 걸러져.</span>
+        </div>
+      </li>
+      <li>
+        <span class="num">03</span>
+        <div class="step-body">
+          <span class="step-title">냉장고에 재료 넣기</span>
+          <span class="step-why">아래 <span class="tab">마이</span> 탭 →
+            <b>내 냉장고 재료</b>. <strong>입력하면 아래에 뜨는 걸 골라줘</strong> —
+            그래야 추천이 제대로 걸려.</span>
+        </div>
+      </li>
+      <li>
+        <span class="num">04</span>
+        <div class="step-body">
+          <span class="step-title">추천 받아보기</span>
+          <span class="step-why">아래 <span class="tab">맞춤추천</span> 탭.
+            여기가 이 앱의 핵심이야.</span>
+        </div>
+      </li>
+      <li>
+        <span class="num">05</span>
+        <div class="step-body">
+          <span class="step-title">마음에 들면 즐겨찾기</span>
+          <span class="step-why">레시피 화면의 <b>★ 즐겨찾기</b>를 누르면
+            <span class="tab">마이</span> 탭에 모여.</span>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>여유 되면 이것도</h2>
+    <ul class="extras">
+      <li class="starred">
+        <span class="extra-title">📸 자랑하기 <span class="mark">— 제일 보고 싶은 거</span></span>
+        <span class="extra-why">진짜로 만들어봤으면 사진 찍어서 올려줘. 레시피 화면 아래
+          “이거 만들었어요”를 누르면 바로 써져. 지금까지 이 앱은 “뭘 만들지 정하는” 데서
+          끝났어서, 실제로 만든 걸 보는 게 나한테는 제일 큰 결과야.</span>
+      </li>
+      <li>
+        <span class="extra-title"><span class="mark">♥</span> 추천하기</span>
+        <span class="extra-why">남한테 보여주고 싶은 메뉴에 눌러줘. ★ 즐겨찾기는 나만 보는
+          거고, ♥ 추천은 다른 사람 홈에 뜨는 거야.</span>
+      </li>
+      <li>
+        <span class="extra-title">후기</span>
+        <span class="extra-why">만들어봤으면 레시피 화면 아래에 한 줄 남겨줘.
+          간이 어땠는지, 뭘 바꿨는지.</span>
+      </li>
+      <li>
+        <span class="extra-title">내 레시피</span>
+        <span class="extra-why"><span class="tab">마이</span> 탭 안에 있어.
+          직접 해먹는 메뉴가 있으면 올려봐도 돼.</span>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>이런 게 제일 궁금해</h2>
+    <p class="note">좋았던 것보다 <b>불편했던 것</b>이 훨씬 도움이 돼. 편하게 말해줘.</p>
+    <ul class="asks">
+      <li>어디서 “뭐 어쩌라는 거지” 싶었는지</li>
+      <li>추천받은 메뉴가 실제로 해먹을 만했는지, 아니면 왜 아니었는지</li>
+      <li>재료 넣는 게 귀찮았는지 — 몇 개까지는 참을 만했는지</li>
+      <li>안 쓰게 됐다면 며칠째에 그랬는지, 그때 뭐가 걸렸는지</li>
+    </ul>
+  </section>
+
+  <div class="fineprint">
+    <p><b>비밀번호를 잊으면 나한테 말해줘.</b> 지금은 메일 보내는 기능이 막혀 있어서
+      내가 직접 초기화 링크를 만들어 보내줄게.</p>
+    <p><b>알레르기랑 병력은 따로 동의를 받아.</b> 건강에 관한 정보라 가입 때 한꺼번에
+      묻지 않고, 그 값을 실제로 넣는 화면에서 다시 물어봐. 안 넣어도 나머지는 다 돼.
+      자세한 건 앱 안의
+      <a href="https://naengjango-hankki-v3-web.onrender.com/privacy">개인정보 처리방침</a>에
+      적어뒀어.</p>
+    <p><b>아직 테스트 단계야.</b> 이상하게 동작하는 게 있으면 그것도 알려줘.
+      그만두고 싶으면 말해줘 — 계정이랑 넣은 정보 다 지워줄게.</p>
+    <p class="sign">고마워. — 최지수</p>
+  </div>
+</div>
