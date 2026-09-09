@@ -19,3 +19,6 @@ backup/
 # 005 적용 전 백업 파일. 개인정보가 들어 있으므로 저장소에 올리지 않는다.
 backup_before_005_*.sql
 backup_allergy_tags_*.sql
+
+# scripts/backup_db.py가 뜨는 전체 백업. 같은 이유로 올리지 않는다.
+backups/

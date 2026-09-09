@@ -1,0 +1,62 @@
+# Supabase 무료 플랜은 일정 기간 쿼리가 없으면 프로젝트를 일시정지한다.
+# 2026-09-09에 실제로 정지됐고, 그동안 앱의 DB 경로가 전부 500을 냈다(정적 사이트와
+# API 자체는 멀쩡해서 겉으로는 멀쩡해 보였다). 지인 테스트가 띄엄띄엄 진행되는 한
+# 또 걸리므로, 며칠에 한 번 실제 쿼리를 흘려 미사용 시계를 되돌린다.
+#
+# 왜 이 엔드포인트인가
+#   - `/recommendation/recipes/categories`는 DB를 실제로 조회한다(분류별 개수를 센다).
+#   - 그러면서 `usage_events`에 아무것도 남기지 않는다. 레시피 상세를 부르면
+#     비로그인 `recipe_view`가 쌓이는데, 그건 Phase 4에서 "공유 링크를 받은 사람의
+#     열람"과 같은 모양이라 유입 신호를 더럽힌다.
+#
+# 자격증명을 안 쓴다. DB에 직접 붙는 편이 더 곧지만 이 저장소는 공개라, 접속 문자열을
+# Actions 시크릿에 두는 것보다 배포된 API를 거치는 쪽이 노출면이 작다.
+#
+# 겸사겸사 가용성 점검이기도 하다. 이 작업이 실패하면 그 시점에 앱이 실제로 고장난
+# 것이므로, 알림을 받도록 실패 시 종료 코드를 그대로 낸다.
+
+name: DB 깨어 있게 유지
+
+on:
+  schedule:
+    # 3일에 한 번, UTC 03:00 (한국 12:00). 정지까지 보통 일주일이라 여유를 둔다.
+    - cron: "0 3 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 레시피 분류 목록을 부른다
+        run: |
+          URL="https://naengjango-hankki-v2-api.onrender.com/recommendation/recipes/categories"
+
+          # Render 무료 웹 서비스는 15분 유휴 후 잠들고 콜드스타트가 20~35초다.
+          # 첫 호출은 그 시간을 기다려야 하므로 넉넉히 주고, 그래도 실패하면 재시도한다.
+          for attempt in 1 2 3; do
+            echo "시도 $attempt"
+            code=$(curl --silent --show-error --max-time 120 \
+                        --output /tmp/response.json --write-out '%{http_code}' "$URL" || echo "000")
+
+            if [ "$code" = "200" ]; then
+              # 200이어도 내용이 비면 DB가 실제로 응답한 것이 아닐 수 있다.
+              count=$(python3 -c "import json,sys; print(len(json.load(open('/tmp/response.json'))))" 2>/dev/null || echo 0)
+              if [ "$count" -gt 0 ]; then
+                echo "정상 - 분류 ${count}개를 받았다. DB가 쿼리에 응답했다."
+                exit 0
+              fi
+              echo "200이지만 분류가 비어 있다. DB 조회가 실패했을 수 있다."
+            else
+              echo "HTTP $code"
+              head -c 300 /tmp/response.json 2>/dev/null || true
+              echo
+            fi
+
+            [ "$attempt" -lt 3 ] && sleep 30
+          done
+
+          echo "::error::DB 확인 실패. Supabase 프로젝트가 정지됐는지 대시보드에서 볼 것."
+          exit 1
