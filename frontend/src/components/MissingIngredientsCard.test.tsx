@@ -80,3 +80,84 @@ describe('지금 만들 수 있나요', () => {
     expect(container.querySelector('section')).toBeNull()
   })
 })
+
+describe('부족한 재료 구매 링크', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  function mockBoth(shopping: unknown) {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      if (String(url).includes('shopping-links')) return json(shopping)
+      return json(body())
+    })
+  }
+
+  it('부족한 재료마다 쿠팡·네이버 링크를 보여준다', async () => {
+    signIn()
+    mockBoth({
+      earner: 'site',
+      author_name: null,
+      links: [
+        { ingredient: '달걀', coupang: 'https://coupang.example/달걀', naver: 'https://naver.example/달걀' },
+      ],
+    })
+    renderWithProviders(<MissingIngredientsCard recipeId={67} />)
+
+    const coupang = await screen.findByRole('link', { name: /쿠팡/ })
+    expect(coupang).toHaveAttribute('href', 'https://coupang.example/달걀')
+    // 새 창으로 나가되 어느 화면에서 왔는지는 안 넘긴다.
+    expect(coupang).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.getByRole('link', { name: /네이버/ })).toHaveAttribute(
+      'href',
+      'https://naver.example/달걀',
+    )
+  })
+
+  it('작성자 제휴 링크면 누구에게 수수료가 가는지 밝힌다', async () => {
+    // 대가성 고지는 법적으로 필요하고, 주체가 사이트가 아니라 작성자다.
+    signIn()
+    mockBoth({
+      earner: 'author',
+      author_name: '훠궈맨',
+      links: [{ ingredient: '달걀', coupang: 'https://c.example', naver: 'https://n.example' }],
+    })
+    renderWithProviders(<MissingIngredientsCard recipeId={67} />)
+
+    expect(await screen.findByText(/훠궈맨님의 제휴 링크/)).toBeInTheDocument()
+  })
+
+  it('제휴가 안 붙은 링크에는 고지를 달지 않는다', async () => {
+    signIn()
+    mockBoth({
+      earner: 'none',
+      author_name: null,
+      links: [{ ingredient: '달걀', coupang: 'https://c.example', naver: 'https://n.example' }],
+    })
+    renderWithProviders(<MissingIngredientsCard recipeId={67} />)
+
+    await screen.findByRole('link', { name: /쿠팡/ })
+    expect(screen.queryByText(/수수료가 갑니다/)).not.toBeInTheDocument()
+  })
+
+  it('구매 링크를 못 받아도 부족한 재료는 그대로 보인다', async () => {
+    // 무료 티어에서 쿠팡 변환이 느리거나 실패하는 일이 정상 범위에 있다. 그때 재료
+    // 목록까지 사라지면 카드의 본래 역할이 죽는다.
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      if (String(url).includes('shopping-links')) throw new Error('죽음')
+      return json(body())
+    })
+    renderWithProviders(<MissingIngredientsCard recipeId={67} />)
+
+    expect(await screen.findByText('달걀')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /쿠팡/ })).not.toBeInTheDocument()
+  })
+
+  it('응답 모양이 예상과 달라도 카드가 죽지 않는다', async () => {
+    signIn()
+    mockBoth({ earner: 'site', author_name: null })   // links가 통째로 없다
+    renderWithProviders(<MissingIngredientsCard recipeId={67} />)
+
+    expect(await screen.findByText('달걀')).toBeInTheDocument()
+  })
+})

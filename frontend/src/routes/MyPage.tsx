@@ -153,6 +153,10 @@ export default function MyPage() {
           <span>재료 정보 등록</span>
           <small>공식 DB에 없는 재료의 영양 정보를 알려주세요</small>
         </Link>
+        <Link className={styles.link} to="/my/partner-key">
+          <span>재료 구매 수수료 받기</span>
+          <small>많이 추천받은 내 요리의 재료 구매 수수료를 내가 받아요</small>
+        </Link>
         <Link className={styles.link} to="/feedback">
           <span>하고 싶은 말</span>
           <small>불편했던 것을 알려주세요. 만든 사람만 읽어요</small>

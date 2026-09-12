@@ -8,6 +8,7 @@ import BragWritePage from './routes/BragWritePage'
 import FeedbackPage from './routes/FeedbackPage'
 import HomePage from './routes/HomePage'
 import IngredientSubmissionPage from './routes/IngredientSubmissionPage'
+import PartnerKeyPage from './routes/PartnerKeyPage'
 import MyPage from './routes/MyPage'
 import MyRecipesPage from './routes/MyRecipesPage'
 import OnboardingPage from './routes/OnboardingPage'
@@ -61,6 +62,7 @@ export default function App() {
             있고, 등록하다 만 상태에서 뒤로가기가 자연스러워야 하기 때문이다. */}
         <Route path="/my/recipes" element={<MyRecipesPage />} />
         <Route path="/my/ingredients" element={<IngredientSubmissionPage />} />
+        <Route path="/my/partner-key" element={<PartnerKeyPage />} />
         {/* 권한은 서버가 확인한다. 관리자가 아니면 403이 오고 화면이 안내로 바뀐다. */}
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />

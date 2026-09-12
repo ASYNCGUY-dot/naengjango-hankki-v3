@@ -30,6 +30,7 @@ from api.routers import (  # noqa: E402
     like,
     nutrition,
     pantry,
+    partner_keys,
     popular_videos,
     price,
     profile,
@@ -125,6 +126,7 @@ app.include_router(shopping.router)
 app.include_router(ingredient_submission.router)
 app.include_router(brag.router)
 app.include_router(feedback.router)
+app.include_router(partner_keys.router)
 
 
 @app.get("/health")

@@ -84,3 +84,41 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
+
+/* 구매 링크. 재료 이름·제안 아래에 붙는 세 번째 줄이라, 시선을 뺏지 않도록 작게 둔다.
+   부족한 재료를 "무엇으로 대신할 수 있나"가 먼저고 사는 건 그 다음이다. */
+.buy {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.buy a {
+  padding: 0.125rem var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  text-decoration: none;
+  /* 모바일에서 손가락으로 누를 수 있어야 한다. 글자만으로는 너무 얇다. */
+  min-height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.buy a:hover,
+.buy a:focus-visible {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* 대가성 고지. 법적으로 필요한 문구라 접히거나 숨지 않게 둔다. */
+.disclosure {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}

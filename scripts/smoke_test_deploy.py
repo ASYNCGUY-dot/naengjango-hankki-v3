@@ -508,6 +508,49 @@ res = requests.post(
 check("공식 DB에 있는 재료는 승인 대기", res.status_code == 200 and res.json().get("status") == "pending",
       f"{res.status_code}, status={res.json().get('status') if res.status_code == 200 else '-'}")
 
+# ---------- 부족한 재료 구매 링크 ----------
+res = requests.get(
+    f"{API}/recommendation/recipes/{RECIPE_ID}/shopping-links",
+    params={"user_id": user_id}, headers=headers, timeout=60,
+)
+links = res.json().get("links", []) if res.status_code == 200 else []
+check(
+    "부족한 재료 구매 링크",
+    res.status_code == 200 and links and all(l.get("coupang") and l.get("naver") for l in links),
+    f"{res.status_code}, {len(links)}개, earner={res.json().get('earner') if res.status_code == 200 else '-'}",
+)
+
+# ---------- 제휴 키 (#95) ----------
+# 운영에 APP_ENCRYPTION_KEY가 안 들어가 있으면 등록에서 500이 난다. 로컬 테스트로는
+# 절대 안 잡히는 자리라 여기서 확인한다.
+res = requests.put(
+    f"{API}/partner-keys/{user_id}",
+    json={"access_key": f"ak-smoke-{USER}", "secret_key": f"sk-smoke-{USER}"},
+    headers=headers, timeout=60,
+)
+registered = res.status_code == 200 and res.json().get("registered") is True
+check("제휴 키 등록(암호화 저장)", registered, str(res.status_code))
+
+res = requests.get(f"{API}/partner-keys/{user_id}", headers=headers, timeout=60)
+body = res.json() if res.status_code == 200 else {}
+check(
+    "저장한 키는 응답에 안 실린다",
+    res.status_code == 200 and body.get("registered") is True and f"ak-smoke-{USER}" not in res.text,
+    str(res.status_code),
+)
+check(
+    "수익 기준을 화면에 내려준다",
+    isinstance(body.get("revenue_min_likes"), int) and body["revenue_min_likes"] > 0,
+    f"revenue_min_likes={body.get('revenue_min_likes')}",
+)
+
+# 남의 키를 만질 수 없어야 한다. 본인 확인이 빠지면 남의 수익 계정이 열린다.
+res = requests.get(f"{API}/partner-keys/1", headers=headers, timeout=60)
+check("남의 제휴 키는 못 본다", res.status_code == 403, str(res.status_code))
+
+res = requests.delete(f"{API}/partner-keys/{user_id}", headers=headers, timeout=60)
+check("제휴 키 해제", res.status_code == 200 and res.json().get("registered") is False, str(res.status_code))
+
 # ---------- 관리자 큐는 일반 계정에게 닫혀 있어야 한다 ----------
 res = requests.get(f"{API}/admin/pending-recipes", params={"user_id": user_id}, headers=headers, timeout=60)
 check("일반 계정은 승인 대기 목록을 못 본다", res.status_code == 403, str(res.status_code))

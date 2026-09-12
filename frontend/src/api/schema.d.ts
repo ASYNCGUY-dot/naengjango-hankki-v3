@@ -594,6 +594,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/partner-keys/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Status
+         * @description 등록 여부만 준다. 저장된 키 자체는 어떤 경우에도 응답에 싣지 않는다.
+         */
+        get: operations["get_status_partner_keys__user_id__get"];
+        /** Register */
+        put: operations["register_partner_keys__user_id__put"];
+        post?: never;
+        /**
+         * Unregister
+         * @description 연동을 해제한다. 이미 없어도 204가 아니라 같은 응답을 준다 - 화면 입장에서
+         *     "지금 등록 안 된 상태"라는 결과는 같고, 있었는지 없었는지를 굳이 알릴 필요가 없다.
+         */
+        delete: operations["unregister_partner_keys__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/popular-videos/categories": {
         parameters: {
             query?: never;
@@ -1443,6 +1469,25 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** PartnerKeyIn */
+        PartnerKeyIn: {
+            /** Access Key */
+            access_key: string;
+            /** Secret Key */
+            secret_key: string;
+        };
+        /** PartnerKeyStatus */
+        PartnerKeyStatus: {
+            /** Registered */
+            registered: boolean;
+            /**
+             * Revenue Min Likes
+             * @default 100
+             */
+            revenue_min_likes: number;
+            /** Updated At */
+            updated_at?: string | null;
+        };
         /** PasswordResetConfirmRequest */
         PasswordResetConfirmRequest: {
             /** New Password */
@@ -1853,6 +1898,10 @@ export interface components {
         };
         /** ShoppingLinksResponse */
         ShoppingLinksResponse: {
+            /** Author Name */
+            author_name?: string | null;
+            /** Earner */
+            earner: string;
             /** Links */
             links: components["schemas"]["ShoppingLink"][];
         };
@@ -3358,6 +3407,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_status_partner_keys__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerKeyStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_partner_keys__user_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartnerKeyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerKeyStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unregister_partner_keys__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerKeyStatus"];
                 };
             };
             /** @description Validation Error */

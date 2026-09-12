@@ -28,6 +28,14 @@ class ShoppingLink(BaseModel):
 
 class ShoppingLinksResponse(BaseModel):
     links: list[ShoppingLink]
+    # 누가 수수료를 받는지. 화면은 이 값으로 대가성 문구를 고른다.
+    #   "site"   - 사이트 기본 키 (공식 레시피, 미승격 유저 레시피)
+    #   "author" - 이 레시피 작성자의 키
+    #   "none"   - 아무 키도 안 붙은 일반 검색 링크
+    # 제휴 링크에는 고지가 붙어야 하는데 유저 레시피에서는 그 주체가 사이트가 아니라
+    # 작성자다. 화면이 스스로 판단하면 서버와 어긋나므로 서버가 정해서 내려준다.
+    earner: str
+    author_name: str | None = None
 
 
 @router.get("/{recipe_id}/shopping-links", response_model=ShoppingLinksResponse)
@@ -50,10 +58,20 @@ def get_shopping_links_for_missing(
     user_ingredients = [item["name"] for item in pantry_items]
 
     missing = substitution_agent.get_missing_ingredients(cur, recipe_id, user_ingredients, recipe["menu_name"])
-    access_key, secret_key = shopping_agent.get_shopping_key_for_recipe(cur, recipe)
+    key_info = shopping_agent.get_shopping_key_for_recipe(cur, recipe)
 
-    links = [
-        ShoppingLink(ingredient=m["ingredient"], **shopping_agent.get_shopping_links(m["ingredient"], access_key, secret_key))
-        for m in missing
-    ]
-    return ShoppingLinksResponse(links=links)
+    # 변환 요청은 한 번으로 묶이고, earner는 "붙일 작정"이 아니라 "실제로 붙었는가"로
+    # 정해져서 돌아온다(shopping_agent.get_shopping_links_for 참고).
+    result = shopping_agent.get_shopping_links_for([m["ingredient"] for m in missing], key_info)
+
+    author_name = None
+    if result["earner"] == "author" and key_info["author_id"]:
+        cur.execute("SELECT username FROM users WHERE id = ?", (key_info["author_id"],))
+        row = cur.fetchone()
+        author_name = row[0] if row else None
+
+    return ShoppingLinksResponse(
+        links=[ShoppingLink(**link) for link in result["links"]],
+        earner=result["earner"],
+        author_name=author_name,
+    )

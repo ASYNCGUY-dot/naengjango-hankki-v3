@@ -2,8 +2,26 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { getSubstitution, type Substitution } from '../api/recipes'
+import { getShoppingLinks, type ShoppingLinks } from '../api/shopping'
 import { useAuth } from '../auth/context'
 import styles from './MissingIngredientsCard.module.css'
+
+/**
+ * 제휴 링크에는 대가성 고지가 붙어야 한다. 주체가 사이트일 때와 레시피 작성자일 때가
+ * 다르므로 서버가 내려준 `earner`로 고른다 - 화면이 판단하면 서버와 어긋난다.
+ */
+function disclosure(links: ShoppingLinks | null): string | null {
+  if (!links) return null
+  if (links.earner === 'author') {
+    const who = links.author_name ?? '작성자'
+    return `구매 링크는 이 레시피를 올린 ${who}님의 제휴 링크예요. 구매하시면 그분에게 수수료가 갑니다.`
+  }
+  if (links.earner === 'site') {
+    return '구매 링크에는 제휴 링크가 포함될 수 있어요. 구매하시면 운영자에게 일정 수수료가 갑니다.'
+  }
+  // 'none' - 아무 키도 안 붙은 일반 검색 링크라 고지할 것이 없다.
+  return null
+}
 
 /**
  * "이거 지금 만들 수 있나".
@@ -23,6 +41,7 @@ export default function MissingIngredientsCard({ recipeId }: { recipeId: number 
   const { userId, isAuthenticated } = useAuth()
   const [data, setData] = useState<Substitution | null>(null)
   const [failed, setFailed] = useState(false)
+  const [links, setLinks] = useState<ShoppingLinks | null>(null)
 
   useEffect(() => {
     if (userId === null) return
@@ -33,6 +52,11 @@ export default function MissingIngredientsCard({ recipeId }: { recipeId: number 
         // 레시피 본문은 이미 보인다. 이 카드 하나 때문에 화면을 망치지 않는다.
         if (!controller.signal.aborted) setFailed(true)
       })
+    // 구매 링크는 따로 받는다. 이쪽이 실패해도 부족한 재료 목록은 그대로 보여야 한다 -
+    // 무료 티어에서 쿠팡 변환이 느리거나 실패하는 일이 정상 범위에 있다.
+    getShoppingLinks(recipeId, userId, controller.signal)
+      .then(setLinks)
+      .catch(() => {})
     return () => controller.abort()
   }, [recipeId, userId])
 
@@ -70,13 +94,34 @@ export default function MissingIngredientsCard({ recipeId }: { recipeId: number 
             {coverage.total}개 중 <strong>{missing.length}개</strong>가 없어요.
           </p>
           <ul className={styles.list}>
-            {missing.map((item) => (
-              <li key={item.ingredient} className={styles[item.type] ?? styles.unknown}>
-                <span className={styles.name}>{item.ingredient}</span>
-                <span className={styles.suggestion}>{item.suggestion}</span>
-              </li>
-            ))}
+            {missing.map((item) => {
+              // links.links를 그냥 믿지 않는다. 응답 모양이 예상과 다르면 부족한 재료
+              // 목록 전체가 안 보이게 되는데, 구매 버튼 하나 때문에 그러면 안 된다.
+              // (홈 화면이 영상 분류 때문에 통째로 빈 화면이 됐던 것과 같은 종류다.)
+              const buy = Array.isArray(links?.links)
+                ? links.links.find((l) => l?.ingredient === item.ingredient)
+                : undefined
+              return (
+                <li key={item.ingredient} className={styles[item.type] ?? styles.unknown}>
+                  <span className={styles.name}>{item.ingredient}</span>
+                  <span className={styles.suggestion}>{item.suggestion}</span>
+                  {buy && (
+                    <span className={styles.buy}>
+                      {/* 외부 사이트로 나간다. noreferrer까지 붙이는 이유는 어느 화면에서
+                          왔는지를 상대 사이트에 넘기지 않기 위해서다. */}
+                      <a href={buy.coupang} target="_blank" rel="noopener noreferrer">
+                        쿠팡<span className="sr-only">에서 {item.ingredient} 검색</span>
+                      </a>
+                      <a href={buy.naver} target="_blank" rel="noopener noreferrer">
+                        네이버<span className="sr-only">에서 {item.ingredient} 검색</span>
+                      </a>
+                    </span>
+                  )}
+                </li>
+              )
+            })}
           </ul>
+          {disclosure(links) && <p className={styles.disclosure}>{disclosure(links)}</p>}
         </>
       )}
 

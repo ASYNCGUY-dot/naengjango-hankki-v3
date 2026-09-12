@@ -1050,6 +1050,57 @@
         "title": "PantryItemRequest",
         "type": "object"
       },
+      "PartnerKeyIn": {
+        "properties": {
+          "access_key": {
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Access Key",
+            "type": "string"
+          },
+          "secret_key": {
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Secret Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_key",
+          "secret_key"
+        ],
+        "title": "PartnerKeyIn",
+        "type": "object"
+      },
+      "PartnerKeyStatus": {
+        "properties": {
+          "registered": {
+            "title": "Registered",
+            "type": "boolean"
+          },
+          "revenue_min_likes": {
+            "default": 100,
+            "title": "Revenue Min Likes",
+            "type": "integer"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "registered"
+        ],
+        "title": "PartnerKeyStatus",
+        "type": "object"
+      },
       "PasswordResetConfirmRequest": {
         "properties": {
           "new_password": {
@@ -2398,6 +2449,21 @@
       },
       "ShoppingLinksResponse": {
         "properties": {
+          "author_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Name"
+          },
+          "earner": {
+            "title": "Earner",
+            "type": "string"
+          },
           "links": {
             "items": {
               "$ref": "#/components/schemas/ShoppingLink"
@@ -2407,7 +2473,8 @@
           }
         },
         "required": [
-          "links"
+          "links",
+          "earner"
         ],
         "title": "ShoppingLinksResponse",
         "type": "object"
@@ -5276,6 +5343,188 @@
         "summary": "Update Pantry Expiry",
         "tags": [
           "pantry"
+        ]
+      }
+    },
+    "/partner-keys/{user_id}": {
+      "delete": {
+        "description": "연동을 해제한다. 이미 없어도 204가 아니라 같은 응답을 준다 - 화면 입장에서\n\"지금 등록 안 된 상태\"라는 결과는 같고, 있었는지 없었는지를 굳이 알릴 필요가 없다.",
+        "operationId": "unregister_partner_keys__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerKeyStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unregister",
+        "tags": [
+          "partner-keys"
+        ]
+      },
+      "get": {
+        "description": "등록 여부만 준다. 저장된 키 자체는 어떤 경우에도 응답에 싣지 않는다.",
+        "operationId": "get_status_partner_keys__user_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerKeyStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Status",
+        "tags": [
+          "partner-keys"
+        ]
+      },
+      "put": {
+        "operationId": "register_partner_keys__user_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartnerKeyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerKeyStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "partner-keys"
         ]
       }
     },
