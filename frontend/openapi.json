@@ -5779,6 +5779,58 @@
         ]
       }
     },
+    "/profile/{user_id}/onboarding-view": {
+      "post": {
+        "description": "식단 정보 화면에 들어왔다는 것만 남긴다 (2026-09-15).\n\n가입만 하고 멈춘 사람이 \"화면에 들어갔다 나갔는지\"와 \"아예 안 들어갔는지\"를 가르려고\n만들었다(usage_log.ONBOARDING_VIEW 참고). 화면 진입은 서버가 알 수 없는 사건이라\n화면이 직접 알려야 한다.\n\nGET /profile/{user_id}에 기록을 얹지 않은 이유: 그 조회는 마이 화면도 부른다. 그러면\n마이 탭을 열 때마다 \"식단 정보 화면에 들어왔다\"가 찍혀 신호가 쓸모없어진다.",
+        "operationId": "record_onboarding_view_profile__user_id__onboarding_view_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Onboarding View",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
     "/recommendation/demo": {
       "get": {
         "description": "로그인 없이 추천 로직만 체험하는 데모용 엔드포인트(2026-08-10).\n\n실제 서비스는 회원가입과 5단계 온보딩을 거쳐야 추천 화면에 닿는다. 포트폴리오\n링크를 받은 사람이 그 과정 없이 핵심 기능을 바로 볼 수 있도록 인가 없이 열어둔다.\n프로필은 DB에서 읽지 않고 쿼리로 받은 알레르기만으로 즉석에서 만든다 - 원본\n로직이 프로필에서 실제로 참조하는 값이 알레르기 하나뿐이라 가능하다.\n\n공개 엔드포인트이므로 개인 데이터(pantry/즐겨찾기 등)는 일절 건드리지 않고,\n남용 시 서버 부하가 커지지 않도록 재료 개수와 결과 개수를 상한으로 묶는다.",

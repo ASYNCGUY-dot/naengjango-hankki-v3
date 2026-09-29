@@ -9,7 +9,7 @@ migration/005_users_username_required.sql에 정리했다.
 
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from pydantic import BaseModel
 
@@ -174,6 +174,26 @@ def get_profile(
         ),
         **{k: v for k, v in profile.items() if k != "id"},
     )
+
+
+@router.post("/{user_id}/onboarding-view", status_code=204)
+def record_onboarding_view(
+    user_id: int,
+    cur: sqlite3.Cursor = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id),
+):
+    """식단 정보 화면에 들어왔다는 것만 남긴다 (2026-09-15).
+
+    가입만 하고 멈춘 사람이 "화면에 들어갔다 나갔는지"와 "아예 안 들어갔는지"를 가르려고
+    만들었다(usage_log.ONBOARDING_VIEW 참고). 화면 진입은 서버가 알 수 없는 사건이라
+    화면이 직접 알려야 한다.
+
+    GET /profile/{user_id}에 기록을 얹지 않은 이유: 그 조회는 마이 화면도 부른다. 그러면
+    마이 탭을 열 때마다 "식단 정보 화면에 들어왔다"가 찍혀 신호가 쓸모없어진다.
+    """
+    require_self(user_id, current_user_id)
+    usage_log.record(cur, usage_log.ONBOARDING_VIEW, user_id=user_id)
+    return Response(status_code=204)
 
 
 @router.put("/{user_id}")

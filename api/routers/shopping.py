@@ -58,7 +58,8 @@ def get_shopping_links_for_missing(
     user_ingredients = [item["name"] for item in pantry_items]
 
     missing = substitution_agent.get_missing_ingredients(cur, recipe_id, user_ingredients, recipe["menu_name"])
-    key_info = shopping_agent.get_shopping_key_for_recipe(cur, recipe)
+    # 보는 사람을 넘긴다. 작성자 본인이나 운영자에게는 자기 제휴 링크를 붙이지 않는다.
+    key_info = shopping_agent.get_shopping_key_for_recipe(cur, recipe, viewer_id=current_user_id)
 
     # 변환 요청은 한 번으로 묶이고, earner는 "붙일 작정"이 아니라 "실제로 붙었는가"로
     # 정해져서 돌아온다(shopping_agent.get_shopping_links_for 참고).

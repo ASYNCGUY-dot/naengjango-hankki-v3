@@ -12,6 +12,7 @@ import {
   getProfile,
   joinSelections,
   getProfileOptions,
+  recordOnboardingView,
   listAllergyOptions,
   splitSelections,
   updateProfile,
@@ -115,6 +116,13 @@ export default function OnboardingPage() {
       })
 
     return () => controller.abort()
+  }, [userId])
+
+  // 이 화면에 들어왔다는 것만 알린다. 가입만 하고 멈춘 사람이 여기까지 왔는지를 가르려고
+  // 둔다(usage_log.ONBOARDING_VIEW). 기다리지 않고, 실패해도 화면에는 아무 영향이 없다.
+  useEffect(() => {
+    if (userId === null) return
+    recordOnboardingView(userId).catch(() => {})
   }, [userId])
 
   function toggle(list: string[], value: string): string[] {

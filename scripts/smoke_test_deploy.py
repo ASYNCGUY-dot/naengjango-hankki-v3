@@ -23,6 +23,7 @@ import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import requests
@@ -508,6 +509,26 @@ res = requests.post(
 check("공식 DB에 있는 재료는 승인 대기", res.status_code == 200 and res.json().get("status") == "pending",
       f"{res.status_code}, status={res.json().get('status') if res.status_code == 200 else '-'}")
 
+# ---------- 식단 정보 화면 진입 기록 (2026-09-15) ----------
+res = requests.post(f"{API}/profile/{user_id}/onboarding-view", headers=headers, timeout=60)
+check("식단 정보 화면 진입 기록", res.status_code == 204, str(res.status_code))
+
+# ---------- 동시에 연 같은 레시피 (2026-09-15, migration/012) ----------
+# 운영에서 같은 사람·같은 레시피가 15ms 간격으로 두 번 찍혔다. 동시에 처리된 요청이라
+# DB 제약으로 막았는데, 그 제약이 운영 DB에 실제로 걸려 있는지는 여기서만 확인된다.
+# 순서대로 보내면 10초 구간 경계에 걸려 가끔 두 줄이 되므로 일부러 동시에 보낸다.
+BURST_STARTED_AT = datetime.now(timezone.utc).isoformat()
+with ThreadPoolExecutor(max_workers=2) as pool:
+    burst = list(pool.map(
+        lambda _: requests.get(f"{API}/recommendation/recipes/{RECIPE_ID}", headers=headers, timeout=60),
+        range(2),
+    ))
+check(
+    "동시에 연 같은 레시피도 둘 다 열린다",
+    all(r.status_code == 200 for r in burst),
+    ", ".join(str(r.status_code) for r in burst),
+)
+
 # ---------- 부족한 재료 구매 링크 ----------
 res = requests.get(
     f"{API}/recommendation/recipes/{RECIPE_ID}/shopping-links",
@@ -568,12 +589,20 @@ try:
     )
     rows = cur.fetchall()
     got = {event for event, _ in rows}
-    expected = {"login", "onboarding_done", "pantry_add", "recommend"}
+    expected = {"login", "onboarding_view", "onboarding_done", "pantry_add", "recommend"}
     check(
         "이번 실행의 이벤트 기록",
         expected <= got,
         ", ".join(f"{e}={n}" for e, n in rows) or "없음",
     )
+
+    cur.execute(
+        "SELECT COUNT(*) FROM usage_events WHERE user_id = %s AND event = 'recipe_view' "
+        "AND recipe_id = %s AND created_at >= %s",
+        (user_id, RECIPE_ID, BURST_STARTED_AT),
+    )
+    burst_rows = cur.fetchone()[0]
+    check("동시에 연 같은 레시피는 한 줄만 남는다", burst_rows == 1, f"{burst_rows}줄")
     conn.close()
 except Exception as exc:  # noqa: BLE001
     check("사용 로그 확인", False, f"{type(exc).__name__}: {exc}")

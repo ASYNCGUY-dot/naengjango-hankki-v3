@@ -23,6 +23,15 @@ _logger = logging.getLogger("api.usage_log")
 # 이벤트 이름을 여기 모아둔다. 라우터가 문자열을 직접 쓰면 오타가 나도 아무도 모르고,
 # 나중에 집계 쿼리에서 한 종류가 통째로 비어 보인다.
 LOGIN = "login"
+# 식단 정보 화면에 들어왔다 (2026-09-15).
+#
+# 가입만 하고 멈춘 사람이 있었다(2026-08-22). 그런데 "화면에 들어갔다가 나갔다"와
+# "아예 안 들어갔다"가 로그에서 같은 모양이라 어느 쪽인지 가를 수 없었다. 전자면 입력할
+# 것이 많아 부담스러웠던 것이고, 후자면 가입 뒤 길이 안 보였던 것이다 - 고칠 곳이 다르다.
+#
+# 이 화면은 마이 탭의 "식단 정보 수정"에서도 열리므로 여러 번 찍힐 수 있다. 이탈 분석에서
+# 볼 것은 **그 사람의 첫 onboarding_view가 onboarding_done보다 앞서는가**다.
+ONBOARDING_VIEW = "onboarding_view"
 ONBOARDING_DONE = "onboarding_done"
 PANTRY_ADD = "pantry_add"
 RECOMMEND = "recommend"
@@ -33,6 +42,23 @@ BRAG_POST = "brag_post"
 # 피드백 작성. 글 자체는 feedback에 남지만, "어디까지 갔나"를 한 쿼리로 보려면
 # 다른 단계와 같은 표에 있어야 한다.
 FEEDBACK_POST = "feedback_post"
+
+# 같은 사람이 같은 레시피를 이 시간 구간 안에 여러 번 열면 한 줄만 남긴다 (2026-09-15).
+# 이유와 한계는 migration/012_usage_events_view_dedupe.sql에 적었다. 요약하면, 15ms
+# 간격으로 동시에 처리된 두 요청이 둘 다 찍혀 있었고, 동시 요청은 조회-후-삽입으로 못
+# 막으므로 DB의 유니크 제약에 맡긴다. 여기서는 구간 번호만 계산한다.
+RECIPE_VIEW_DEDUPE_SECONDS = 10
+
+
+def _dedupe_bucket(event: str, user_id: int | None, now: datetime) -> int | None:
+    """중복 판정에 쓸 구간 번호. 묶지 않는 이벤트면 None이다.
+
+    비로그인 열람은 묶지 않는다 - user_id가 NULL이라 서로 다른 방문자를 구분할 수 없고,
+    공유 링크 유입은 드문 만큼 한 줄 한 줄이 중요하다.
+    """
+    if event != RECIPE_VIEW or user_id is None:
+        return None
+    return int(now.timestamp()) // RECIPE_VIEW_DEDUPE_SECONDS
 
 
 def record(cur, event: str, user_id: int | None = None, recipe_id: int | None = None) -> None:
@@ -45,11 +71,14 @@ def record(cur, event: str, user_id: int | None = None, recipe_id: int | None = 
         _logger.warning("usage_log: SAVEPOINT 실패, 기록을 건너뛴다", exc_info=True)
         return
 
+    now = datetime.now(timezone.utc)
     try:
+        # ON CONFLICT DO NOTHING은 중복 열람이 제약에 걸렸을 때만 동작한다. 다른 이벤트는
+        # dedupe_bucket이 NULL이라 제약 대상이 아니다.
         cur.execute(
-            "INSERT INTO usage_events (user_id, event, recipe_id, created_at) "
-            "VALUES (?, ?, ?, ?)",
-            (user_id, event, recipe_id, datetime.now(timezone.utc).isoformat()),
+            "INSERT INTO usage_events (user_id, event, recipe_id, created_at, dedupe_bucket) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+            (user_id, event, recipe_id, now.isoformat(), _dedupe_bucket(event, user_id, now)),
         )
         cur.execute("RELEASE SAVEPOINT usage_log")
     except Exception:

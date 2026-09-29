@@ -300,3 +300,146 @@ def test_recommendation_pipeline_runs_on_postgres(pg_cur):
     target = next(c for c in scored if c["id"] == recipe_id)
     assert target["ingredient_overlap"] >= 1
     assert target["matched_weight"] >= 200.0
+
+
+def test_concurrent_recipe_views_leave_one_row(pg_conn, monkeypatch):
+    """동시에 처리된 두 열람이 한 줄만 남는다 (2026-09-15, migration/012).
+
+    운영에서 같은 사람·같은 레시피가 15ms 간격으로 두 번 찍혔다. 동시 요청은 서로 커밋
+    전이라 "있는지 보고 넣기"로는 못 막고, 유니크 제약 + ON CONFLICT DO NOTHING이어야
+    뒤의 요청이 앞의 커밋을 기다렸다가 아무것도 안 넣는다. 이건 sqlite로 증명이 안 된다 -
+    sqlite는 쓰기를 파일 단위로 잠가 동시성 자체가 운영과 다르다.
+
+    두 연결을 실제로 겹치게 만든다. a가 넣고 커밋 전에 b가 넣으면 b는 멈춰야 하고, a가
+    커밋하면 b는 아무것도 안 넣고 끝나야 한다. 제약이 없으면 b가 곧바로 넣고 두 줄이 된다.
+    """
+    import threading
+    from datetime import datetime, timezone
+
+    from api import usage_log
+
+    class FixedClock:
+        @staticmethod
+        def now(tz=None):
+            return datetime(2026, 9, 15, 12, 0, 1, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(usage_log, "datetime", FixedClock)
+
+    setup = pg_conn.cursor()  # autocommit
+    setup.execute(
+        "INSERT INTO users (username, password_hash) VALUES ('dedupe_probe', 'x$y') RETURNING id"
+    )
+    user_id = setup.fetchone()[0]
+
+    a = psycopg2.connect(TEST_POSTGRES_URL)
+    b = psycopg2.connect(TEST_POSTGRES_URL)
+    try:
+        cur_a = a.cursor(cursor_factory=SqliteStyleCursor)
+        cur_b = b.cursor(cursor_factory=SqliteStyleCursor)
+
+        usage_log.record(cur_a, usage_log.RECIPE_VIEW, user_id=user_id, recipe_id=7)
+
+        finished = threading.Event()
+
+        def second_request():
+            usage_log.record(cur_b, usage_log.RECIPE_VIEW, user_id=user_id, recipe_id=7)
+            b.commit()
+            finished.set()
+
+        worker = threading.Thread(target=second_request)
+        worker.start()
+        assert not finished.wait(0.5), "b가 a의 커밋을 기다리지 않았다 - 제약이 없다"
+
+        a.commit()
+        worker.join(timeout=10)
+        assert finished.is_set(), "a가 커밋한 뒤에도 b가 끝나지 않았다"
+
+        setup.execute(
+            "SELECT COUNT(*) FROM usage_events WHERE user_id = %s AND event = 'recipe_view'",
+            (user_id,),
+        )
+        assert setup.fetchone()[0] == 1
+    finally:
+        a.close()
+        b.close()
+        setup.execute("DELETE FROM usage_events WHERE user_id = %s", (user_id,))
+        setup.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        setup.close()
+
+
+def test_different_recipes_in_one_window_stay_separate(pg_conn, monkeypatch):
+    """묶는 단위는 (사람, 레시피)다. 사람만으로 묶으면 안 된다 (2026-09-17).
+
+    인덱스에서 recipe_id를 빼도 위의 동시성 테스트는 그대로 통과한다 - 같은 레시피만
+    보기 때문이다. 그 상태에서는 한 사람이 10초 안에 **서로 다른 레시피**를 열면 하나로
+    묶여버려서, Phase 4의 "무엇을 실제로 열어봤나"가 통째로 어긋난다. 그 경계를 여기서
+    고정한다(뮤테이션에서 실제로 살아남았던 구멍이다).
+    """
+    from datetime import datetime, timezone
+
+    from api import usage_log
+
+    class FixedClock:
+        @staticmethod
+        def now(tz=None):
+            return datetime(2026, 9, 17, 12, 0, 1, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(usage_log, "datetime", FixedClock)
+
+    setup = pg_conn.cursor()  # autocommit
+    setup.execute(
+        "INSERT INTO users (username, password_hash) VALUES ('two_recipes_probe', 'x$y') RETURNING id"
+    )
+    user_id = setup.fetchone()[0]
+
+    conn = psycopg2.connect(TEST_POSTGRES_URL)
+    try:
+        cur = conn.cursor(cursor_factory=SqliteStyleCursor)
+        usage_log.record(cur, usage_log.RECIPE_VIEW, user_id=user_id, recipe_id=11)
+        usage_log.record(cur, usage_log.RECIPE_VIEW, user_id=user_id, recipe_id=22)
+        conn.commit()
+
+        setup.execute(
+            "SELECT COUNT(*) FROM usage_events WHERE user_id = %s AND event = 'recipe_view'",
+            (user_id,),
+        )
+        assert setup.fetchone()[0] == 2
+    finally:
+        conn.close()
+        setup.execute("DELETE FROM usage_events WHERE user_id = %s", (user_id,))
+        setup.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        setup.close()
+
+
+def test_the_constraint_only_covers_recipe_views(pg_conn):
+    """제약은 열람에만 걸려야 한다 (2026-09-17).
+
+    지금은 코드가 열람 말고는 구간 번호를 안 붙이므로, 인덱스 조건에서 event를 빼도
+    겉으로는 티가 안 난다(뮤테이션에서 살아남았다). 그래서 스키마를 직접 찌른다 -
+    다른 이벤트에 번호가 붙은 채로 들어와도 묶이면 안 된다. 나중에 누가 다른 이벤트에
+    중복 방지를 붙이려고 번호를 달면, 그 순간 조용히 기록이 사라지는 것을 여기서 막는다.
+    """
+    setup = pg_conn.cursor()  # autocommit
+    setup.execute(
+        "INSERT INTO users (username, password_hash) VALUES ('predicate_probe', 'x$y') RETURNING id"
+    )
+    user_id = setup.fetchone()[0]
+    try:
+        # recipe_id를 반드시 채운다. NULL로 두면 DB가 NULL끼리는 서로 다르다고 보아
+        # 인덱스 조건과 무관하게 두 줄이 들어가고, 그러면 이 테스트가 아무것도 확인하지
+        # 못한다(처음에 NULL로 썼다가 뮤테이션이 그대로 살아남아서 알았다).
+        for _ in range(2):
+            setup.execute(
+                "INSERT INTO usage_events (user_id, event, recipe_id, created_at, dedupe_bucket) "
+                "VALUES (%s, 'pantry_add', 33, '2026-09-17T12:00:01+00:00', 1)",
+                (user_id,),
+            )
+        setup.execute(
+            "SELECT COUNT(*) FROM usage_events WHERE user_id = %s AND event = 'pantry_add'",
+            (user_id,),
+        )
+        assert setup.fetchone()[0] == 2
+    finally:
+        setup.execute("DELETE FROM usage_events WHERE user_id = %s", (user_id,))
+        setup.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        setup.close()

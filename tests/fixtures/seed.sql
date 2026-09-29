@@ -261,11 +261,16 @@ CREATE TABLE usage_events (
     event TEXT NOT NULL,
     recipe_id INTEGER,
     created_at TEXT NOT NULL,
+    -- migration/012와 같은 모양. 로그인한 사람의 recipe_view만 10초 구간 번호가 들어간다.
+    dedupe_bucket INTEGER,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_usage_events_user_time ON usage_events (user_id, created_at);
 CREATE INDEX idx_usage_events_event ON usage_events (event);
+CREATE UNIQUE INDEX uq_usage_events_recipe_view_dedupe
+    ON usage_events (user_id, recipe_id, dedupe_bucket)
+    WHERE event = 'recipe_view' AND dedupe_bucket IS NOT NULL;
 
 -- 최소 시드 데이터: recommendation/review/safety/price 라우터 테스트용 승인된 레시피 1개.
 -- 두부/양파 두 재료만 써서 recommendation_agent의 자격(qualifies) 판단이 쉽게 재현되게

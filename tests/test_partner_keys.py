@@ -413,3 +413,78 @@ def test_status_tells_the_screen_the_threshold(client):
     user_id, headers = _signup(client, "partner_threshold")
     res = client.get(f"/partner-keys/{user_id}", headers=headers)
     assert res.json()["revenue_min_likes"] == USER_RECIPE_REVENUE_MIN_LIKES
+
+
+# ---------------------------------------------------------------------------
+# 본인 제휴 링크 (2026-09-15)
+#
+# 쿠팡파트너스는 본인 링크로 본인이 구매하는 것을 수수료에서 빼고 계정 정지·수익 회수
+# 사유로 다룬다(공식 가이드는 로그인 뒤라 직접 확인 못 했고 여러 2차 출처가 일치한다).
+# 이 앱이 작성자에게 자기 링크를 내밀면 작성자 계정을 위험에 빠뜨리는 셈이다.
+# ---------------------------------------------------------------------------
+
+def test_author_does_not_see_their_own_affiliate_link(client, db_conn):
+    author_id, headers = _signup(client, "author_self")
+    client.put(
+        f"/partner-keys/{author_id}",
+        json={"access_key": "ak-abcdefgh", "secret_key": "sk-abcdefgh"},
+        headers=headers,
+    )
+    recipe = _make_user_recipe(db_conn, author_id, likes=USER_RECIPE_REVENUE_MIN_LIKES, recipe_id=9101)
+
+    info = shopping_agent.get_shopping_key_for_recipe(db_conn.cursor(), recipe, viewer_id=author_id)
+    assert info["earner"] == "none"
+    # 쓰지 않을 비밀을 꺼내지 않는다.
+    assert info["access_key"] is None and info["secret_key"] is None
+
+
+def test_someone_else_still_gets_the_authors_link(client, db_conn):
+    """막는 것은 작성자 본인뿐이다. 다른 사람에게까지 막으면 이 기능이 통째로 꺼진다."""
+    author_id, headers = _signup(client, "author_for_others")
+    viewer_id, _ = _signup(client, "viewer_other")
+    client.put(
+        f"/partner-keys/{author_id}",
+        json={"access_key": "ak-abcdefgh", "secret_key": "sk-abcdefgh"},
+        headers=headers,
+    )
+    recipe = _make_user_recipe(db_conn, author_id, likes=USER_RECIPE_REVENUE_MIN_LIKES, recipe_id=9102)
+
+    info = shopping_agent.get_shopping_key_for_recipe(db_conn.cursor(), recipe, viewer_id=viewer_id)
+    assert info["earner"] == "author"
+
+
+def test_admin_does_not_see_the_site_affiliate_link(client, db_conn):
+    """사이트 키는 운영자 본인 계정의 것이라 같은 이유로 막는다."""
+    admin_id, _ = _signup(client, "admin_self")
+    db_conn.execute("UPDATE users SET is_admin = 1 WHERE id = ?", (admin_id,))
+
+    info = shopping_agent.get_shopping_key_for_recipe(
+        db_conn.cursor(), {"id": 1, "source_api": "COOKRCP01"}, viewer_id=admin_id
+    )
+    assert info["earner"] == "none"
+
+
+def test_regular_user_still_gets_the_site_link(client, db_conn):
+    user_id, _ = _signup(client, "regular_viewer")
+    info = shopping_agent.get_shopping_key_for_recipe(
+        db_conn.cursor(), {"id": 1, "source_api": "COOKRCP01"}, viewer_id=user_id
+    )
+    assert info["earner"] == "site"
+
+
+def test_shopping_links_route_passes_the_viewer(client, monkeypatch):
+    """판단 함수가 옳아도 라우터가 보는 사람을 안 넘기면 규칙이 통째로 꺼진다."""
+    user_id, headers = _signup(client, "route_viewer")
+    seen = {}
+    real = shopping_agent.get_shopping_key_for_recipe
+
+    def spy(cur, recipe, viewer_id=None):
+        seen["viewer_id"] = viewer_id
+        return real(cur, recipe, viewer_id=viewer_id)
+
+    monkeypatch.setattr(shopping_agent, "get_shopping_key_for_recipe", spy)
+    res = client.get(
+        "/recommendation/recipes/1/shopping-links", params={"user_id": user_id}, headers=headers
+    )
+    assert res.status_code == 200, res.text
+    assert seen.get("viewer_id") == user_id

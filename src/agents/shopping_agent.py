@@ -279,7 +279,7 @@ def get_user_coupang_key(cur, user_id: int) -> tuple[str | None, str | None]:
     return decrypt_value(row[0]), decrypt_value(row[1])
 
 
-def get_shopping_key_for_recipe(cur, recipe: dict) -> dict:
+def get_shopping_key_for_recipe(cur, recipe: dict, viewer_id: int | None = None) -> dict:
     """이 레시피의 재료 구매 링크에 누구 키를 쓸지 정한다 (#95).
 
     돌려주는 것:
@@ -295,15 +295,34 @@ def get_shopping_key_for_recipe(cur, recipe: dict) -> dict:
     """
     site = {"access_key": None, "secret_key": None, "earner": "site", "author_id": None}
 
-    if not recipe or recipe.get("source_api") != "user":
+    def site_or_none() -> dict:
+        # 사이트 키는 운영자 본인 계정의 것이다(위 COUPANG_ACCESS_KEY 주석). 관리자가 보는
+        # 화면에 그 링크를 붙이면 본인 링크로 본인이 사는 모양이 된다 - 아래 작성자 규칙과
+        # 같은 이유로 일반 링크를 준다. 관리자가 여럿이 돼도 손해는 수수료 0원뿐이다.
+        if viewer_id is not None:
+            cur.execute("SELECT is_admin FROM users WHERE id = ?", (viewer_id,))
+            row = cur.fetchone()
+            if row and row[0]:
+                return {"access_key": None, "secret_key": None, "earner": "none", "author_id": None}
         return site
+
+    if not recipe or recipe.get("source_api") != "user":
+        return site_or_none()
     submitted_by = recipe.get("submitted_by")
     if not submitted_by:
-        return site
+        return site_or_none()
 
     cur.execute("SELECT COUNT(*) FROM recipe_likes WHERE recipe_id = ?", (recipe["id"],))
     if cur.fetchone()[0] < USER_RECIPE_REVENUE_MIN_LIKES:
-        return site
+        return site_or_none()
+
+    # 작성자 본인이 자기 레시피를 보면 제휴 링크를 붙이지 않는다 (2026-09-15).
+    # 쿠팡파트너스는 본인 링크로 본인이 구매하는 것을 수수료에서 빼고, 계정 정지와 수익
+    # 회수 사유로 다룬다(공식 가이드는 로그인 뒤라 직접 확인 못 했고, 여러 2차 출처가
+    # 일치한다). 이 앱이 작성자에게 자기 링크를 내밀면 작성자 계정을 위험에 빠뜨리는 셈이다.
+    # 키를 풀기 전에 판단한다 - 쓰지 않을 비밀을 메모리에 꺼낼 이유가 없다.
+    if viewer_id is not None and viewer_id == submitted_by:
+        return {"access_key": None, "secret_key": None, "earner": "none", "author_id": submitted_by}
 
     access_key, secret_key = get_user_coupang_key(cur, submitted_by)
     if not access_key or not secret_key:

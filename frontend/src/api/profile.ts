@@ -25,6 +25,16 @@ export async function updateProfile(userId: number, body: ProfileBody): Promise<
 }
 
 /**
+ * 식단 정보 화면에 들어왔다고 알린다. 사용 로그만 남기고 아무것도 돌려받지 않는다.
+ *
+ * 가입만 하고 멈춘 사람이 이 화면까지 왔는지 가르려고 둔다. 화면은 결과를 기다리지 않고,
+ * 실패해도 아무 영향이 없어야 한다 - 호출부에서 오류를 삼킨다.
+ */
+export async function recordOnboardingView(userId: number): Promise<void> {
+  await apiFetch(`/profile/${userId}/onboarding-view`, { method: 'POST' })
+}
+
+/**
  * 고를 수 있는 알레르기 목록.
  *
  * 화면이 목록을 지어내지 않는다. 태그에 없는 값을 고르게 하면 사용자는 골랐는데 필터는

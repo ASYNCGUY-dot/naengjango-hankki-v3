@@ -371,3 +371,39 @@ describe('가입 직후 흐름', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('식단 정보 화면 진입 기록', () => {
+  beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  it('화면에 들어오면 진입을 알린다', async () => {
+    // 가입만 하고 멈춘 사람이 이 화면까지 왔는지 가르려면 진입이 남아야 한다.
+    signIn()
+    const fetchMock = mockApi({})
+    renderWithProviders(<OnboardingPage />)
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([input]) =>
+        String(input).includes('/profile/116/onboarding-view'),
+      )
+      expect(call).toBeDefined()
+      expect((call?.[1] as RequestInit | undefined)?.method).toBe('POST')
+    })
+  })
+
+  it('진입 기록이 실패해도 폼은 그대로 뜬다', async () => {
+    // 기록은 부수적인 것이다. 그것 때문에 사용자가 식단 정보를 못 넣으면 안 된다.
+    signIn()
+    const fetchMock = mockApi({})
+    const impl = fetchMock.getMockImplementation()
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input).includes('/onboarding-view')) return json({ detail: '실패' }, 500)
+      if (impl === undefined) throw new Error('mockApi 구현이 없다')
+      return impl(input, init)
+    })
+    renderWithProviders(<OnboardingPage />)
+
+    expect(await screen.findByRole('button', { name: '달걀' })).toBeInTheDocument()
+    expect(screen.queryByText(/불러오지 못했어요/)).not.toBeInTheDocument()
+  })
+})

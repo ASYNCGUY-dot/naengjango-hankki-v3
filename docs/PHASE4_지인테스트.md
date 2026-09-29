@@ -133,11 +133,14 @@ V2는 84개 기능을 만들고 단 한 명에게도 검증받지 못했다. 이
 ```sql
 SELECT u.username,
        u.created_at                                                  AS 가입,
+       MIN(e.created_at) FILTER (WHERE e.event = 'onboarding_view')  AS 온보딩진입,
        MIN(e.created_at) FILTER (WHERE e.event = 'onboarding_done')  AS 온보딩,
        MIN(e.created_at) FILTER (WHERE e.event = 'pantry_add')       AS 첫재료,
        COUNT(*)          FILTER (WHERE e.event = 'pantry_add')       AS 재료입력수,
        COUNT(*)          FILTER (WHERE e.event = 'recommend')        AS 추천호출,
-       COUNT(*)          FILTER (WHERE e.event = 'recipe_view')      AS 상세열람,
+       -- 같은 레시피를 같은 초에 두 번 찍힌 것은 한 번으로 센다(2026-09-15 이전 중복 2쌍).
+       COUNT(DISTINCT e.recipe_id::text || LEFT(e.created_at, 19))
+                         FILTER (WHERE e.event = 'recipe_view')      AS 상세열람,
        COUNT(*)          FILTER (WHERE e.event = 'brag_post')        AS 자랑글,
        COUNT(DISTINCT LEFT(e.created_at, 10))
                          FILTER (WHERE e.event = 'login')            AS 방문일수,
@@ -149,7 +152,10 @@ SELECT u.username,
  ORDER BY 마지막활동;
 ```
 
-읽는 법은 이렇다. **가입만 있고 온보딩이 비면** 첫 화면에서 막힌 것이다.
+읽는 법은 이렇다. **가입만 있고 온보딩진입도 비면** 가입 뒤 길이 안 보인 것이고,
+**온보딩진입은 있는데 온보딩이 비면** 식단 정보 화면에서 부담을 느끼고 나간 것이다.
+(온보딩진입은 2026-09-15 배포 이후에만 남는다 — 그 전 가입자는 이 열이 비어도 안 들어갔다는
+뜻이 아니다.)
 **온보딩은 했는데 첫재료가 비면** 재료 입력이 부담스러웠던 것이다 — 2026-08-20
 개편으로 냉장고가 마이 탭 안으로 들어갔으니, 여기서 막히면 **길이 안 보인 것인지**
 입력이 귀찮은 것인지를 직접 물어봐야 한다.
@@ -355,3 +361,22 @@ SELECT username, allergy, health_goal, cooking_tools
 > Supabase 정지에서 복구한 직후 DB가 실제로 살아났는지 확인하려고 배포된 API를 부른
 > 흔적으로 보인다. 스모크 테스트는 자기 실행 시각 이후에 생긴 것만 지우므로 이건
 > 남았다. 집계할 때 이 한 행을 빼고 볼 것 — 지울지는 정하지 않았다.
+
+
+### 2026-09-15 — 진입 기록과 중복 열람
+
+**`onboarding_view`가 생겼다.** 식단 정보 화면에 들어오면 남는다. 일월이 님처럼 가입만 하고
+멈춘 경우 "화면에 들어갔다 나갔는지"와 "아예 안 들어갔는지"가 로그에서 같은 모양이라 원인을
+못 갈랐기 때문이다. 이 화면은 마이 탭의 "식단 정보 수정"에서도 열리므로, 이탈 분석에서 볼 것은
+**첫 `onboarding_view`가 `onboarding_done`보다 앞서는가**다. 이 이벤트는 배포 이후에만 있다.
+
+**같은 사람·같은 레시피가 수십 ms 간격으로 두 번 찍힌 기록이 2쌍 있었다.** id 221·222는
+계정 145가 레시피 352를 48ms 간격으로, id 226·227은 계정 144가 레시피 589를 15ms 간격으로 연 것이다.
+처음에는 "10분 쉬고 나면 첫 요청이 느려서 새로고침했다"를 의심했는데, 배포 API를 11분 쉬게 한
+뒤 재보니 첫 요청이 웜 상태와 같았다 — 그 가설은 기각했고 **원인은 아직 모른다.**
+`migration/012` 이후로는 로그인한 사람의 같은 레시피 열람이 10초 구간당 한 줄로 DB에서 막힌다.
+이미 찍힌 두 쌍은 지우지 않았고, 위 이탈 쿼리가 초 단위로 묶어 센다.
+
+> **`demo`(144)·`demo123`(145) 두 계정** (2026-09-14 가입). 이름과 행동(20초 만에 온보딩, 알레르기
+> 비움, 재료·추천하기·후기 없이 열람만 17회)이 시연에 가깝다. 참가자인지 확인되기 전까지는
+> 집계에서 따로 볼 것.

@@ -14,7 +14,7 @@ import styles from './PolicyPage.module.css'
  * 수집 항목이 바뀌면 CONSENT_VERSION(api/routers/auth.py)과 이 문서를 함께 고친다.
  */
 
-const UPDATED = '2026년 9월 12일'
+const UPDATED = '2026년 9월 15일'
 
 export function PrivacyPage() {
   return (
@@ -57,7 +57,7 @@ export function PrivacyPage() {
           </tr>
           <tr>
             <td>자동으로 쌓이는 것</td>
-            <td>로그인·식단정보 입력·재료 추가·추천 요청·레시피 열람 시각</td>
+            <td>로그인·식단 정보 화면 진입·식단정보 입력·재료 추가·추천 요청·레시피 열람·자랑 글과 피드백 작성 시각</td>
             <td>어느 단계에서 불편해 그만두는지 보고 고치기 위해</td>
           </tr>
           <tr>
@@ -204,7 +204,9 @@ export function TermsPage() {
       </p>
       <p>
         본인 키를 넣어 수수료를 받으시는 경우, 쿠팡파트너스의 약관과 운영정책을 지키실 책임은
-        본인에게 있습니다. 이 서비스는 링크를 만들어줄 뿐 정산에 관여하지 않습니다.
+        본인에게 있습니다. 이 서비스는 링크를 만들어줄 뿐 정산에 관여하지 않습니다. 본인 링크로
+        본인이 구매하면 쿠팡파트너스에서 수수료가 나오지 않고 제재 사유가 될 수 있어, 레시피를 올린
+        분이 자기 레시피를 볼 때는 제휴 링크를 붙이지 않습니다.
       </p>
 
       <h2>책임</h2>
