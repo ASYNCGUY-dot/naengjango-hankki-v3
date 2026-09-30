@@ -380,3 +380,10 @@ SELECT username, allergy, health_goal, cooking_tools
 > **`demo`(144)·`demo123`(145) 두 계정** (2026-09-14 가입). 이름과 행동(20초 만에 온보딩, 알레르기
 > 비움, 재료·추천하기·후기 없이 열람만 17회)이 시연에 가깝다. 참가자인지 확인되기 전까지는
 > 집계에서 따로 볼 것.
+
+
+### 2026-09-30 — 재료비 카드
+
+레시피 상세에 KAMIS 시세 재료비 카드가 붙었다(`GET /recommendation/recipes/{id}/price`).
+이 경로는 `usage_events`를 남기지 않는다 - 상세 열람(`recipe_view`)은 상세 본문 요청에서 이미
+한 번 남으므로, 카드가 따로 세면 같은 열람이 두 번 잡힌다.

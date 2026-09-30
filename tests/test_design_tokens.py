@@ -151,6 +151,31 @@ def test_body_line_height_is_generous_enough_for_korean(light):
     assert float(light["--line-height-base"]) >= 1.55
 
 
+def test_css_uses_only_defined_tokens():
+    """화면 CSS가 정의되지 않은 토큰을 쓰면 실패한다 (2026-09-30).
+
+    `var(--없는-이름)`은 오류 없이 무시된다. 그래서 "재료 구매 수수료 받기" 화면의
+    버튼 글자색이 `--color-on-accent`(실제 이름은 --color-text-on-accent)로 적힌 채 배포됐고,
+    `--line-height-relaxed`는 있지도 않은데 네 파일이 쓰고 있었다. 명암비 검사는 토큰 파일만
+    보므로 이런 오타는 못 잡는다. 화면 CSS 쪽에서 막는다.
+
+    대체값(`var(--x, #fff)`)이 있어도 실패로 본다. 대체값이 곧 실제 색이 되어 테마를
+    무시하고, 다크 모드에서 읽히지 않을 수 있다.
+    """
+    frontend = TOKENS_CSS.parent.parent / "frontend" / "src"
+    defined = set(re.findall(r"(--[\w-]+)\s*:", TOKENS_CSS.read_text(encoding="utf-8")))
+    defined |= set(re.findall(r"(--[\w-]+)\s*:", (frontend / "index.css").read_text(encoding="utf-8")))
+
+    problems = []
+    for css in sorted(frontend.rglob("*.css")):
+        text = css.read_text(encoding="utf-8")
+        local = set(re.findall(r"(--[\w-]+)\s*:", text))
+        for name in re.findall(r"var\(\s*(--[\w-]+)", text):
+            if name not in defined and name not in local:
+                problems.append(f"{css.relative_to(frontend)}: {name}")
+    assert not problems, "정의되지 않은 토큰:\n" + "\n".join(sorted(set(problems)))
+
+
 def test_spacing_scale_is_multiples_of_four(light):
     for name, value in light.items():
         if not name.startswith("--space-"):

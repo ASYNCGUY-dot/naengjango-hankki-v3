@@ -88,13 +88,12 @@ def test_price_happy_path_returns_cost_breakdown(client, monkeypatch):
     # tier는 "정보부족"이 정상이다 - 이 테스트는 tier 산정 로직이 아니라 라우터가 응답을
     # 제대로 조립하는지(모든 필드가 채워지는지)를 확인한다.
     assert body["tier"] == "정보부족"
-    # "양파"는 recommendation_agent.is_staple()이 "파"(대파/파와 같은 조미료)의 부분
-    # 문자열로 걸러내는 재료라서(실제로 확인함), estimate_recipe_total_cost()의 원가
-    # 계산에서는 아예 빠지고 "두부"만 포함된다 - tier 산정(ingredient_names 기준)과는
-    # 다른 규칙이다.
-    assert body["total_cost"] == 400.0
-    assert len(body["included"]) == 1
-    assert body["included"][0]["ingredient"] == "두부"
+    # 두부 200g(400원) + 양파 50g(75원). 2026-09-29 전에는 여기가 400원이었다 -
+    # recommendation_agent.is_staple()이 부분 문자열로 판정해서 "양파"가 "파"(조미료)로
+    # 빠졌고, 이 테스트가 그 버그를 정상 동작으로 고정하고 있었다. 가격 계산은 이제
+    # 이름이 정확히 조미료인 것만 뺀다(price_agent.is_price_staple).
+    assert body["total_cost"] == 475.0
+    assert {i["ingredient"] for i in body["included"]} == {"두부", "양파"}
 
 
 def test_price_returns_503_when_kamis_response_is_malformed(client, monkeypatch):
@@ -137,3 +136,23 @@ def test_price_reuses_cached_kamis_response_within_ttl(client, monkeypatch):
     # KAMIS는 부류 4개를 매번 순회하는 느린 호출이라, 캐시가 안 먹으면 여기서 4번씩
     # 두 배로 늘어난다 - 두 번째 요청은 캐시를 그대로 써서 fetch 자체가 1번만 일어난다.
     assert call_count["n"] == 1
+
+
+def test_price_response_says_where_and_when_the_prices_come_from(client, monkeypatch):
+    """화면이 "KAMIS · 서울 소매가 · 09/30 기준"을 지어내지 않고 받아서 보여줘야 한다."""
+    items = [
+        {**FAKE_KAMIS_ITEMS[0], "price_day": "당일 (09/30)"},
+        {**FAKE_KAMIS_ITEMS[1], "price_day": "1주일전 (09/23)"},
+    ]
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: items)
+    user_id, headers = _signup_with_household_size_2(client, "u_price_basis")
+
+    body = client.get(
+        f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": user_id}, headers=headers
+    ).json()
+
+    assert body["household_size"] == 2
+    assert body["basis"]["provider"].startswith("KAMIS")
+    assert body["basis"]["market"] == "서울 소매가"
+    assert set(body["basis"]["price_days"]) == {"당일 (09/30)", "1주일전 (09/23)"}
+    assert {i["price_day"] for i in body["included"]} == {"당일 (09/30)", "1주일전 (09/23)"}

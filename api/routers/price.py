@@ -16,6 +16,7 @@ safety.py에서 식약처 API 무응답을 503으로 감싼 것과 같은 원칙
 """
 
 import sqlite3
+from collections import Counter
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -46,11 +47,22 @@ class IncludedCost(BaseModel):
     amount_g: float
     cost: float
     is_estimated: bool
+    # 어느 날 시세인지. "당일 (09/30)" / "1주일전 (09/23)" 같은 KAMIS 라벨 그대로.
+    price_day: str | None = None
 
 
 class ExcludedCost(BaseModel):
     ingredient: str
     reason: str
+
+
+class PriceBasis(BaseModel):
+    """화면이 밝혀야 하는 시세의 출처와 기준. 화면이 지어내지 않도록 서버가 정해서 준다."""
+
+    provider: str
+    market: str
+    # 재료비에 들어간 가격의 날짜 라벨. 많이 쓰인 순. 여럿이면 일부는 더 이전 시세라는 뜻이다.
+    price_days: list[str]
 
 
 class PriceResponse(BaseModel):
@@ -60,6 +72,9 @@ class PriceResponse(BaseModel):
     total_cost: float
     included: list[IncludedCost]
     excluded: list[ExcludedCost]
+    # 재료비를 몇 인분으로 환산했는지. 프로필의 가구원 수다.
+    household_size: int
+    basis: PriceBasis
 
 
 @router.get("/{recipe_id}/price", response_model=PriceResponse)
@@ -100,6 +115,13 @@ def get_recipe_price(
     tier_result = price_agent.estimate_recipe_price_tier(ingredient_names, all_items)
     cost_result = price_agent.estimate_recipe_total_cost(scaled_items, all_items)
 
+    days = Counter(i["price_day"] for i in cost_result["included"] if i.get("price_day"))
+    basis = PriceBasis(
+        provider="KAMIS 농산물유통정보(aT)",
+        market="서울 소매가",
+        price_days=[day for day, _ in days.most_common()],
+    )
+
     return PriceResponse(
         tier=tier_result["tier"],
         matched=tier_result["matched"],
@@ -107,4 +129,6 @@ def get_recipe_price(
         total_cost=cost_result["total_cost"],
         included=cost_result["included"],
         excluded=cost_result["excluded"],
+        household_size=household_size,
+        basis=basis,
     )

@@ -5,6 +5,7 @@ import { ApiError, TimeoutError, toHttps } from '../api/client'
 import FavoriteButton from '../components/FavoriteButton'
 import MissingIngredientsCard from '../components/MissingIngredientsCard'
 import NutritionFitCard from '../components/NutritionFitCard'
+import RecipeCostCard from '../components/RecipeCostCard'
 import RecommendButton from '../components/RecommendButton'
 import ReviewSection from '../components/ReviewSection'
 import { useAuth } from '../auth/context'
@@ -161,6 +162,9 @@ export default function RecipeDetailPage() {
       {/* 재료 목록 바로 위에 둔다. "무엇이 필요한가" 다음에 오는 질문이 "그중 뭐가
           없는가"이므로 목록을 보기 전에 답을 주는 편이 낫다. */}
       <MissingIngredientsCard recipeId={recipe.id} />
+
+      {/* "뭐가 없나" 다음 질문은 "사면 얼마냐"다. 그래서 부족한 재료 바로 아래에 둔다. */}
+      <RecipeCostCard recipeId={recipe.id} />
 
       <div className={styles.sectionHead}>
         <h2>재료</h2>

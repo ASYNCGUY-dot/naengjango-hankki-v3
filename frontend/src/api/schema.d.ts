@@ -1307,6 +1307,8 @@ export interface components {
             is_estimated: boolean;
             /** Matched Name */
             matched_name: string;
+            /** Price Day */
+            price_day?: string | null;
         };
         /** IngredientDisplayItem */
         IngredientDisplayItem: {
@@ -1602,10 +1604,25 @@ export interface components {
             /** View Count */
             view_count: number;
         };
+        /**
+         * PriceBasis
+         * @description 화면이 밝혀야 하는 시세의 출처와 기준. 화면이 지어내지 않도록 서버가 정해서 준다.
+         */
+        PriceBasis: {
+            /** Market */
+            market: string;
+            /** Price Days */
+            price_days: string[];
+            /** Provider */
+            provider: string;
+        };
         /** PriceResponse */
         PriceResponse: {
+            basis: components["schemas"]["PriceBasis"];
             /** Excluded */
             excluded: components["schemas"]["ExcludedCost"][];
+            /** Household Size */
+            household_size: number;
             /** Included */
             included: components["schemas"]["IncludedCost"][];
             /** Matched */

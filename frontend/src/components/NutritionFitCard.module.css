@@ -48,7 +48,7 @@
   background: var(--color-surface-sunken);
   color: var(--color-text-primary);
   font-size: var(--font-size-xs);
-  line-height: var(--line-height-relaxed);
+  line-height: var(--line-height-base);
 }
 
 .rows {
@@ -127,5 +127,5 @@
   margin-top: var(--space-4);
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  line-height: var(--line-height-relaxed);
+  line-height: var(--line-height-base);
 }

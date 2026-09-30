@@ -2,7 +2,7 @@
   padding: var(--space-6) var(--space-4) var(--space-10);
   max-width: var(--content-max-width);
   margin: 0 auto;
-  line-height: var(--line-height-relaxed);
+  line-height: var(--line-height-base);
 }
 
 .page h1 {

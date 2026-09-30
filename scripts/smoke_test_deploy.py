@@ -529,6 +529,29 @@ check(
     ", ".join(str(r.status_code) for r in burst),
 )
 
+# ---------- KAMIS 재료비 (2026-09-30) ----------
+# 레시피 상세의 재료비 카드가 부르는 경로. KAMIS 키가 운영 환경에 실제로 들어가 있는지,
+# 소매가로 바뀐 코드가 올라갔는지는 여기서만 확인된다. KAMIS가 잠깐 응답하지 않으면
+# 503이 정상 동작이라 그것도 통과로 보되, 무엇이 왔는지 그대로 찍는다.
+start = time.perf_counter()
+res = requests.get(
+    f"{API}/recommendation/recipes/{RECIPE_ID}/price",
+    params={"user_id": user_id}, headers=headers, timeout=120,
+)
+elapsed = time.perf_counter() - start
+if res.status_code == 200:
+    price_body = res.json()
+    basis = price_body.get("basis") or {}
+    check(
+        "KAMIS 재료비(서울 소매가)",
+        basis.get("market") == "서울 소매가" and isinstance(price_body.get("household_size"), int),
+        f"200, {elapsed:.1f}s, 약 {round(price_body.get('total_cost', 0))}원, "
+        f"재료 {len(price_body.get('included', []))}개, 등급 {price_body.get('tier')}, "
+        f"기준 {basis.get('price_days', [])[:1]}",
+    )
+else:
+    check("KAMIS 재료비(서울 소매가)", res.status_code == 503, f"{res.status_code} (503이면 KAMIS 일시 무응답)")
+
 # ---------- 부족한 재료 구매 링크 ----------
 res = requests.get(
     f"{API}/recommendation/recipes/{RECIPE_ID}/shopping-links",

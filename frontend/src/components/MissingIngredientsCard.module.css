@@ -76,7 +76,7 @@
 .suggestion {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  line-height: var(--line-height-relaxed);
+  line-height: var(--line-height-base);
 }
 
 .basis {
@@ -110,7 +110,8 @@
 .buy a:hover,
 .buy a:focus-visible {
   border-color: var(--color-accent);
-  color: var(--color-accent);
+  /* 글자에는 면 색(--color-accent)이 아니라 명암비를 맞춘 글자 색을 쓴다. */
+  color: var(--color-accent-text);
 }
 
 /* 대가성 고지. 법적으로 필요한 문구라 접히거나 숨지 않게 둔다. */
@@ -120,5 +121,5 @@
   border-top: 1px solid var(--color-border);
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  line-height: var(--line-height-relaxed);
+  line-height: var(--line-height-base);
 }

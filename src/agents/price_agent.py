@@ -1,7 +1,7 @@
 """
 Price Agent [선택] - 가격대별 메뉴 등급 + 재료비 총액 추정
-- KAMIS(농산물유통정보) API로 채소류(200)/식량작물(곡물,100)/축산물(500)/수산물(600) 4개 부류의
-  도매가격을 가져와서, 레시피 재료가 각 부류 안에서 상대적으로 비싼 편인지 싼 편인지를 비교한다
+- KAMIS(농산물유통정보) API로 식량작물·채소류·특용작물·과일류·축산물·수산물 6개 부류의
+  **서울 소매가격**을 가져와서, 레시피 재료가 각 부류 안에서 상대적으로 비싼 편인지 싼 편인지를 비교한다
   (estimate_recipe_price_tier). 이건 절대 금액을 합산하지 않고 "중앙값 대비 몇 배인지"로만 등급을 매긴다.
 - 추가로 estimate_recipe_total_cost()는 "이 레시피를 만드는 데 대략 얼마 드는지"를 원 단위로 추정한다.
   재료마다 KAMIS 단위가 제각각이라(kg/g/개/단 등), g 단위로 정확히 환산되는 재료만 계산에 포함하고,
@@ -18,19 +18,32 @@ import requests
 from datetime import date
 from dotenv import load_dotenv
 
-from recommendation_agent import is_staple
+from recommendation_agent import STAPLE_SEASONINGS
 
 load_dotenv()
 CERT_KEY = os.getenv("KAMIS_CERT_KEY")
 CERT_ID = os.getenv("KAMIS_CERT_ID")
 
-# 직접 테스트해서 확인한 부류코드만 사용한다 (검증 안 된 코드는 추가하지 않음)
+# 직접 테스트해서 확인한 부류코드만 사용한다 (검증 안 된 코드는 추가하지 않음).
+# 특용작물(300)·과일류(400)는 2026-09-29에 도매·소매 모두 조회되는 것을 확인하고 넣었다.
+# 버섯·호두·땅콩과 사과·레몬·배가 여기 있다 - 빠져 있던 동안 레시피 재료 중 이것들은
+# 전부 "가격 정보 없음"이었다.
 CATEGORY_CODES = {
     "100": "식량작물",
     "200": "채소류",
+    "300": "특용작물",
+    "400": "과일류",
     "500": "축산물",
     "600": "수산물",
 }
+
+# 소매(01)가격을 쓴다 (2026-09-29, 원래는 도매 02).
+#
+# 이 값으로 계산하는 건 "이 한 끼 재료비"라 사람이 장보며 내는 값이어야 한다. 도매는 단위가
+# 10kg·20kg·40kg이라 한 끼 분량으로 나누면 오차가 크고, 가격 자체도 소비자가 내는 값이 아니다.
+# 소매는 1kg·100g·1개·1마리처럼 장보기 단위로 온다. 운영 레시피 재료로 재보니 매칭률도
+# 소매가 조금 높았다(6부류 기준 28.9% 대 27.0%) - 우유처럼 소매에만 있는 품목이 있다.
+PRODUCT_CLS_CODE = "01"
 
 # 채소류(200) 실제 품목 목록을 확인한 뒤 채워둔 동의어. 방향 규칙(재료명이 품목명에 포함)만으로는
 # "애호박"이 "호박"에 매칭되지 않는 것처럼 놓치는 경우가 있어 자주 쓰는 것만 보정한다.
@@ -47,7 +60,57 @@ MEAT_SYNONYMS = {
     "소고기": "소", "쇠고기": "소",
     "돼지고기": "돼지",
     "닭고기": "닭",
+    # 닭 부위. KAMIS 소매 닭은 "육계"·"절단육"뿐이라 부위 가격은 없다 - 닭 전체 가격으로 본다.
+    "닭가슴살": "닭", "닭다리살": "닭", "닭다릿살": "닭", "닭봉": "닭", "닭날개": "닭", "닭안심살": "닭",
 }
+
+# 레시피와 KAMIS가 같은 것을 다른 이름으로 부르는 경우 (2026-09-29).
+#
+# 지어내지 않았다. 가격이 안 붙는 재료 상위 목록과 KAMIS 소매 품목·품종 목록을 나란히 놓고,
+# 같은 것이 확실한 것만 골랐다. 레시피 쪽 등장 횟수는 운영 데이터 기준이다.
+NAME_SYNONYMS = {
+    "달걀": "계란",       # 163회. KAMIS는 "계란"(특란10구·30구)으로만 올린다
+    "홍고추": "붉은고추",  # 114회
+    "청고추": "풋고추",    # 53회
+    "청피망": "피망",      # 30회
+    "새우살": "새우",
+}
+
+# 가격 계산에서 뺄 조미료 (2026-09-29).
+#
+# 원래는 recommendation_agent.is_staple()을 그대로 썼는데, 그 판정은 **부분 문자열**이라
+# "파"가 들어간 양파·파프리카·파인애플·파슬리와 "마늘"이 들어간 모든 것이 조미료로 빠졌다.
+# 그래서 재료비에 양파가 한 번도 들어간 적이 없었다. 추천 쪽 판정은 영향 범위가 커서
+# 그대로 두고, 가격에서만 **이름이 정확히 조미료인 것**을 뺀다.
+#
+# 목록에 더한 것은 가격이 안 붙는 재료 상위권에 있던 기름·술·당류다. 한 끼마다 사는 것이
+# 아니라 집에 두고 쓰는 것이고, KAMIS 범위 밖이라 등급의 매칭 비율만 떨어뜨렸다.
+PRICE_EXTRA_STAPLES = {
+    "후춧가루", "통후추", "올리브오일", "올리브유", "올리고당", "맛술", "청주", "정종", "튀김기름",
+}
+_STAPLE_PREFIXES = ("다진", "간")
+
+
+def _base_and_hint(name: str) -> tuple[str, str]:
+    """"돼지고기(삼겹살)"처럼 괄호가 붙은 재료명을 (돼지고기, 삼겹살)로 나눈다.
+
+    레시피 재료명에는 파싱 때 닫는 괄호가 잘린 "소고기(등심" 같은 것도 섞여 있다. 괄호 앞을
+    품목으로, 괄호 안을 품종 힌트로 쓴다. 원래는 괄호째 비교해서 이런 재료가 전부 안 붙었다.
+    """
+    name = (name or "").strip()
+    if "(" not in name:
+        return name, ""
+    base, _, rest = name.partition("(")
+    return base.strip(), rest.split(")")[0].strip()
+
+
+def is_price_staple(name: str) -> bool:
+    """가격 계산에서 뺄 조미료인가. 이름이 정확히 조미료일 때만 True다."""
+    base = _base_and_hint(name)[0].replace(" ", "")
+    staples = STAPLE_SEASONINGS | PRICE_EXTRA_STAPLES
+    if base in staples:
+        return True
+    return any(base.startswith(p) and base[len(p):] in staples for p in _STAPLE_PREFIXES)
 
 # KAMIS 가격은 "20개", "1단" 처럼 개수 단위로 나오는 품목이 있어서, 레시피에 필요한 g(그램)량과
 # 맞추려면 "개당 평균 몇 g인지" 가정이 필요하다. 완벽할 필요는 없고, 자주 나오는 품목만 채워둔다
@@ -68,6 +131,9 @@ AVG_PIECE_WEIGHT_G = {
     "피망": 80,        # 1개
     "상추": 15,        # 1장
     "깻잎": 2,         # 1장
+    # 소매로 바꾸며 새로 생긴 단위. 추정치라 화면에 "추정"으로 표시된다.
+    "계란": 60,        # 1구 (특란 기준)
+    "우유": 1000,      # 1L를 1000g으로 본다
 }
 
 
@@ -116,7 +182,7 @@ def estimate_recipe_total_cost(scaled_items: list[dict], all_items: list[dict]) 
         amount = item.get("amount")
         unit = item.get("unit")
 
-        if is_staple(name):
+        if is_price_staple(name):
             continue  # 조미료는 가격 등급과 마찬가지로 원가 계산에서도 제외
         if amount is None or unit != "g":
             excluded.append({"ingredient": name, "reason": "양(g) 정보가 없거나 g 단위가 아님"})
@@ -141,6 +207,7 @@ def estimate_recipe_total_cost(scaled_items: list[dict], all_items: list[dict]) 
             "amount_g": amount,
             "cost": cost,
             "is_estimated": is_estimated,
+            "price_day": matched.get("price_day"),
         })
 
     total_cost = sum(i["cost"] for i in included)
@@ -149,14 +216,25 @@ def estimate_recipe_total_cost(scaled_items: list[dict], all_items: list[dict]) 
 
 def _extract_price(item: dict) -> float | None:
     """dpr1(당일)부터 dpr4(2주일전)까지 순서대로 값이 있는 걸 사용한다 (당일 데이터는 '-'인 경우가 많음)."""
-    for key in ["dpr1", "dpr2", "dpr3", "dpr4"]:
-        raw = item.get(key, "")
+    return _extract_price_and_day(item)[0]
+
+
+def _extract_price_and_day(item: dict) -> tuple[float | None, str | None]:
+    """가격과, 그 가격이 어느 날 값인지("당일 (09/30)")를 함께 준다.
+
+    칸의 뜻은 KAMIS 응답의 day1~day7 라벨로 확인했다(2026-09-29): dpr1 당일, dpr2 1일전,
+    dpr3 1주일전, dpr4 2주일전, dpr5 1개월전, dpr6 1년전, dpr7 평년. 2주일 전(dpr4)까지만
+    쓴다 - 그보다 오래된 값을 오늘 재료비로 보여주면 안 된다. 화면은 이 라벨로 "몇 월 며칠
+    시세인지"를 밝힌다.
+    """
+    for n in (1, 2, 3, 4):
+        raw = item.get(f"dpr{n}", "")
         if raw and raw != "-":
             try:
-                return float(raw.replace(",", ""))
+                return float(raw.replace(",", "")), item.get(f"day{n}")
             except ValueError:
                 continue
-    return None
+    return None, None
 
 
 def fetch_category_prices(category_code: str) -> list[dict]:
@@ -164,7 +242,7 @@ def fetch_category_prices(category_code: str) -> list[dict]:
     url = "http://www.kamis.or.kr/service/price/xml.do"
     params = {
         "action": "dailyPriceByCategoryList",
-        "p_product_cls_code": "02",  # 도매
+        "p_product_cls_code": PRODUCT_CLS_CODE,
         "p_item_category_code": category_code,
         "p_country_code": "1101",    # 서울
         "p_regday": date.today().isoformat(),
@@ -186,13 +264,17 @@ def fetch_category_prices(category_code: str) -> list[dict]:
     items = data.get("data", {}).get("item", [])
     result = []
     for i in items:
-        price = _extract_price(i)
+        price, price_day = _extract_price_and_day(i)
         if price is None:
             continue
         result.append({
             "item_name": i.get("item_name"),
+            # 품종. "파" 아래에 대파·쪽파가, "돼지" 아래에 삼겹살·목심이 있다. 이게 없으면
+            # 대파를 찾아도 쪽파 가격이 나올 수 있다(match_ingredient_price 참고).
+            "kind_name": i.get("kind_name"),
             "unit": i.get("unit"),
             "price": price,
+            "price_day": price_day,
             "category_code": category_code,
             "category_name": CATEGORY_CODES[category_code],
         })
@@ -200,7 +282,7 @@ def fetch_category_prices(category_code: str) -> list[dict]:
 
 
 def get_all_prices() -> list[dict]:
-    """확인된 4개 부류 전체 가격을 가져온다."""
+    """확인된 부류 전체 가격을 가져온다."""
     all_items = []
     for code in CATEGORY_CODES:
         all_items.extend(fetch_category_prices(code))
@@ -227,13 +309,46 @@ def match_ingredient_price(ingredient_name: str, all_items: list[dict]) -> dict 
       "배추" 대신 "알배기배추"(다른 품종)에 걸릴 수 있다 (실제 채소류 목록 확인 중 발견).
     - 소/닭/돼지처럼 KAMIS 쪽 품목명이 축약형인 경우만 동의어 매핑으로 보정한다.
     """
-    search_key = VEGETABLE_SYNONYMS.get(ingredient_name, MEAT_SYNONYMS.get(ingredient_name, ingredient_name))
+    base, hint = _base_and_hint(ingredient_name)
+
+    # 1) 품종 이름으로 먼저 찾는다 (2026-09-29). "청양고추"는 품목 "풋고추"의 품종이고
+    #    "삼겹살"은 품목 "돼지"의 품종이다. 품목 이름만 보면 청양고추는 아예 못 찾고,
+    #    대파는 같은 "파" 아래의 쪽파 가격을 집을 수 있다.
+    #    여러 품목에 같은 품종이 있으면(갈비는 돼지에도 소에도 있다) 어느 쪽인지 알 수 없으니
+    #    품종 매칭을 포기하고 아래 규칙으로 넘어간다.
+    #    다만 국산·수입은 모호함으로 치지 않는다. "돼지"와 "수입 돼지고기"가 둘 다 삼겹살을
+    #    갖는데, 이걸 모호하다고 보면 실제 데이터에서 삼겹살이 통째로 안 붙는다. 국산을 우선한다.
+    kind_hits = [i for i in all_items if _kind_base(i.get("kind_name")) == base]
+    if kind_hits:
+        pool = [i for i in kind_hits if "수입" not in i["item_name"]] or kind_hits
+        if len({i["item_name"] for i in pool}) == 1:
+            return pool[0]
+
+    search_key = NAME_SYNONYMS.get(base) or VEGETABLE_SYNONYMS.get(base) or MEAT_SYNONYMS.get(base) or base
+
+    # 2) "돼지고기(삼겹살)"처럼 괄호 안에 품종이 적혀 있으면, 그 품목 안에서 품종을 찾는다.
+    if hint:
+        hinted = [
+            i for i in all_items
+            if i["item_name"] == search_key and _kind_base(i.get("kind_name")) == hint
+        ]
+        if hinted:
+            return _prefer_domestic(hinted)
 
     exact_matches = [i for i in all_items if i["item_name"] == search_key]
     matches = exact_matches if exact_matches else [i for i in all_items if search_key in i["item_name"]]
     if not matches:
         return None
 
+    return _prefer_domestic(matches)
+
+
+def _kind_base(kind_name: str | None) -> str:
+    """KAMIS 품종명에서 괄호 속 단위를 뗀다: "풋고추(녹광 등)(1kg)" -> "풋고추"."""
+    return re.sub(r"\([^()]*\)", "", kind_name or "").strip()
+
+
+def _prefer_domestic(matches: list[dict]) -> dict:
     # 국내산과 수입산이 둘 다 있으면 "수입" 표시 없는 쪽(국내산)을 기본으로 우선한다.
     domestic = [m for m in matches if "수입" not in m["item_name"]]
     return domestic[0] if domestic else matches[0]
@@ -243,8 +358,12 @@ def estimate_recipe_price_tier(ingredient_names: list[str], all_items: list[dict
     """
     레시피 재료들을 KAMIS 가격과 매칭해서, 같은 부류 내 중앙값 대비 상대적으로
     비싼 재료가 많은지 싼 재료가 많은지로 등급을 매긴다.
-    (조미료는 이 함수를 부르기 전에 is_staple()로 걸러졌다고 가정)
+
+    조미료는 여기서 거른다. 원래는 "부르기 전에 걸러졌다고 가정"했는데 라우터가 거르지 않고
+    재료 전체를 넘기고 있어서, 소금·간장 같은 것이 "매칭 안 됨"으로 쌓여 매칭 비율을 깎고
+    멀쩡한 레시피를 "정보부족"으로 만들었다.
     """
+    ingredient_names = [n for n in ingredient_names if not is_price_staple(n)]
     medians = _category_medians(all_items)
 
     matched = []
@@ -283,7 +402,7 @@ def estimate_recipe_price_tier(ingredient_names: list[str], all_items: list[dict
 
 
 if __name__ == "__main__":
-    print("KAMIS 4개 부류 가격 조회 중...")
+    print("KAMIS 부류별 소매 가격 조회 중...")
     all_items = get_all_prices()
     print(f"총 {len(all_items)}개 품목 가격 확인\n")
 

@@ -414,6 +414,17 @@
           "matched_name": {
             "title": "Matched Name",
             "type": "string"
+          },
+          "price_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Day"
           }
         },
         "required": [
@@ -1390,14 +1401,48 @@
         "title": "PopularVideo",
         "type": "object"
       },
+      "PriceBasis": {
+        "description": "화면이 밝혀야 하는 시세의 출처와 기준. 화면이 지어내지 않도록 서버가 정해서 준다.",
+        "properties": {
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "price_days": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Price Days",
+            "type": "array"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "market",
+          "price_days"
+        ],
+        "title": "PriceBasis",
+        "type": "object"
+      },
       "PriceResponse": {
         "properties": {
+          "basis": {
+            "$ref": "#/components/schemas/PriceBasis"
+          },
           "excluded": {
             "items": {
               "$ref": "#/components/schemas/ExcludedCost"
             },
             "title": "Excluded",
             "type": "array"
+          },
+          "household_size": {
+            "title": "Household Size",
+            "type": "integer"
           },
           "included": {
             "items": {
@@ -1435,7 +1480,9 @@
           "unmatched",
           "total_cost",
           "included",
-          "excluded"
+          "excluded",
+          "household_size",
+          "basis"
         ],
         "title": "PriceResponse",
         "type": "object"
