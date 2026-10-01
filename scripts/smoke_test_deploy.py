@@ -21,6 +21,7 @@ users를 바로 지우면 외래키 위반이 난다(2026-08-18에 실제로 났
 import base64
 import json
 import os
+import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -549,6 +550,14 @@ if res.status_code == 200:
         f"재료 {len(price_body.get('included', []))}개, 등급 {price_body.get('tier')}, "
         f"기준 {basis.get('price_days', [])[:1]}",
     )
+    # KAMIS는 kg 환산(Y)에서 가격만 1kg당으로 바꾸고 unit은 "100g"으로 둔다. 서버가 받는 순간
+    # unit을 "1kg"으로 맞추는데, 이게 빠지면 100g 품목 재료비가 10배로 나온다(2026-10-01).
+    # 무게 단위가 "1kg" 말고 다른 값으로 보이면 그 정규화가 빠진 것이다.
+    odd_units = sorted({
+        m.get("unit") for m in price_body.get("matched", [])
+        if re.fullmatch(r"[\d.]+\s*(kg|g)", m.get("unit") or "") and m.get("unit") != "1kg"
+    })
+    check("KAMIS 무게 단위가 가격과 같은 1kg", not odd_units, f"매칭 {len(price_body.get('matched', []))}개, 어긋난 단위 {odd_units}")
 else:
     check("KAMIS 재료비(서울 소매가)", res.status_code == 503, f"{res.status_code} (503이면 KAMIS 일시 무응답)")
 

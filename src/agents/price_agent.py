@@ -97,8 +97,11 @@ def _base_and_hint(name: str) -> tuple[str, str]:
 
     레시피 재료명에는 파싱 때 닫는 괄호가 잘린 "소고기(등심" 같은 것도 섞여 있다. 괄호 앞을
     품목으로, 괄호 안을 품종 힌트로 쓴다. 원래는 괄호째 비교해서 이런 재료가 전부 안 붙었다.
+
+    "(속재료) 단호박"처럼 **앞에** 붙은 괄호는 분류 표시라 떼고 본다(2026-10-01). 떼지 않으면
+    괄호 앞이 빈 문자열이 되고, 빈 문자열은 모든 품목 이름에 들어 있어서 아무 품목에나 붙었다.
     """
-    name = (name or "").strip()
+    name = re.sub(r"^\s*\([^)]*\)\s*", "", name or "").strip()
     if "(" not in name:
         return name, ""
     base, _, rest = name.partition("(")
@@ -232,10 +235,26 @@ def _extract_price_and_day(item: dict) -> tuple[float | None, str | None]:
         raw = item.get(f"dpr{n}", "")
         if raw and raw != "-":
             try:
-                return float(raw.replace(",", "")), item.get(f"day{n}")
+                price = float(raw.replace(",", ""))
             except ValueError:
                 continue
+            # 0원은 값이 없는 것이다. 닭 절단육이 당일 "0"으로 와서 닭 재료비가 0원으로 나왔다.
+            if price > 0:
+                return price, item.get(f"day{n}")
     return None, None
+
+
+def _price_unit(raw_unit: str) -> str:
+    """p_convert_kg_yn=Y로 받은 가격이 실제로 어느 단위의 값인지 돌려준다.
+
+    Y는 무게 단위 품목의 **가격만** 1kg당으로 바꾸고 unit은 원래 값("100g")으로 둔다. 같은 날
+    Y와 N을 나란히 받아 가격 있는 소매 품목 177개 전부가 "무게 단위면 1kg당, 개수 단위면
+    그대로"인 것을 확인했다(2026-10-01). unit을 그대로 믿으면 100g 품목은 10배, 깻잎(50g)은
+    20배 비싸게, 쌀(20kg)은 20배 싸게 계산된다.
+    """
+    if re.fullmatch(r"[\d.]+\s*(kg|g)", (raw_unit or "").strip()):
+        return "1kg"
+    return raw_unit
 
 
 def fetch_category_prices(category_code: str) -> list[dict]:
@@ -247,6 +266,8 @@ def fetch_category_prices(category_code: str) -> list[dict]:
         "p_item_category_code": category_code,
         "p_country_code": "1101",    # 서울
         "p_regday": date.today().isoformat(),
+        # Y: 무게 단위 가격을 1kg당으로 받는다. 부류 안 가격 비교(등급)가 같은 단위로 되게 하려는
+        # 것이다. 단 unit은 안 바뀌어 온다 - 저장할 때 _price_unit()으로 맞춘다.
         "p_convert_kg_yn": "Y",
         "p_cert_key": CERT_KEY,
         "p_cert_id": CERT_ID,
@@ -273,7 +294,8 @@ def fetch_category_prices(category_code: str) -> list[dict]:
             # 품종. "파" 아래에 대파·쪽파가, "돼지" 아래에 삼겹살·목심이 있다. 이게 없으면
             # 대파를 찾아도 쪽파 가격이 나올 수 있다(match_ingredient_price 참고).
             "kind_name": i.get("kind_name"),
-            "unit": i.get("unit"),
+            # 가격과 같은 단위로 맞춘다(_price_unit 참고). 응답의 unit을 그대로 쓰면 안 된다.
+            "unit": _price_unit(i.get("unit")),
             "price": price,
             "price_day": price_day,
             "category_code": category_code,
@@ -316,6 +338,8 @@ def match_ingredient_price(ingredient_name: str, all_items: list[dict]) -> dict 
     - 소/닭/돼지처럼 KAMIS 쪽 품목명이 축약형인 경우만 동의어 매핑으로 보정한다.
     """
     base, hint = _base_and_hint(ingredient_name)
+    if not base:
+        return None  # 빈 이름은 모든 품목 이름의 부분 문자열이라 아무 데나 붙는다
 
     # 1) 품종 이름으로 먼저 찾는다 (2026-09-29). "청양고추"는 품목 "풋고추"의 품종이고
     #    "삼겹살"은 품목 "돼지"의 품종이다. 품목 이름만 보면 청양고추는 아예 못 찾고,
@@ -328,7 +352,7 @@ def match_ingredient_price(ingredient_name: str, all_items: list[dict]) -> dict 
     if kind_hits:
         pool = [i for i in kind_hits if "수입" not in i["item_name"]] or kind_hits
         if len({i["item_name"] for i in pool}) == 1:
-            return pool[0]
+            return _prefer_domestic(pool)
 
     search_key = NAME_SYNONYMS.get(base) or VEGETABLE_SYNONYMS.get(base) or MEAT_SYNONYMS.get(base) or base
 
@@ -355,9 +379,24 @@ def _kind_base(kind_name: str | None) -> str:
 
 
 def _prefer_domestic(matches: list[dict]) -> dict:
-    # 국내산과 수입산이 둘 다 있으면 "수입" 표시 없는 쪽(국내산)을 기본으로 우선한다.
-    domestic = [m for m in matches if "수입" not in m["item_name"]]
-    return domestic[0] if domestic else matches[0]
+    """후보 여럿 중 대표 하나를 고른다: 국산 중, 같은 단위 안에서, 가격이 가운데인 것.
+
+    국내산과 수입산이 둘 다 있으면 "수입" 표시 없는 쪽(국내산)을 우선한다. 땅콩·고등어는 품목이
+    아니라 품종 이름에 "수입"을 적으므로 둘 다 본다.
+
+    예전에는 국산 중 **첫 번째**를 썼다(2026-10-01까지). 응답 순서는 기준이 아니다 - 소는 첫
+    번째가 안심 1등급이라 "쇠고기"만 적힌 운영 레시피 55행이 소 품종 중앙값의 2.46배로
+    계산됐다. 부위·등급을 모르면 가운데 값을 쓴다(짝수면 낮은 쪽, 매번 같은 답이 나오게).
+    단위가 다르면 값을 바로 비교할 수 없으니(계란 10구와 30구) 첫 후보의 단위 안에서만 고른다.
+    """
+    domestic = [
+        m for m in matches
+        if "수입" not in m["item_name"] and "수입" not in (m.get("kind_name") or "")
+    ]
+    pool = domestic or matches
+    same_unit = [m for m in pool if m.get("unit") == pool[0].get("unit")]
+    by_price = sorted(same_unit, key=lambda m: m["price"])
+    return by_price[(len(by_price) - 1) // 2]
 
 
 def estimate_recipe_price_tier(ingredient_names: list[str], all_items: list[dict]) -> dict:
