@@ -11,6 +11,9 @@
 외부망을 타지 않는다. KAMIS 응답 모양을 흉내낸 목록으로 순수 함수만 부른다.
 """
 
+import threading
+import time
+
 import pytest
 
 from src.agents import price_agent
@@ -166,6 +169,50 @@ def test_fetch_asks_for_retail_prices_in_every_category(monkeypatch):
 
     assert {p["p_item_category_code"] for p in seen} == {"100", "200", "300", "400", "500", "600"}
     assert {p["p_product_cls_code"] for p in seen} == {"01"}
+
+
+def test_categories_are_fetched_at_the_same_time(monkeypatch):
+    """6부류를 순서대로 부르면 배포 서버에서 재료비 카드가 11초 넘게 걸렸다(2026-10-01 스모크).
+
+    6개 요청이 모두 도착해야 풀리는 장벽을 세운다. 하나씩 부르면 첫 요청이 장벽에서
+    시간 초과로 깨진다.
+    """
+    barrier = threading.Barrier(len(price_agent.CATEGORY_CODES), timeout=5)
+
+    class FakeResponse:
+        def json(self):
+            return {"data": {"error_code": "000", "item": []}}
+
+    def fake_get(url, params=None, timeout=None):
+        barrier.wait()
+        return FakeResponse()
+
+    monkeypatch.setattr(price_agent.requests, "get", fake_get)
+    price_agent.get_all_prices()
+
+
+def test_parallel_fetch_keeps_category_order(monkeypatch):
+    """응답이 도착한 순서가 아니라 부류 순서대로 합친다. 품목 순서가 매칭의 동점 처리에 쓰여서,
+    호출마다 순서가 바뀌면 같은 레시피의 재료비가 요청마다 달라질 수 있다."""
+    delays = {"100": 0.3, "200": 0.0, "300": 0.2, "400": 0.1, "500": 0.25, "600": 0.05}
+
+    class FakeResponse:
+        def __init__(self, code):
+            self.code = code
+
+        def json(self):
+            return {"data": {"error_code": "000", "item": [
+                {"item_name": f"품목{self.code}", "kind_name": "", "unit": "1kg", "dpr1": "1,000"},
+            ]}}
+
+    def fake_get(url, params=None, timeout=None):
+        code = params["p_item_category_code"]
+        time.sleep(delays[code])
+        return FakeResponse(code)
+
+    monkeypatch.setattr(price_agent.requests, "get", fake_get)
+    items = price_agent.get_all_prices()
+    assert [i["category_code"] for i in items] == list(price_agent.CATEGORY_CODES)
 
 
 def test_fetch_keeps_the_kind_name(monkeypatch):

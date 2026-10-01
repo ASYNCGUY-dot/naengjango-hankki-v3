@@ -97,7 +97,7 @@ KAMIS에는 "파" 아래에 대파·쪽파가, "풋고추" 아래에 청양고�
 |---|---|
 | 백엔드 | FastAPI, psycopg2, Supabase(Postgres) — 라우터 21개, 엔드포인트 60경로 |
 | 프론트 | Vite, React 19, TypeScript 6, React Router 7 — 화면 16개 |
-| 테스트 | pytest 475개, Vitest 252개 |
+| 테스트 | pytest 477개, Vitest 252개 |
 | 배포 | Render (정적 사이트 + 웹 서비스), 무료 티어 |
 | 접근성 | Lighthouse 100점 (모바일) |
 

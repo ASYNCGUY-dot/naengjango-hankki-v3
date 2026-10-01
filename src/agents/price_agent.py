@@ -15,6 +15,7 @@ import os
 import re
 import statistics
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from dotenv import load_dotenv
 
@@ -282,11 +283,16 @@ def fetch_category_prices(category_code: str) -> list[dict]:
 
 
 def get_all_prices() -> list[dict]:
-    """확인된 부류 전체 가격을 가져온다."""
-    all_items = []
-    for code in CATEGORY_CODES:
-        all_items.extend(fetch_category_prices(code))
-    return all_items
+    """확인된 부류 전체 가격을 가져온다.
+
+    6부류를 동시에 부른다(2026-10-01). 하나씩 부르면 로컬에서 5초, 배포 서버(해외)에서
+    재료비 카드가 11.6초 걸렸다. 동시 6건으로 5회 연속 조회해 빠지는 부류가 없는 것을
+    확인했다(로컬 1.6~1.8초). 결과는 응답 도착 순이 아니라 부류 순서로 합친다 - 품목
+    순서가 매칭의 동점 처리에 쓰인다.
+    """
+    with ThreadPoolExecutor(max_workers=len(CATEGORY_CODES)) as pool:
+        per_category = list(pool.map(fetch_category_prices, CATEGORY_CODES))
+    return [item for items in per_category for item in items]
 
 
 def _category_medians(all_items: list[dict]) -> dict:

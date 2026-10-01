@@ -1,6 +1,6 @@
 """
 V1의 price_agent.py 로직을 HTTP 엔드포인트로 감싸는 얇은 래퍼.
-KAMIS 도매가격을 가져와 레시피의 가격 등급(estimate_recipe_price_tier)과
+KAMIS 서울 소매가격(2026-09-29까지는 도매)을 가져와 레시피의 가격 등급(estimate_recipe_price_tier)과
 재료비 추정(estimate_recipe_total_cost)을 그대로 노출한다.
 
 2026-07-18 3단 비교 카드 UI 검증 중 발견: KAMIS 공공 API가 가끔 부류 하나에 대해
