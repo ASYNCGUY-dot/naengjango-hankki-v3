@@ -103,6 +103,32 @@ def test_a_leading_label_in_parentheses_is_not_the_ingredient():
     assert price_agent.match_ingredient_price("(속재료) 양파", ITEMS)["item_name"] == "양파"
 
 
+@pytest.mark.parametrize("raw, base", [
+    ("재료 닭가슴살", "닭가슴살"),
+    ("육수 다시마", "다시마"),
+    ("양념 다진 마늘", "다진 마늘"),
+    ("[주재료]닭다리살", "닭다리살"),
+    ("[양념] 고추장", "고추장"),
+    ("주재료 돼지고기(목살)", "돼지고기"),
+])
+def test_section_labels_in_front_are_dropped(raw, base):
+    """원본 재료 텍스트를 나눌 때 "재료"·"육수"·"[주재료]" 같은 분류 표시가 이름 앞에 붙어 남았다.
+    운영 레시피 176행이 이런 모양이고, 떼면 89행에 새로 가격이 붙는다(2026-10-01)."""
+    assert price_agent._base_and_hint(raw)[0] == base
+
+
+def test_a_label_word_alone_or_inside_a_name_is_kept():
+    """분류어 하나만 있거나 이름 일부일 때는 떼지 않는다. "양념장"은 재료 이름 자체일 수 있다."""
+    assert price_agent._base_and_hint("양념장")[0] == "양념장"
+    assert price_agent._base_and_hint("재료")[0] == "재료"
+    assert price_agent._base_and_hint("소스용토마토")[0] == "소스용토마토"
+
+
+def test_labelled_seasoning_is_still_a_seasoning():
+    """"양념 다진 마늘"은 다진 마늘이다. 분류어를 떼야 조미료로 빠지고, 안 떼면 "매칭 안 됨"으로 쌓인다."""
+    assert price_agent.is_price_staple("양념 다진 마늘")
+
+
 @pytest.mark.parametrize("name", ["(속재료)", "()", "", "  "])
 def test_an_empty_name_matches_nothing(name):
     assert price_agent.match_ingredient_price(name, ITEMS) is None
