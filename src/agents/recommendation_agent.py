@@ -174,15 +174,62 @@ USER_RECIPE_MIN_LIKES = 3
 USER_RECIPE_REVENUE_MIN_LIKES = 100
 
 
+# 재료 이름 앞에 붙어 남은 분류 표시: "(속재료)", "[주재료]", 또는 "재료 "·"육수 "처럼 공백이 뒤따르는
+# 분류어. 운영 레시피에서 실제로 나온 것만 넣었다. 분류어는 뒤에 이름이 더 있을 때만 뗀다.
+# price_agent도 이것을 쓴다.
+LEADING_LABEL = re.compile(
+    r"^\s*(?:\([^)]*\)|\[[^\]]*\]|(?:재료|주재료|부재료|육수|양념|양념장|소스|고명|장식|드레싱|반죽)\s+(?=\S))\s*"
+)
+
+# 이름 끝에 붙어 남은 양·손질 표현과 찌꺼기: "소금 적당량", "마늘다진것", "소금①", "간장10g", "마늘<br>".
+_STAPLE_TRAILING = re.compile(
+    r"(?:\s*(?:적당량|약간|조금|소량|필요량|기호에\s*따라|<br>|[①-⑳]|[\d.]+\s*(?:kg|g|ml|L)?)"
+    r"|\s*(?:다진|간|송송\s*썬|채\s*썬|채\s*친|부순|말린)\s*것)+$"
+)
+# "마늘가루"는 마늘, "양파즙"은 양파로 본다 - 이 꼬리를 떼고 앞부분으로 다시 판정한다.
+_STAPLE_FORMS = ("가루", "기름", "오일", "즙", "시럽")
+# "물"로 끝나도 재료인 것.
+_NOT_WATER = ("나물", "해물", "해산물", "건어물")
+# 조미료로 끝나지는 않지만 조미료인 것. 부분 문자열 판정이 맞게 잡던 것을 그대로 둔다.
+_PREPARED_STAPLES = {"물전분", "물녹말", "식물성기름"}
+
+
+def _ends_with_staple(compact: str) -> bool:
+    if not compact:
+        return False
+    if compact in STAPLE_SEASONINGS:
+        return True
+    if any(compact.endswith(s) for s in STAPLE_SEASONINGS - {"물", "파"}):
+        return True
+    if compact.endswith("파"):
+        return not compact.endswith("양파")
+    if compact.endswith("물"):
+        return not compact.endswith(_NOT_WATER)
+    return False
+
+
 @lru_cache(maxsize=8192)
 def is_staple(name: str) -> bool:
-    """부분 일치로 확인한다 (예: "저염간장"도 "간장"이 포함돼 있으면 조미료로 취급).
+    """기본 조미료인가. 이름이 조미료로 **끝나면** 조미료다(저염간장, 꽃소금, 다진마늘).
 
-    성능(2026-08 Phase 1): 추천 한 번에 조미료 16개와의 부분 문자열 비교가 109만 번
-    돌았다 - 재료명이 레시피마다 반복해서 들어오기 때문이다. _group_membership()과 같은
-    이유로 재료명당 한 번만 계산해서 캐시한다.
+    원래는 부분 문자열로 판정했다(2026-10-02까지). 그러면 "파"가 든 양파·파프리카·파인애플,
+    "물"이 든 콩나물·참나물, "마늘"이 든 마늘종이 전부 조미료로 빠졌다 - 운영 레시피 재료
+    이름 138종 1,952회(레시피·냉장고 재료 이름 기준), 그중 양파가 922회였다. 냉장고에 양파를 넣어도 추천 겹침에 안 잡혔고,
+    파프리카의 비타민 C가 영양 합계에서 빠졌다. 한국어 합성어는 뒤가 중심이라 끝을 본다.
+    양파는 "파"로 끝나도 채소이고, 나물·해물은 "물"로 끝나도 재료다.
+
+    성능(2026-08 Phase 1): 추천 한 번에 이 판정이 109만 번 돌았다 - 재료명이 레시피마다
+    반복해서 들어오기 때문이다. _group_membership()과 같은 이유로 재료명당 한 번만 계산해서 캐시한다.
     """
-    return any(staple in name for staple in STAPLE_SEASONINGS)
+    text = LEADING_LABEL.sub("", name or "").split("(")[0]
+    text = _STAPLE_TRAILING.sub("", text.strip())
+    compact = re.sub(r"[\s_]", "", text)
+    if compact in _PREPARED_STAPLES or _ends_with_staple(compact):
+        return True
+    return any(
+        compact.endswith(form) and _ends_with_staple(compact[: -len(form)])
+        for form in _STAPLE_FORMS
+    )
 
 
 def normalize_ingredient(name: str) -> str:

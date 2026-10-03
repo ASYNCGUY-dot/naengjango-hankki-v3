@@ -79,6 +79,19 @@ def test_recommend_without_matching_pantry_recipe_not_qualified_but_still_listed
     assert item["qualifies"] is False
 
 
+def test_onion_in_the_fridge_counts_as_an_overlap(client):
+    """냉장고의 양파가 레시피의 양파와 겹침으로 잡혀야 한다.
+
+    2026-10-02 전에는 0이었다. 조미료 판정이 부분 문자열이라 "양파"가 "파"(조미료)로 보여
+    냉장고 쪽에서도 레시피 쪽에서도 빠졌다.
+    """
+    user_id, headers = _signup_with_pantry(client, "u_reco_onion", ["양파"])
+    res = client.get(f"/recommendation/{user_id}", params={"ingredients": ["양파"]}, headers=headers)
+    assert res.status_code == 200
+    item = next(i for i in res.json() if i["id"] == RECIPE_ID)
+    assert item["ingredient_overlap"] == 1
+
+
 def test_recommend_without_ingredients_param_returns_unqualified_list(client):
     # 추천 화면 개편(2026-07-19): 재료 목록을 아예 안 넘기면(빈 칸 상태) 더 이상 pantry를
     # 자동으로 읽지 않고, 재료 없는 것으로 취급해서 전부 자격 미달(qualifies=False)로 나온다.

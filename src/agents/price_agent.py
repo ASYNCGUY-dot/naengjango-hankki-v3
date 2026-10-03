@@ -19,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from dotenv import load_dotenv
 
-from recommendation_agent import STAPLE_SEASONINGS
+from recommendation_agent import LEADING_LABEL, STAPLE_SEASONINGS
 
 load_dotenv()
 CERT_KEY = os.getenv("KAMIS_CERT_KEY")
@@ -92,13 +92,6 @@ PRICE_EXTRA_STAPLES = {
 _STAPLE_PREFIXES = ("다진", "간")
 
 
-# 재료 이름 앞에 붙어 남은 분류 표시: "(속재료)", "[주재료]", 또는 "재료 "·"육수 "처럼 공백이 뒤따르는
-# 분류어. 운영 레시피에서 실제로 나온 것만 넣었다. 분류어는 뒤에 이름이 더 있을 때만 뗀다.
-_LEADING_LABEL = re.compile(
-    r"^\s*(?:\([^)]*\)|\[[^\]]*\]|(?:재료|주재료|부재료|육수|양념|양념장|소스|고명|장식|드레싱|반죽)\s+(?=\S))\s*"
-)
-
-
 def _base_and_hint(name: str) -> tuple[str, str]:
     """"돼지고기(삼겹살)"처럼 괄호가 붙은 재료명을 (돼지고기, 삼겹살)로 나눈다.
 
@@ -109,7 +102,7 @@ def _base_and_hint(name: str) -> tuple[str, str]:
     괄호 앞이 빈 문자열이 되고, 빈 문자열은 모든 품목 이름에 들어 있어서 아무 품목에나 붙었다.
     "재료 닭가슴살"·"[주재료]닭다리살"처럼 원본 텍스트를 나눌 때 남은 분류어도 같이 뗀다.
     """
-    name = _LEADING_LABEL.sub("", name or "").strip()
+    name = LEADING_LABEL.sub("", name or "").strip()
     if "(" not in name:
         return name, ""
     base, _, rest = name.partition("(")
