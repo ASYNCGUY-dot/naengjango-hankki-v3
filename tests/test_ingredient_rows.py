@@ -11,7 +11,34 @@
 소금과 후추가 없어진 것이다. 요리 앱에서 그건 그냥 틀린 것이다.
 """
 
-from src.agents.portion_agent import classify_ingredient_row
+import pytest
+
+from src.agents.portion_agent import classify_ingredient_row, display_name
+
+
+class TestDisplayName:
+    """원본 재료 텍스트를 나눌 때 남은 찌꺼기를 화면에 내보내기 전에 정리한다 (2026-10-02).
+
+    운영 레시피 131개의 242행이 "재료 닭가슴살"·"[주재료]닭다리살"처럼 분류어가 앞에 붙은 채
+    상세 화면과 재료비 카드에 그대로 나왔다.
+    """
+
+    @pytest.mark.parametrize("raw, shown", [
+        ("재료 닭가슴살", "닭가슴살"),
+        ("육수 다시마", "다시마"),
+        ("양념 다진 마늘", "다진 마늘"),
+        ("[주재료]닭다리살", "닭다리살"),
+        ("(속재료) 단호박", "단호박"),
+        ("스파게티면(건면)(5g)<br>", "스파게티면(건면)(5g)"),
+        ("<br>[양념] 식용유", "식용유"),
+    ])
+    def test_leftover_labels_are_removed(self, raw, shown):
+        assert display_name(raw) == shown
+
+    @pytest.mark.parametrize("name", ["재료", "주재료", "장식", "소금적당량", "양파", "닭고기(가슴살"])
+    def test_names_without_leftovers_are_unchanged(self, name):
+        """구획 제목 자체("재료")는 뒤에 이름이 없으니 그대로다. 그래야 제목으로 계속 분류된다."""
+        assert display_name(name) == name
 
 
 class TestClassification:
@@ -38,6 +65,11 @@ class TestClassification:
         for name in ("1인분 기준<br>", "2인분 기준<br>", "", "   "):
             assert classify_ingredient_row(name, None) == "noise", repr(name)
 
+    def test_servings_note_without_spaces_or_br_is_still_noise(self):
+        """"<br>"을 떼고 나면 "1인분기준"(띄어쓰기 없음)이 안내 문구 판정을 빠져나갔다."""
+        for name in ("1인분기준", "1인분 기준", "2인분 기준", "1인분기준<br>"):
+            assert classify_ingredient_row(name, None) == "noise", name
+
     def test_a_section_word_with_an_amount_is_an_ingredient(self):
         # "재료"라는 이름에 수량이 붙어 있으면 그건 제목이 아니다.
         assert classify_ingredient_row("재료", 100.0) == "ingredient"
@@ -57,6 +89,26 @@ class TestDetailResponse:
         )
         names = [r["name"] for r in client.get("/recommendation/recipes/1").json()["ingredients"]]
         assert "1인분 기준<br>" not in names
+
+    def test_a_real_ingredient_ending_in_br_is_shown(self, client, db_conn):
+        """"<br>"이 붙었다는 이유로 진짜 재료를 숨기고 있었다. 운영 레시피 21행(달걀지단·숙주·
+        차돌박이·토마토 등)이 상세 화면에서 사라져 있었다."""
+        db_conn.execute(
+            "INSERT INTO recipe_ingredients (recipe_id, name, amount, unit, base_servings) "
+            "VALUES (1, '숙주(30g)<br>', NULL, NULL, 1), (1, '1인분기준<br>', NULL, NULL, 1)"
+        )
+        names = [r["name"] for r in client.get("/recommendation/recipes/1").json()["ingredients"]]
+        assert "숙주(30g)" in names
+        assert not any("기준" in n for n in names)
+
+    def test_leftover_labels_never_reach_the_screen(self, client, db_conn):
+        db_conn.execute(
+            "INSERT INTO recipe_ingredients (recipe_id, name, amount, unit, base_servings) "
+            "VALUES (1, '재료 닭가슴살', 60, 'g', 1)"
+        )
+        names = [r["name"] for r in client.get("/recommendation/recipes/1").json()["ingredients"]]
+        assert "닭가슴살" in names
+        assert "재료 닭가슴살" not in names
 
     def test_an_ingredient_without_an_amount_still_shows_up(self, client, db_conn):
         """이 테스트가 이 파일의 핵심이다. 소금이 사라지던 버그를 고정한다."""

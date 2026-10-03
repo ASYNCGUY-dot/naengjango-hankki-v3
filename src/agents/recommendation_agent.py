@@ -174,13 +174,6 @@ USER_RECIPE_MIN_LIKES = 3
 USER_RECIPE_REVENUE_MIN_LIKES = 100
 
 
-# 재료 이름 앞에 붙어 남은 분류 표시: "(속재료)", "[주재료]", 또는 "재료 "·"육수 "처럼 공백이 뒤따르는
-# 분류어. 운영 레시피에서 실제로 나온 것만 넣었다. 분류어는 뒤에 이름이 더 있을 때만 뗀다.
-# price_agent도 이것을 쓴다.
-LEADING_LABEL = re.compile(
-    r"^\s*(?:\([^)]*\)|\[[^\]]*\]|(?:재료|주재료|부재료|육수|양념|양념장|소스|고명|장식|드레싱|반죽)\s+(?=\S))\s*"
-)
-
 # 이름 끝에 붙어 남은 양·손질 표현과 찌꺼기: "소금 적당량", "마늘다진것", "소금①", "간장10g", "마늘<br>".
 _STAPLE_TRAILING = re.compile(
     r"(?:\s*(?:적당량|약간|조금|소량|필요량|기호에\s*따라|<br>|[①-⑳]|[\d.]+\s*(?:kg|g|ml|L)?)"
@@ -221,7 +214,7 @@ def is_staple(name: str) -> bool:
     성능(2026-08 Phase 1): 추천 한 번에 이 판정이 109만 번 돌았다 - 재료명이 레시피마다
     반복해서 들어오기 때문이다. _group_membership()과 같은 이유로 재료명당 한 번만 계산해서 캐시한다.
     """
-    text = LEADING_LABEL.sub("", name or "").split("(")[0]
+    text = portion_agent.LEADING_LABEL.sub("", name or "").split("(")[0]
     text = _STAPLE_TRAILING.sub("", text.strip())
     compact = re.sub(r"[\s_]", "", text)
     if compact in _PREPARED_STAPLES or _ends_with_staple(compact):

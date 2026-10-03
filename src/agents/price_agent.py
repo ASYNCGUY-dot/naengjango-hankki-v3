@@ -19,7 +19,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from dotenv import load_dotenv
 
-from recommendation_agent import LEADING_LABEL, STAPLE_SEASONINGS
+from portion_agent import LEADING_LABEL
+from recommendation_agent import STAPLE_SEASONINGS
 
 load_dotenv()
 CERT_KEY = os.getenv("KAMIS_CERT_KEY")

@@ -89,7 +89,28 @@ SECTION_TITLES = frozenset({
 })
 
 # 재료가 아니라 원본의 안내 문구가 행으로 들어온 것. 화면에 보여줄 이유가 없다.
-_NOISE_MARKERS = ("인분 기준", "<br>")
+# 띄어쓰기를 지우고 비교한다 - "1인분기준"도 있다.
+#
+# "<br>"은 표시가 아니라 찌꺼기라 여기 두지 않는다(2026-10-02). 원래는 "<br>"이 든 행을 통째로
+# 숨겼는데, 그중 절반(21행)이 달걀지단·숙주·차돌박이 같은 진짜 재료였다. display_name()이 뗀다.
+_NOISE_MARKERS = ("인분기준",)
+
+# 재료 이름 앞에 붙어 남은 분류 표시: "(속재료)", "[주재료]", 또는 "재료 "·"육수 "처럼 공백이 뒤따르는
+# 분류어. 운영 레시피에서 실제로 나온 것만 넣었다. 분류어는 뒤에 이름이 더 있을 때만 뗀다 - 그래서
+# "재료" 하나만 있는 행은 그대로 남아 구획 제목으로 분류된다. 추천·가격 쪽도 이것을 쓴다.
+LEADING_LABEL = re.compile(
+    r"^\s*(?:\([^)]*\)|\[[^\]]*\]|(?:재료|주재료|부재료|육수|양념|양념장|소스|고명|장식|드레싱|반죽)\s+(?=\S))\s*"
+)
+
+
+def display_name(raw: str) -> str:
+    """원본 재료 텍스트를 나눌 때 남은 찌꺼기를 뗀 이름. 화면·재료비·영양 계산이 모두 이 이름을 쓴다.
+
+    운영 레시피 131개의 242행이 "재료 닭가슴살"·"[주재료]닭다리살"처럼 분류어가 붙은 채 화면에
+    나왔다(2026-10-02). 수량 표현("소금적당량")은 수량 정보라 그대로 둔다.
+    """
+    name = (raw or "").replace("<br>", " ")
+    return LEADING_LABEL.sub("", name).strip()
 
 
 def classify_ingredient_row(name: str, amount) -> str:
@@ -97,10 +118,11 @@ def classify_ingredient_row(name: str, amount) -> str:
 
     수량 유무만으로 판단하지 않는다 - 그게 위 주석의 버그였다. 이름을 함께 본다.
     """
-    stripped = (name or "").strip()
+    stripped = display_name(name)
     if not stripped:
         return "noise"
-    if any(marker in stripped for marker in _NOISE_MARKERS):
+    compact = stripped.replace(" ", "")
+    if any(marker in compact for marker in _NOISE_MARKERS):
         return "noise"
     # 구획 제목은 수량이 없다. 이름이 같아도 수량이 붙어 있으면 그건 재료다.
     if amount is None and stripped in SECTION_TITLES:
@@ -119,7 +141,7 @@ def get_recipe_ingredients(cur, recipe_id: int) -> tuple[int, list[dict]]:
         return 1, []
 
     base_servings = rows[0][4]
-    items = [{"name": r[0], "amount": r[1], "unit": r[2], "raw_text": r[3]} for r in rows]
+    items = [{"name": display_name(r[0]), "amount": r[1], "unit": r[2], "raw_text": r[3]} for r in rows]
     return base_servings, items
 
 
