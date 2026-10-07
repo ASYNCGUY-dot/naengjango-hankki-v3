@@ -336,7 +336,24 @@ def get_all_prices() -> list[dict]:
     """
     with ThreadPoolExecutor(max_workers=len(CATEGORY_CODES)) as pool:
         per_category = list(pool.map(fetch_category_prices, CATEGORY_CODES))
-    return [item for items in per_category for item in items]
+    all_items = [item for items in per_category for item in items]
+
+    # 부류 하나가 비면 조용히 넘기지 않는다(2026-10-07). 넘기면 호출부의 캐시가 "일부만 있는
+    # 결과"를 정상으로 알고 10분간 붙잡아서, 그동안 그 부류 재료가 전부 "가격 정보 없음"이 됐다.
+    # 받은 것은 버리지 않고 예외에 실어 보낸다 - 어떻게 쓸지는 호출부가 정한다.
+    missing = [code for code, items in zip(CATEGORY_CODES, per_category) if not items]
+    if missing:
+        raise PartialPricesError(all_items, missing)
+    return all_items
+
+
+class PartialPricesError(Exception):
+    """KAMIS 부류 일부만 받았다. 받은 품목은 items에, 못 받은 부류코드는 missing에 있다."""
+
+    def __init__(self, items: list[dict], missing: list[str]):
+        super().__init__(f"KAMIS 부류 {', '.join(missing)} 조회 실패")
+        self.items = items
+        self.missing = missing
 
 
 def _category_medians(all_items: list[dict]) -> dict:

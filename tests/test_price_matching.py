@@ -256,13 +256,17 @@ def test_total_cost_uses_the_matched_kind_price():
 
 # ---------- 조회 ----------
 
+# 정상 응답을 흉내 낼 때 쓰는 품목 한 줄. 부류가 비어 오면 "일부만 받음"으로 판정되므로
+# (get_all_prices), 정상인 척하는 가짜 응답은 품목을 하나는 실어야 한다.
+_ONE_KAMIS_ROW = {"item_name": "양파", "kind_name": "양파(1kg)", "unit": "1kg", "dpr1": "1,986"}
+
 def test_fetch_asks_for_retail_prices_in_every_category(monkeypatch):
     """소매가를 6개 부류 모두에서 받는지. 도매나 4부류로 되돌아가면 재료비가 흔들린다."""
     seen = []
 
     class FakeResponse:
         def json(self):
-            return {"data": {"error_code": "000", "item": []}}
+            return {"data": {"error_code": "000", "item": [_ONE_KAMIS_ROW]}}
 
     def fake_get(url, params=None, timeout=None):
         seen.append(params)
@@ -285,7 +289,7 @@ def test_categories_are_fetched_at_the_same_time(monkeypatch):
 
     class FakeResponse:
         def json(self):
-            return {"data": {"error_code": "000", "item": []}}
+            return {"data": {"error_code": "000", "item": [_ONE_KAMIS_ROW]}}
 
     def fake_get(url, params=None, timeout=None):
         barrier.wait()
@@ -445,6 +449,30 @@ def test_a_network_failure_does_not_walk_back(monkeypatch):
     monkeypatch.setattr(price_agent.requests, "get", failing_get)
     assert price_agent.fetch_category_prices("200") == []
     assert len(calls) == 1
+
+
+def test_a_missing_category_is_reported_not_hidden(monkeypatch):
+    """부류 하나가 비면 "일부만 받았다"고 알린다. 조용히 넘기면 캐시가 그 결과를 10분간 붙잡는다."""
+    class FakeResponse:
+        def __init__(self, code):
+            self.code = code
+
+        def json(self):
+            if self.code == "300":
+                return {"data": {"error_code": "900", "item": []}}
+            return {"data": {"error_code": "000", "item": [
+                {"item_name": f"품목{self.code}", "kind_name": "", "unit": "1kg", "dpr1": "1,000"},
+            ]}}
+
+    monkeypatch.setattr(
+        price_agent.requests, "get",
+        lambda url, params=None, timeout=None: FakeResponse(params["p_item_category_code"]),
+    )
+    with pytest.raises(price_agent.PartialPricesError) as caught:
+        price_agent.get_all_prices()
+    assert caught.value.missing == ["300"]
+    # 받은 부류는 버리지 않고 실어 보낸다.
+    assert [i["category_code"] for i in caught.value.items] == ["100", "200", "400", "500", "600"]
 
 
 def test_fetch_keeps_the_kind_name(monkeypatch):

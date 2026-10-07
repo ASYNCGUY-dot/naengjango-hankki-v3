@@ -110,13 +110,21 @@ def get_recipe_price(
     scaled_items = portion_agent.scale_ingredients(items, base_servings, household_size)
     ingredient_names = [item["name"] for item in items]
 
+    unavailable = HTTPException(
+        status_code=503,
+        detail="KAMIS 가격 정보 서비스가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요.",
+    )
     try:
         all_items = _prices_cache.get_or_fetch(price_agent.get_all_prices)
+    except price_agent.PartialPricesError as partial:
+        # 부류 일부만 받았다. 직전의 온전한 결과가 있었다면 캐시가 그것을 돌려줬을 테니, 여기
+        # 왔다는 건 그것도 없다는 뜻이다. 받은 일부로 응답하되 캐시하지 않는다 - 다음 요청이
+        # 바로 다시 시도한다. 빠진 부류의 재료는 화면에 "가격 정보 없음"으로 나온다.
+        if not partial.items:
+            raise unavailable
+        all_items = partial.items
     except (requests.RequestException, AttributeError, ValueError, TypeError):
-        raise HTTPException(
-            status_code=503,
-            detail="KAMIS 가격 정보 서비스가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요.",
-        )
+        raise unavailable
     tier_result = price_agent.estimate_recipe_price_tier(ingredient_names, all_items)
     cost_result = price_agent.estimate_recipe_total_cost(scaled_items, all_items)
 

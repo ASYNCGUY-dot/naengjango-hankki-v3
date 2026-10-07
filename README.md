@@ -100,7 +100,7 @@ KAMIS의 kg 환산 응답은 **가격만 1kg당으로 바꾸고 단위 표기("1
 |---|---|
 | 백엔드 | FastAPI, psycopg2, Supabase(Postgres) — 라우터 21개, 엔드포인트 60경로 |
 | 프론트 | Vite, React 19, TypeScript 6, React Router 7 — 화면 16개 |
-| 테스트 | pytest 634개, Vitest 252개 |
+| 테스트 | pytest 638개, Vitest 252개 |
 | 배포 | Render (정적 사이트 + 웹 서비스), 무료 티어 |
 | 접근성 | Lighthouse 100점 (모바일) |
 

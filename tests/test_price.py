@@ -138,6 +138,61 @@ def test_price_reuses_cached_kamis_response_within_ttl(client, monkeypatch):
     assert call_count["n"] == 1
 
 
+# ---------- 부류 일부만 받았을 때 (2026-10-07) ----------
+#
+# 부류 하나가 시간 초과되면 조회 함수가 빈 목록을 돌려줘서, 캐시가 "일부만 있는 결과"를 정상으로
+# 알고 10분간 붙잡았다. 그동안 그 부류 재료는 전부 "가격 정보 없음"이었다. 이제 일부만 받으면
+# 예외로 알리고, (1) 직전의 온전한 결과가 있으면 그것을, (2) 없으면 받은 일부를 캐시 없이,
+# (3) 아무것도 없으면 503을 준다.
+
+def _partial(items):
+    def _raise():
+        raise price_agent.PartialPricesError(items, missing=["300"])
+    return _raise
+
+
+def test_partial_prices_are_served_but_not_cached(client, monkeypatch):
+    """받은 일부로 응답은 하되 캐시하지 않는다. 다음 요청이 바로 다시 시도해야 한다."""
+    calls = {"n": 0}
+
+    def _fetch():
+        calls["n"] += 1
+        raise price_agent.PartialPricesError(FAKE_KAMIS_ITEMS, missing=["300"])
+
+    monkeypatch.setattr(price_agent, "get_all_prices", _fetch)
+    user_id, headers = _signup_with_household_size_2(client, "u_price_partial")
+    url = f"/recommendation/recipes/{RECIPE_ID}/price"
+
+    first = client.get(url, params={"user_id": user_id}, headers=headers)
+    second = client.get(url, params={"user_id": user_id}, headers=headers)
+    assert first.status_code == 200
+    assert first.json()["total_cost"] == 475.0
+    assert second.status_code == 200
+    assert calls["n"] == 2
+
+
+def test_a_complete_older_result_beats_a_partial_fresh_one(client, monkeypatch):
+    """온전한 직전 결과가 있으면 일부만 받은 새 결과보다 그것을 쓴다."""
+    monkeypatch.setattr(price_router._prices_cache, "ttl_seconds", 0)  # 매번 다시 조회하게
+    user_id, headers = _signup_with_household_size_2(client, "u_price_stale")
+    url = f"/recommendation/recipes/{RECIPE_ID}/price"
+
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: FAKE_KAMIS_ITEMS)
+    assert client.get(url, params={"user_id": user_id}, headers=headers).json()["total_cost"] == 475.0
+
+    only_tofu = [FAKE_KAMIS_ITEMS[0]]
+    monkeypatch.setattr(price_agent, "get_all_prices", _partial(only_tofu))
+    body = client.get(url, params={"user_id": user_id}, headers=headers).json()
+    assert body["total_cost"] == 475.0  # 양파가 빠진 400원이 아니다
+
+
+def test_nothing_fetched_at_all_is_a_503(client, monkeypatch):
+    monkeypatch.setattr(price_agent, "get_all_prices", _partial([]))
+    user_id, headers = _signup(client, "u_price_none")
+    res = client.get(f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": user_id}, headers=headers)
+    assert res.status_code == 503
+
+
 def test_price_response_says_where_and_when_the_prices_come_from(client, monkeypatch):
     """화면이 "KAMIS · 서울 소매가 · 09/30 기준"을 지어내지 않고 받아서 보여줘야 한다."""
     items = [
