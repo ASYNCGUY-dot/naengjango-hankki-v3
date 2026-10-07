@@ -379,6 +379,74 @@ def test_zero_price_is_treated_as_missing():
     assert price_agent._extract_price_and_day({"dpr1": "0", "dpr2": "0"}) == (None, None)
 
 
+# ---------- 자료가 없는 날 (2026-10-04) ----------
+#
+# 일요일을 조회 날짜로 넣으면 KAMIS는 {"data": ["001"]}(그날 자료 없음)을 돌려준다. 같은 날
+# 토요일·평일 날짜는 정상이었다. 코드가 이 모양을 처리하지 못해 AttributeError가 났고, 라우터가
+# 그것을 503 "일시적으로 응답하지 않음"으로 바꿔서 일요일마다 재료비 카드가 안 나왔다.
+
+def _dated_kamis(no_data_days):
+    """no_data_days에 든 날짜는 "001", 나머지 날짜는 품목 하나를 돌려주는 가짜 KAMIS."""
+    asked = []
+
+    class FakeResponse:
+        def __init__(self, day):
+            self.day = day
+
+        def json(self):
+            if self.day in no_data_days:
+                return {"data": ["001"]}
+            return {"data": {"error_code": "000", "item": [
+                {"item_name": "양파", "kind_name": "양파(1kg)", "unit": "1kg",
+                 "dpr1": "1,986", "day1": f"당일 ({self.day[5:7]}/{self.day[8:]})"},
+            ]}}
+
+    def fake_get(url, params=None, timeout=None):
+        asked.append(params["p_regday"])
+        return FakeResponse(params["p_regday"])
+
+    return fake_get, asked
+
+
+def test_a_day_without_data_falls_back_to_the_day_before(monkeypatch):
+    from datetime import date, timedelta
+    today = date.today()
+    fake_get, asked = _dated_kamis({today.isoformat()})
+    monkeypatch.setattr(price_agent.requests, "get", fake_get)
+
+    items = price_agent.fetch_category_prices("200")
+    yesterday = today - timedelta(days=1)
+    assert asked == [today.isoformat(), yesterday.isoformat()]
+    assert items[0]["price"] == 1986.0
+    # 어느 날 시세인지는 거슬러 올라간 날짜 그대로 밝힌다.
+    assert items[0]["price_day"] == f"당일 ({yesterday:%m/%d})"
+
+
+def test_lookback_is_bounded_when_no_day_has_data(monkeypatch):
+    """긴 연휴(추석)도 덮되, 끝없이 거슬러 올라가지는 않는다."""
+    from datetime import date, timedelta
+    today = date.today()
+    days = {(today - timedelta(days=n)).isoformat() for n in range(30)}
+    fake_get, asked = _dated_kamis(days)
+    monkeypatch.setattr(price_agent.requests, "get", fake_get)
+
+    assert price_agent.fetch_category_prices("200") == []
+    assert len(asked) == price_agent.MAX_LOOKBACK_DAYS
+
+
+def test_a_network_failure_does_not_walk_back(monkeypatch):
+    """응답 자체가 없으면 날짜 탓이 아니다. 하루씩 다시 물어봐야 같은 실패만 반복된다."""
+    calls = []
+
+    def failing_get(url, params=None, timeout=None):
+        calls.append(params["p_regday"])
+        raise price_agent.requests.exceptions.ConnectionError("down")
+
+    monkeypatch.setattr(price_agent.requests, "get", failing_get)
+    assert price_agent.fetch_category_prices("200") == []
+    assert len(calls) == 1
+
+
 def test_fetch_keeps_the_kind_name(monkeypatch):
     class FakeResponse:
         def json(self):

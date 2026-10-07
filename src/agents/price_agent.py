@@ -16,7 +16,7 @@ import re
 import statistics
 import requests
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import date, timedelta
 from dotenv import load_dotenv
 
 from portion_agent import LEADING_LABEL
@@ -259,33 +259,53 @@ def _price_unit(raw_unit: str) -> str:
     return raw_unit
 
 
+# 자료가 없는 날이면 며칠 전까지 거슬러 올라가 볼지. 추석 같은 긴 연휴를 덮는 값이다.
+MAX_LOOKBACK_DAYS = 7
+
+
 def fetch_category_prices(category_code: str) -> list[dict]:
-    """부류코드 하나에 속한 품목들의 가격을 가져온다."""
+    """부류코드 하나에 속한 품목들의 가격을 가져온다.
+
+    조회 날짜에 자료가 없으면 하루씩 거슬러 올라간다(2026-10-04). 일요일을 넣으면 KAMIS는
+    {"data": ["001"]}을 돌려준다 - 같은 날 토요일·평일 날짜는 정상이었다. 이 모양을 처리하지
+    못해 AttributeError가 났고, 라우터가 503으로 바꿔서 일요일마다 재료비 카드가 안 나왔다.
+    어느 날 시세인지는 응답의 날짜 라벨이 그대로 말해 준다.
+    """
     url = "http://www.kamis.or.kr/service/price/xml.do"
-    params = {
-        "action": "dailyPriceByCategoryList",
-        "p_product_cls_code": PRODUCT_CLS_CODE,
-        "p_item_category_code": category_code,
-        "p_country_code": "1101",    # 서울
-        "p_regday": date.today().isoformat(),
-        # Y: 무게 단위 가격을 1kg당으로 받는다. 부류 안 가격 비교(등급)가 같은 단위로 되게 하려는
-        # 것이다. 단 unit은 안 바뀌어 온다 - 저장할 때 _price_unit()으로 맞춘다.
-        "p_convert_kg_yn": "Y",
-        "p_cert_key": CERT_KEY,
-        "p_cert_id": CERT_ID,
-        "p_returntype": "json",
-    }
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
-    except (requests.exceptions.RequestException, ValueError) as e:
-        print(f"(경고) KAMIS 부류코드 {category_code} 조회 실패: {e}")
+    payload = None
+    for days_back in range(MAX_LOOKBACK_DAYS):
+        params = {
+            "action": "dailyPriceByCategoryList",
+            "p_product_cls_code": PRODUCT_CLS_CODE,
+            "p_item_category_code": category_code,
+            "p_country_code": "1101",    # 서울
+            "p_regday": (date.today() - timedelta(days=days_back)).isoformat(),
+            # Y: 무게 단위 가격을 1kg당으로 받는다. 부류 안 가격 비교(등급)가 같은 단위로 되게 하려는
+            # 것이다. 단 unit은 안 바뀌어 온다 - 저장할 때 _price_unit()으로 맞춘다.
+            "p_convert_kg_yn": "Y",
+            "p_cert_key": CERT_KEY,
+            "p_cert_id": CERT_ID,
+            "p_returntype": "json",
+        }
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+        except (requests.exceptions.RequestException, ValueError) as e:
+            # 응답 자체가 없으면 날짜 탓이 아니다. 거슬러 올라가도 같은 실패만 반복된다.
+            print(f"(경고) KAMIS 부류코드 {category_code} 조회 실패: {e}")
+            return []
+
+        payload = data.get("data") if isinstance(data, dict) else None
+        if isinstance(payload, dict):
+            break
+        # payload가 dict가 아니면(["001"]) 그 날짜에 자료가 없는 것이다. 하루 전을 본다.
+    else:
         return []
 
-    if data.get("data", {}).get("error_code") != "000":
+    if payload.get("error_code") != "000":
         return []
 
-    items = data.get("data", {}).get("item", [])
+    items = payload.get("item", [])
     result = []
     for i in items:
         price, price_day = _extract_price_and_day(i)
