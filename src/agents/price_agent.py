@@ -20,7 +20,7 @@ from datetime import date, timedelta
 from dotenv import load_dotenv
 
 from portion_agent import LEADING_LABEL
-from recommendation_agent import STAPLE_SEASONINGS
+from recommendation_agent import TRAILING_LEFTOVER, is_staple
 
 load_dotenv()
 CERT_KEY = os.getenv("KAMIS_CERT_KEY")
@@ -76,21 +76,34 @@ NAME_SYNONYMS = {
     "청고추": "풋고추",    # 53회
     "청피망": "피망",      # 30회
     "새우살": "새우",
+    # 2026-10-08 추가. 띄어쓰기를 없앤 이름으로 찾는다("마른 고추"도 여기 걸린다).
+    "브로컬리": "브로콜리",   # 17회. 표기만 다르다
+    "알배추": "알배기배추",   # 9회
+    "마른고추": "건고추",     # 말린 붉은 고추
+    # KAMIS에서는 품목 "호박"의 **품종** "쥬키니"다. 품목으로 보내면 애호박 값이 섞인다.
+    "주키니호박": "쥬키니", "쥬키니호박": "쥬키니", "돼지호박": "쥬키니",
 }
 
-# 가격 계산에서 뺄 조미료 (2026-09-29).
+# 앞에 색·손질이 붙어도 그 품목인 것 (2026-10-08). "노랑 파프리카"·"적양파"·"다진양파"·"영양부추".
 #
-# 원래는 recommendation_agent.is_staple()을 그대로 썼는데, 그 판정은 **부분 문자열**이라
-# "파"가 들어간 양파·파프리카·파인애플·파슬리와 "마늘"이 들어간 모든 것이 조미료로 빠졌다.
-# 그래서 재료비에 양파가 한 번도 들어간 적이 없었다. 추천 쪽 판정은 영향 범위가 커서
-# 그대로 두고, 가격에서만 **이름이 정확히 조미료인 것**을 뺀다.
+# 한국어 합성어는 뒤가 중심이지만, 끝말이 KAMIS 품목이라고 다 붙이면 틀린다 - 양상추는 상추가
+# 아니고, 건새우·건포도는 말린 것이고, 홀토마토는 통조림이고, 코코넛우유는 우유가 아니고, KAMIS에
+# 청피망 값만 있는데 홍피망을 붙일 수는 없다. 그래서 시세가 안 붙는 운영 재료를 품목별로 늘어놓고
+# **걸리는 이름을 전부 읽어 본 품목만** 넣었다. 상추·새우·포도·토마토·우유·피망·호박·배추는 뺐다.
+_HEAD_ITEMS = ("붉은고추", "파프리카", "양배추", "고구마", "양파", "부추", "감자", "생강")
+# 끝말은 같아도 그 품목이 아닌 것.
+_NOT_THE_ITEM = {"돼지감자"}
+# 말리거나 가공한 것은 생것 값으로 계산하지 않는다.
+_NOT_FRESH_PREFIXES = ("건", "말린", "마른", "건조", "드라이", "통조림", "캔")
+
+# 가격 계산에서만 더 빼는 조미료 (2026-09-29).
 #
-# 목록에 더한 것은 가격이 안 붙는 재료 상위권에 있던 기름·술·당류다. 한 끼마다 사는 것이
-# 아니라 집에 두고 쓰는 것이고, KAMIS 범위 밖이라 등급의 매칭 비율만 떨어뜨렸다.
+# 조미료 판정 자체는 recommendation_agent.is_staple()을 쓴다(is_price_staple 참고). 여기 있는
+# 것은 가격이 안 붙는 재료 상위권에 있던 기름·술·당류다. 한 끼마다 사는 것이 아니라 집에 두고
+# 쓰는 것이고, KAMIS 범위 밖이라 등급의 매칭 비율만 떨어뜨렸다.
 PRICE_EXTRA_STAPLES = {
     "후춧가루", "통후추", "올리브오일", "올리브유", "올리고당", "맛술", "청주", "정종", "튀김기름",
 }
-_STAPLE_PREFIXES = ("다진", "간")
 
 
 def _base_and_hint(name: str) -> tuple[str, str]:
@@ -102,21 +115,26 @@ def _base_and_hint(name: str) -> tuple[str, str]:
     "(속재료) 단호박"처럼 **앞에** 붙은 괄호는 분류 표시라 떼고 본다(2026-10-01). 떼지 않으면
     괄호 앞이 빈 문자열이 되고, 빈 문자열은 모든 품목 이름에 들어 있어서 아무 품목에나 붙었다.
     "재료 닭가슴살"·"[주재료]닭다리살"처럼 원본 텍스트를 나눌 때 남은 분류어도 같이 뗀다.
+
+    끝에 붙어 남은 양·손질 표현도 뗀다(2026-10-08): "양파다진것"은 양파, "양파20g"도 양파다.
     """
     name = LEADING_LABEL.sub("", name or "").strip()
-    if "(" not in name:
-        return name, ""
     base, _, rest = name.partition("(")
-    return base.strip(), rest.split(")")[0].strip()
+    hint = rest.split(")")[0].strip() if rest else ""
+    return TRAILING_LEFTOVER.sub("", base.strip()).strip(), hint
 
 
 def is_price_staple(name: str) -> bool:
-    """가격 계산에서 뺄 조미료인가. 이름이 정확히 조미료일 때만 True다."""
-    base = _base_and_hint(name)[0].replace(" ", "")
-    staples = STAPLE_SEASONINGS | PRICE_EXTRA_STAPLES
-    if base in staples:
+    """가격 계산에서 뺄 조미료인가. 추천과 같은 판정에, 가격에서만 빼는 것을 더한다.
+
+    한동안 가격 쪽만 따로 "이름이 정확히 조미료일 때만"으로 판정했다(2026-09-29~10-07). 추천
+    쪽 판정이 부분 문자열이라 양파까지 조미료로 빼던 때의 우회였다. 그 판정을 고친 뒤에도 따로
+    두니 "저염간장"·"소금적당량"·"마늘다진것" 같은 758행이 조미료가 아니라 "시세 없는 재료"로
+    세어졌다. 이제 같은 판정을 쓴다. 깨·대파·마늘이 빠지므로 참깨·쪽파·깐마늘도 빠진다.
+    """
+    if is_staple(name):
         return True
-    return any(base.startswith(p) and base[len(p):] in staples for p in _STAPLE_PREFIXES)
+    return _base_and_hint(name)[0].replace(" ", "") in PRICE_EXTRA_STAPLES
 
 # KAMIS 가격은 "20개", "1단" 처럼 개수 단위로 나오는 품목이 있어서, 레시피에 필요한 g(그램)량과
 # 맞추려면 "개당 평균 몇 g인지" 가정이 필요하다. 완벽할 필요는 없고, 자주 나오는 품목만 채워둔다
@@ -375,10 +393,38 @@ def match_ingredient_price(ingredient_name: str, all_items: list[dict]) -> dict 
     - 정확히 이름이 같은 품목이 있으면 그것을 최우선으로 쓴다. 안 그러면 "배추"를 찾을 때
       "배추" 대신 "알배기배추"(다른 품종)에 걸릴 수 있다 (실제 채소류 목록 확인 중 발견).
     - 소/닭/돼지처럼 KAMIS 쪽 품목명이 축약형인 경우만 동의어 매핑으로 보정한다.
+    - 띄어쓰기는 양쪽 다 없애고 비교한다(2026-10-08). 레시피는 "붉은 고추", KAMIS는 "붉은고추"로
+      쓰고, KAMIS 품종 쪽에 띄어쓰기가 있는 경우("흰 콩")도 있다.
+    - 그래도 못 찾으면, 확인해 둔 품목(_HEAD_ITEMS)에 한해 이름의 끝말로 찾는다.
     """
     base, hint = _base_and_hint(ingredient_name)
+    base, hint = _compact(base), _compact(hint)
     if not base:
         return None  # 빈 이름은 모든 품목 이름의 부분 문자열이라 아무 데나 붙는다
+
+    found = _find_item(base, hint, all_items)
+    if found is not None:
+        return found
+
+    # 앞에 색·손질이 붙은 이름("노랑파프리카", "다진양파"). 위에서 못 찾았을 때만 본다 - 이름이
+    # 그대로 KAMIS에 있으면(양배추, 알배기배추) 그쪽이 먼저다.
+    if base in _NOT_THE_ITEM or base.startswith(_NOT_FRESH_PREFIXES):
+        return None
+    for head in _HEAD_ITEMS:
+        if base.endswith(head):
+            return _find_item(head, hint, all_items)
+    return None
+
+
+def _compact(text: str | None) -> str:
+    return (text or "").replace(" ", "")
+
+
+def _find_item(base: str, hint: str, all_items: list[dict]) -> dict | None:
+    """띄어쓰기를 없앤 이름(base)과 품종 힌트(hint)로 KAMIS 품목 하나를 찾는다."""
+    # 0) 표기만 다른 이름을 KAMIS 쪽 이름으로 바꾼다. 품종 이름으로 바꾸는 것(주키니호박 ->
+    #    쥬키니)이 있어서 품종 찾기보다 먼저 한다.
+    base = NAME_SYNONYMS.get(base, base)
 
     # 1) 품종 이름으로 먼저 찾는다 (2026-09-29). "청양고추"는 품목 "풋고추"의 품종이고
     #    "삼겹살"은 품목 "돼지"의 품종이다. 품목 이름만 보면 청양고추는 아예 못 찾고,
@@ -387,25 +433,25 @@ def match_ingredient_price(ingredient_name: str, all_items: list[dict]) -> dict 
     #    품종 매칭을 포기하고 아래 규칙으로 넘어간다.
     #    다만 국산·수입은 모호함으로 치지 않는다. "돼지"와 "수입 돼지고기"가 둘 다 삼겹살을
     #    갖는데, 이걸 모호하다고 보면 실제 데이터에서 삼겹살이 통째로 안 붙는다. 국산을 우선한다.
-    kind_hits = [i for i in all_items if _kind_base(i.get("kind_name")) == base]
+    kind_hits = [i for i in all_items if _compact(_kind_base(i.get("kind_name"))) == base]
     if kind_hits:
         pool = [i for i in kind_hits if "수입" not in i["item_name"]] or kind_hits
         if len({i["item_name"] for i in pool}) == 1:
             return _prefer_domestic(pool)
 
-    search_key = NAME_SYNONYMS.get(base) or VEGETABLE_SYNONYMS.get(base) or MEAT_SYNONYMS.get(base) or base
+    search_key = _compact(VEGETABLE_SYNONYMS.get(base) or MEAT_SYNONYMS.get(base) or base)
 
     # 2) "돼지고기(삼겹살)"처럼 괄호 안에 품종이 적혀 있으면, 그 품목 안에서 품종을 찾는다.
     if hint:
         hinted = [
             i for i in all_items
-            if i["item_name"] == search_key and _kind_base(i.get("kind_name")) == hint
+            if _compact(i["item_name"]) == search_key and _compact(_kind_base(i.get("kind_name"))) == hint
         ]
         if hinted:
             return _prefer_domestic(hinted)
 
-    exact_matches = [i for i in all_items if i["item_name"] == search_key]
-    matches = exact_matches if exact_matches else [i for i in all_items if search_key in i["item_name"]]
+    exact_matches = [i for i in all_items if _compact(i["item_name"]) == search_key]
+    matches = exact_matches if exact_matches else [i for i in all_items if search_key in _compact(i["item_name"])]
     if not matches:
         return None
 

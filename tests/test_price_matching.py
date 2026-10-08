@@ -195,6 +195,107 @@ def test_different_units_are_not_compared_by_price():
     assert price_agent.match_ingredient_price("계란", eggs)["unit"] == "30구"
 
 
+# ---------- 색·손질이 붙은 이름, 띄어쓰기, 표기 차이 (2026-10-08) ----------
+#
+# 시세가 안 붙는 재료 6,025행을 KAMIS 품목표와 나란히 놓고 고른 것이다. 끝말이 KAMIS 품목이라고
+# 다 붙이면 틀린다 - 양상추는 상추가 아니고, 건새우·건포도는 말린 것이고, 홀토마토는 통조림이고,
+# 코코넛우유는 우유가 아니다. 그래서 끝말 규칙은 **확인한 품목에만** 적용한다.
+
+PRODUCE = [
+    _item("파프리카", "파프리카(1개)", price=2000, unit="1개"),
+    _item("양파", "양파(1kg)", price=2000),
+    _item("부추", "부추(1kg)", price=9000),
+    _item("양배추", "양배추(1포기)", price=4000, unit="1포기"),
+    _item("고구마", "밤(1kg)", price=5000),
+    _item("감자", "수미(1kg)", price=3000),
+    _item("생강", "국산(1kg)", price=12000),
+    _item("붉은고추", "붉은고추(1kg)", price=30000),
+    _item("풋고추", "청양고추(1kg)", price=12000),
+    _item("건고추", "화건(1kg)", price=30000),
+    _item("브로콜리", "브로콜리(1개)", price=3000, unit="1개"),
+    _item("알배기배추", "알배기배추(1포기)", price=3000, unit="1포기"),
+    _item("호박", "애호박(1개)", price=1500, unit="1개"),
+    _item("호박", "쥬키니(1개)", price=2500, unit="1개"),
+    _item("마른미역", "마른미역(1kg)", price=40000, category_code="600"),
+    _item("콩", "흰 콩(국산)(500g)", price=6000, category_code="100"),
+    _item("소", "양지", price=79170, category_code="500"),
+    # 붙이면 안 되는 이름을 가려내려고 일부러 넣은 품목
+    _item("상추", "청(1kg)", price=12000),
+    _item("새우", "흰다리(1kg)", price=20000, category_code="600"),
+    _item("포도", "거봉(1kg)", price=9000, category_code="400"),
+    _item("토마토", "토마토(1kg)", price=6000),
+    _item("우유", "흰우유", price=2800, unit="1L", category_code="500"),
+    _item("피망", "청(1kg)", price=20000),
+]
+
+
+def _produce(name):
+    m = price_agent.match_ingredient_price(name, PRODUCE)
+    return (m["item_name"], price_agent._kind_base(m.get("kind_name"))) if m else None
+
+
+@pytest.mark.parametrize("name, item", [
+    ("노랑 파프리카", "파프리카"), ("홍파프리카", "파프리카"), ("2가지색 미니파프리카", "파프리카"),
+    ("적양파", "양파"), ("다진양파", "양파"), ("간 양파", "양파"), ("채 썬 양파", "양파"),
+    ("영양부추", "부추"), ("적양배추", "양배추"), ("삶은 밤고구마", "고구마"), ("알감자", "감자"),
+    ("깐생강", "생강"), ("송송 썬 붉은 고추", "붉은고추"),
+])
+def test_colour_and_prep_words_in_front_do_not_hide_the_item(name, item):
+    """운영 레시피에서 파프리카 77행, 양파 37행이 앞에 붙은 색·손질 때문에 시세가 안 붙었다."""
+    assert _produce(name)[0] == item
+
+
+@pytest.mark.parametrize("name", [
+    "양상추", "건새우", "칵테일새우", "건포도", "홀토마토", "말린 토마토", "코코넛우유", "홍피망",
+    "돼지감자", "말린 고구마", "건생강",
+])
+def test_lookalikes_are_not_priced_as_the_item_they_end_with(name):
+    """끝말이 같아도 다른 것이다. 붙이면 오류 없이 엉뚱한 금액이 나온다."""
+    assert _produce(name) is None
+
+
+@pytest.mark.parametrize("name, item", [
+    ("양파다진것", "양파"), ("생강다진것", "생강"), ("쇠고기다진것", "소"), ("청고추다진것", "풋고추"),
+    ("양파20g", "양파"),
+])
+def test_prep_and_amount_leftovers_at_the_end_are_dropped(name, item):
+    assert _produce(name)[0] == item
+
+
+@pytest.mark.parametrize("name, expected", [
+    ("붉은 고추", ("붉은고추", "붉은고추")), ("마른 미역", ("마른미역", "마른미역")),
+    ("흰콩", ("콩", "흰 콩")),   # KAMIS 품종 이름 쪽에 띄어쓰기가 있는 경우
+])
+def test_spacing_differences_do_not_matter(name, expected):
+    assert _produce(name) == expected
+
+
+@pytest.mark.parametrize("name, expected", [
+    ("브로컬리", ("브로콜리", "브로콜리")), ("알배추", ("알배기배추", "알배기배추")),
+    ("주키니호박", ("호박", "쥬키니")), ("돼지호박", ("호박", "쥬키니")),
+    ("마른 고추", ("건고추", "화건")), ("마른고추", ("건고추", "화건")),
+])
+def test_other_spellings_of_the_same_thing(name, expected):
+    """주키니호박·돼지호박은 KAMIS에서 호박의 **품종** "쥬키니"다. 애호박 값으로 계산하면 안 된다."""
+    assert _produce(name) == expected
+
+
+@pytest.mark.parametrize("name", [
+    "저염간장", "소금적당량", "소금 적당량", "흰후추", "마늘다진것", "국간장", "실파", "깨소금",
+    "참깨", "쪽파", "깐마늘",
+])
+def test_price_uses_the_same_seasoning_rule_as_recommendation(name):
+    """가격 쪽만 이름이 정확히 같을 때만 조미료로 봐서, 이 이름들 758행이 "시세 없는 재료"로
+    세어졌다. 추천 쪽 판정을 고쳤으니(2026-10-02) 이제 같은 판정을 쓴다. 깨·대파·마늘이 이미
+    빠지므로 참깨·쪽파·깐마늘도 빠지는 것이 일관된다."""
+    assert price_agent.is_price_staple(name)
+
+
+def test_chopped_onion_is_still_an_ingredient():
+    assert not price_agent.is_price_staple("양파다진것")
+    assert not price_agent.is_price_staple("다진양파")
+
+
 # ---------- 이름만 다른 것 ----------
 
 @pytest.mark.parametrize(

@@ -193,6 +193,27 @@ def test_nothing_fetched_at_all_is_a_503(client, monkeypatch):
     assert res.status_code == 503
 
 
+def test_section_titles_are_not_listed_as_unpriced_ingredients(client, db_conn, monkeypatch):
+    """재료비 카드의 "시세를 못 찾은 재료"에 "주재료"·"1인분 기준"이 재료처럼 나왔다(2026-10-08).
+
+    구획 제목과 안내 문구는 재료가 아니다. 상세 화면은 걸러서 보여 주는데 재료비만 안 걸렀다.
+    """
+    db_conn.execute(
+        "INSERT INTO recipe_ingredients (recipe_id, name, amount, unit, base_servings) "
+        "VALUES (1, '주재료', NULL, NULL, 2), (1, '1인분 기준<br>', NULL, NULL, 2)"
+    )
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: FAKE_KAMIS_ITEMS)
+    user_id, headers = _signup_with_household_size_2(client, "u_price_section")
+
+    body = client.get(
+        f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": user_id}, headers=headers,
+    ).json()
+    listed = [e["ingredient"] for e in body["excluded"]] + body["unmatched"]
+    assert "주재료" not in listed
+    assert not any("기준" in name for name in listed)
+    assert body["total_cost"] == 475.0
+
+
 def test_price_response_says_where_and_when_the_prices_come_from(client, monkeypatch):
     """화면이 "KAMIS · 서울 소매가 · 09/30 기준"을 지어내지 않고 받아서 보여줘야 한다."""
     items = [

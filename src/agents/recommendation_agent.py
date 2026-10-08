@@ -175,7 +175,7 @@ USER_RECIPE_REVENUE_MIN_LIKES = 100
 
 
 # 이름 끝에 붙어 남은 양·손질 표현과 찌꺼기: "소금 적당량", "마늘다진것", "소금①", "간장10g", "마늘<br>".
-_STAPLE_TRAILING = re.compile(
+TRAILING_LEFTOVER = re.compile(
     r"(?:\s*(?:적당량|약간|조금|소량|필요량|기호에\s*따라|<br>|[①-⑳]|[\d.]+\s*(?:kg|g|ml|L)?)"
     r"|\s*(?:다진|간|송송\s*썬|채\s*썬|채\s*친|부순|말린)\s*것)+$"
 )
@@ -215,7 +215,7 @@ def is_staple(name: str) -> bool:
     반복해서 들어오기 때문이다. _group_membership()과 같은 이유로 재료명당 한 번만 계산해서 캐시한다.
     """
     text = portion_agent.LEADING_LABEL.sub("", name or "").split("(")[0]
-    text = _STAPLE_TRAILING.sub("", text.strip())
+    text = TRAILING_LEFTOVER.sub("", text.strip())
     compact = re.sub(r"[\s_]", "", text)
     if compact in _PREPARED_STAPLES or _ends_with_staple(compact):
         return True

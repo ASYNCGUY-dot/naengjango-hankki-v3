@@ -104,6 +104,12 @@ def get_recipe_price(
         household_size = 1
 
     base_servings, items = portion_agent.get_recipe_ingredients(cur, recipe_id)
+    # 구획 제목("주재료")과 안내 문구("1인분 기준")는 재료가 아니다. 거르지 않으면 재료비 카드의
+    # "시세를 못 찾은 재료"에 재료처럼 나온다. 상세 화면과 같은 판정을 쓴다.
+    items = [
+        item for item in items
+        if portion_agent.classify_ingredient_row(item["name"], item["amount"]) == "ingredient"
+    ]
     if not items:
         raise HTTPException(status_code=404, detail="이 레시피에는 재료 수량 정보가 없습니다.")
 
