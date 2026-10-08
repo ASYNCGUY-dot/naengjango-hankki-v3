@@ -166,7 +166,7 @@ cd frontend && npm ci && npm run dev
 ./.venv/Scripts/python.exe scripts/smoke_test_deploy.py
 ```
 
-배포된 서비스를 57항목으로 실제로 태운다 — 가입부터 추천·즐겨찾기·후기·레시피 등록·자랑하기·피드백·구매 링크·KAMIS 재료비까지
+배포된 서비스를 58항목으로 실제로 태운다 — 가입부터 추천·즐겨찾기·후기·레시피 등록·자랑하기·피드백·구매 링크·KAMIS 재료비까지
 지인이 밟을 흐름 그대로다. CORS는 "Render 정적 사이트 → Render API"라는 경계에서만
 검증되므로 로컬 테스트가 덮지 못한다.
 

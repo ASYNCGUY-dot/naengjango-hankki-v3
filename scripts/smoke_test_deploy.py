@@ -558,6 +558,11 @@ if res.status_code == 200:
         if re.fullmatch(r"[\d.]+\s*(kg|g)", m.get("unit") or "") and m.get("unit") != "1kg"
     })
     check("KAMIS 무게 단위가 가격과 같은 1kg", not odd_units, f"매칭 {len(price_body.get('matched', []))}개, 어긋난 단위 {odd_units}")
+    # 이 레시피에는 "주재료"·"장식" 구획 제목 행이 있다. 재료비가 그것을 재료로 세면 카드의
+    # "시세를 못 찾은 재료"에 제목이 재료처럼 나온다(2026-10-08에 고침).
+    listed = [e.get("ingredient") for e in price_body.get("excluded", [])] + price_body.get("unmatched", [])
+    titles = sorted({name for name in listed if name in ("주재료", "부재료", "장식", "양념", "양념장", "재료")})
+    check("재료비가 구획 제목을 재료로 세지 않는다", not titles, f"빠진 재료 {len(listed)}개 중 제목 {titles}")
 else:
     check("KAMIS 재료비(서울 소매가)", res.status_code == 503, f"{res.status_code} (503이면 KAMIS 일시 무응답)")
 
@@ -628,13 +633,20 @@ try:
         ", ".join(f"{e}={n}" for e, n in rows) or "없음",
     )
 
+    # 중복 제거는 시각을 10초 구간으로 나눠 같은 구간이면 한 줄로 합친다. 동시 요청 둘이 구간
+    # 경계를 사이에 두면 2줄이 남을 수 있다. 실패했을 때 그 경우인지 바로 알 수 있도록 각 행의
+    # 시각과 구간 번호를 같이 찍는다(2026-10-09: 2줄로 실패했는데 행이 정리돼 원인을 못 봤다).
     cur.execute(
-        "SELECT COUNT(*) FROM usage_events WHERE user_id = %s AND event = 'recipe_view' "
-        "AND recipe_id = %s AND created_at >= %s",
+        "SELECT created_at, dedupe_bucket FROM usage_events WHERE user_id = %s "
+        "AND event = 'recipe_view' AND recipe_id = %s AND created_at >= %s ORDER BY created_at",
         (user_id, RECIPE_ID, BURST_STARTED_AT),
     )
-    burst_rows = cur.fetchone()[0]
-    check("동시에 연 같은 레시피는 한 줄만 남는다", burst_rows == 1, f"{burst_rows}줄")
+    burst = cur.fetchall()
+    check(
+        "동시에 연 같은 레시피는 한 줄만 남는다",
+        len(burst) == 1,
+        f"{len(burst)}줄" + ("" if len(burst) == 1 else f" {[(str(at), bucket) for at, bucket in burst]}"),
+    )
     conn.close()
 except Exception as exc:  # noqa: BLE001
     check("사용 로그 확인", False, f"{type(exc).__name__}: {exc}")
