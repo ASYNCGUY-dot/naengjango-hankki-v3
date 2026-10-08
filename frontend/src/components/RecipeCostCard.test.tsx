@@ -98,14 +98,21 @@ describe('재료비 카드', () => {
     expect(await screen.findByText(/일부 재료는 더 이전 시세/)).toBeInTheDocument()
   })
 
-  it('등급을 매길 근거가 부족하면 등급을 보여주지 않는다', async () => {
-    signIn()
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(body({ tier: '정보부족' })))
-    renderWithProviders(<RecipeCostCard recipeId={67} />)
+  it.each(['가성비', '기본', '프리미엄', '정보부족'])(
+    '서버가 등급(%s)을 보내도 배지와 설명을 그리지 않고 금액만 보여준다',
+    async (tier) => {
+      // 등급은 실제 재료비와 거의 무관했다(2026-10-07 측정: 1인분 재료비 중앙값이 가성비
+      // 774원·기본 816원·프리미엄 843원, 47원짜리 배물김치가 프리미엄). 금액 옆에 붙으면
+      // 금액과 어긋나는 말을 하게 되므로 내렸다.
+      signIn()
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(body({ tier })))
+      renderWithProviders(<RecipeCostCard recipeId={67} />)
 
-    await screen.findByText('3,240원')
-    expect(screen.queryByText('정보부족')).not.toBeInTheDocument()
-  })
+      await screen.findByText('3,240원')
+      expect(screen.queryByText(tier)).not.toBeInTheDocument()
+      expect(screen.queryByText(/같은 부류 시세/)).not.toBeInTheDocument()
+    },
+  )
 
   it('계산할 재료가 하나도 없으면 금액 대신 그렇다고 말한다', async () => {
     signIn()

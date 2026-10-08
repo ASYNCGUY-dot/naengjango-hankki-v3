@@ -8,26 +8,9 @@
   background: var(--color-surface-raised);
 }
 
-.head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
 .card h2 {
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
-}
-
-.tier {
-  padding: 0.125rem var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
 }
 
 .guide {
@@ -50,8 +33,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.meta,
-.tierText {
+.meta {
   margin-top: var(--space-1);
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);

@@ -17,13 +17,13 @@ import styles from './RecipeCostCard.module.css'
  *   범위 밖이라 빠진다. 안 밝히면 "이 요리는 2천 원이면 되는구나"로 잘못 읽힌다
  * - **개수 단위를 무게로 바꾼 재료는 추정이다.** 계란 1구=60g처럼 평균 중량으로 환산했다
  * - **어느 날, 어디 시세인지.** 서버가 준 라벨("당일 (09/30)")을 그대로 쓴다
+ *
+ * 등급 배지(가성비·기본·프리미엄)는 내렸다(2026-10-09). 서버는 아직 `tier`를 보내지만
+ * 그리지 않는다. 등급은 재료의 kg당 가격이 같은 부류 중앙값보다 비싼지만 보고 쓰는 양은
+ * 보지 않아서, 실제 재료비와 거의 무관했다 - 1인분 재료비 중앙값이 가성비 774원·기본
+ * 816원·프리미엄 843원이었고, 47원짜리 배물김치가 프리미엄, 12,719원짜리 떡갈비가
+ * 가성비였다. 금액 옆에서 금액과 어긋나는 말을 하는 표시는 없는 편이 낫다.
  */
-
-const TIER_TEXT: Record<string, string> = {
-  가성비: '같은 부류 시세보다 싼 재료가 많아요',
-  기본: '같은 부류 시세와 비슷한 재료가 많아요',
-  프리미엄: '같은 부류 시세보다 비싼 재료가 많아요',
-}
 
 /** 10원 단위로 반올림한다. 시세 자체가 참고값이라 1원 단위는 거짓 정밀도다. */
 function won(amount: number): string {
@@ -98,15 +98,11 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
   const included = Array.isArray(price.included) ? price.included : []
   const excluded = Array.isArray(price.excluded) ? price.excluded : []
   const days = Array.isArray(price.basis?.price_days) ? price.basis.price_days : []
-  const tierText = TIER_TEXT[price.tier]
   const sorted = [...included].sort((a, b) => b.cost - a.cost)
 
   return (
     <section className={styles.card} aria-labelledby="cost-heading">
-      <div className={styles.head}>
-        {heading}
-        {tierText && <span className={styles.tier}>{price.tier}</span>}
-      </div>
+      {heading}
 
       {included.length === 0 ? (
         <p className={styles.guide}>KAMIS 시세로 계산할 수 있는 재료가 없어요.</p>
@@ -118,7 +114,6 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
           <p className={styles.meta}>
             {price.household_size}인분 기준 · 시세를 찾은 재료 {included.length}개
           </p>
-          {tierText && <p className={styles.tierText}>{tierText}</p>}
 
           <ul className={styles.list}>
             {sorted.map((item) => (
