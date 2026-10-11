@@ -26,9 +26,13 @@ import styles from './RecipeCostCard.module.css'
  */
 
 /** 10원 단위로 반올림한다. 시세 자체가 참고값이라 1원 단위는 거짓 정밀도다. */
+function roundToTen(amount: number): number {
+  return Math.round(amount / 10) * 10
+}
+
 function won(amount: number): string {
   if (amount > 0 && amount < 10) return '10원 미만'
-  return `${(Math.round(amount / 10) * 10).toLocaleString('ko-KR')}원`
+  return `${roundToTen(amount).toLocaleString('ko-KR')}원`
 }
 
 type State = 'loading' | 'ready' | 'unavailable' | 'hidden'
@@ -99,6 +103,13 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
   const excluded = Array.isArray(price.excluded) ? price.excluded : []
   const days = Array.isArray(price.basis?.price_days) ? price.basis.price_days : []
   const sorted = [...included].sort((a, b) => b.cost - a.cost)
+  // 합계는 화면에 보이는 줄 금액을 더한 값이다(2026-10-11). 서버의 합계는 반올림 전 값을 더한
+  // 것이라, 그것을 따로 반올림하면 줄을 더한 값과 10원씩 어긋난다 - 실제로 줄을 더하면
+  // 2,020원인데 합계가 2,030원으로 나와 계산이 틀린 것처럼 보였다. 어차피 "약"으로 쓰는 값이라
+  // 몇 원 차이보다 화면 안에서 맞아떨어지는 쪽을 택한다. 줄이 전부 10원 미만이라 더한 값이
+  // 0이면 서버 합계로 쓴다("0원"이라고 쓰지 않으려고).
+  const shownTotal = included.reduce((sum, item) => sum + roundToTen(item.cost), 0)
+  const totalText = won(shownTotal > 0 ? shownTotal : price.total_cost)
 
   return (
     <section className={styles.card} aria-labelledby="cost-heading">
@@ -109,7 +120,7 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
       ) : (
         <>
           <p className={styles.total}>
-            약 <strong>{won(price.total_cost)}</strong>
+            약 <strong>{totalText}</strong>
           </p>
           <p className={styles.meta}>
             {price.household_size}인분 기준 · 시세를 찾은 재료 {included.length}개

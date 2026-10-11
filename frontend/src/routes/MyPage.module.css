@@ -132,6 +132,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-3);
   list-style: none;
+  padding: 0;
 }
 
 /* 내가 등록한 것들로 가는 길. 즐겨찾기 아래, 로그아웃 위에 둔다. */

@@ -176,6 +176,29 @@ def test_css_uses_only_defined_tokens():
     assert not problems, "정의되지 않은 토큰:\n" + "\n".join(sorted(set(problems)))
 
 
+def test_lists_without_markers_also_drop_the_default_indent():
+    """목록 표시(●)를 없앤 규칙은 안쪽 여백도 정해야 한다 (2026-10-11).
+
+    전역 스타일은 margin만 0으로 만들고 padding은 그대로 둔다. 그래서 `list-style: none`만 적은
+    목록은 브라우저 기본값인 왼쪽 40px 들여쓰기가 남는다. 재료비 카드의 재료 줄이 제목보다
+    오른쪽으로 밀려 왼쪽만 비어 보였고, 같은 누락이 13곳(부족한 재료·영양·후기·상세 재료 목록·
+    냉장고 자동완성 등)에 있었다. 오류가 나지 않는 종류라 화면을 보기 전에는 모른다.
+
+    전역에서 한 번에 지우지 않는 이유: 표시가 있는 목록(약관의 ●)은 그 여백이 있어야 표시가
+    상자 안에 들어온다. 표시를 없앤 규칙만 본다.
+    """
+    frontend = TOKENS_CSS.parent.parent / "frontend" / "src"
+    problems = []
+    for css in sorted(frontend.rglob("*.css")):
+        text = re.sub(r"/\*.*?\*/", "", css.read_text(encoding="utf-8"), flags=re.S)
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text):
+            if "list-style: none" not in body:
+                continue
+            if not re.search(r"(?:^|[;\s])padding(?:-left|-inline|-inline-start)?\s*:", body):
+                problems.append(f"{css.relative_to(frontend)}: {selector.strip()}")
+    assert not problems, "list-style: none인데 padding을 정하지 않은 규칙:\n" + "\n".join(problems)
+
+
 def test_spacing_scale_is_multiples_of_four(light):
     for name, value in light.items():
         if not name.startswith("--space-"):

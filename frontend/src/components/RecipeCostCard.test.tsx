@@ -59,6 +59,48 @@ describe('재료비 카드', () => {
     expect(screen.getByText(/2인분 기준 · 시세를 찾은 재료 3개/)).toBeInTheDocument()
   })
 
+  it('합계는 화면에 보이는 줄 금액을 더한 값과 같다', async () => {
+    // 줄마다 10원 단위로 반올림하는데 합계만 반올림 전 값을 더해 반올림하면 어긋난다.
+    // 실제 화면에서 줄을 더하면 2,020원인데 합계가 2,030원으로 나왔다(2026-10-11).
+    // 여기서는 404+354+354=1,112원 -> 따로 반올림하면 1,110원, 줄을 더하면 400+350+350=1,100원.
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      json(
+        body({
+          total_cost: 1112,
+          included: [
+            { ingredient: '미나리', matched_name: '미나리', amount_g: 20, cost: 404, is_estimated: false, price_day: '당일 (10/11)' },
+            { ingredient: '달걀', matched_name: '계란', amount_g: 50, cost: 354, is_estimated: true, price_day: '당일 (10/11)' },
+            { ingredient: '닭가슴살', matched_name: '닭', amount_g: 60, cost: 354, is_estimated: false, price_day: '당일 (10/11)' },
+          ],
+        }),
+      ),
+    )
+    renderWithProviders(<RecipeCostCard recipeId={90} />)
+
+    expect(await screen.findByText('1,100원')).toBeInTheDocument()
+    expect(screen.queryByText('1,110원')).not.toBeInTheDocument()
+  })
+
+  it('줄이 전부 10원 미만이면 합계를 0원으로 쓰지 않는다', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      json(
+        body({
+          total_cost: 7,
+          included: [
+            { ingredient: '청양고추', matched_name: '풋고추', amount_g: 1, cost: 4, is_estimated: false, price_day: '당일 (10/11)' },
+            { ingredient: '양파', matched_name: '양파', amount_g: 1, cost: 3, is_estimated: false, price_day: '당일 (10/11)' },
+          ],
+        }),
+      ),
+    )
+    renderWithProviders(<RecipeCostCard recipeId={90} />)
+
+    await screen.findByText(/1인분|2인분/)
+    expect(screen.queryByText('0원')).not.toBeInTheDocument()
+  })
+
   it('어느 날, 어디 시세인지 서버가 준 그대로 밝힌다', async () => {
     signIn()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(body()))

@@ -39,6 +39,7 @@
   flex-direction: column;
   gap: var(--space-4);
   list-style: none;
+  padding: 0;
 }
 
 .card {
