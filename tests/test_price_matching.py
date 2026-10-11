@@ -480,7 +480,7 @@ def test_chili_sold_per_100g_costs_what_the_shop_charges(monkeypatch):
 def test_zero_price_is_treated_as_missing():
     """닭 절단육이 당일 0원으로 와서 닭 재료비가 0원으로 나왔다. 0은 값이 없는 것으로 본다."""
     item = {"dpr1": "0", "day1": "당일 (10/01)", "dpr2": "5,456", "day2": "1일전 (09/30)"}
-    assert price_agent._extract_price_and_day(item) == (5456.0, "1일전 (09/30)")
+    assert price_agent._extract_price_and_day(item) == (5456.0, "09/30")
     assert price_agent._extract_price_and_day({"dpr1": "0", "dpr2": "0"}) == (None, None)
 
 
@@ -524,7 +524,7 @@ def test_a_day_without_data_falls_back_to_the_day_before(monkeypatch):
     assert asked == [today.isoformat(), yesterday.isoformat()]
     assert items[0]["price"] == 1986.0
     # 어느 날 시세인지는 거슬러 올라간 날짜 그대로 밝힌다.
-    assert items[0]["price_day"] == f"당일 ({yesterday:%m/%d})"
+    assert items[0]["price_day"] == f"{yesterday:%m/%d}"
 
 
 def test_lookback_is_bounded_when_no_day_has_data(monkeypatch):
@@ -595,7 +595,27 @@ def test_price_comes_with_the_day_it_was_recorded():
     """당일 값이 없으면 1일 전, 1주일 전 순으로 내려가고, 어느 날 값인지 함께 준다."""
     item = {"dpr1": "-", "day1": "당일 (09/30)", "dpr2": "-", "day2": "1일전 (09/29)",
             "dpr3": "3,100", "day3": "1주일전 (09/23)"}
-    assert price_agent._extract_price_and_day(item) == (3100.0, "1주일전 (09/23)")
+    assert price_agent._extract_price_and_day(item) == (3100.0, "09/23")
+
+
+@pytest.mark.parametrize("label, shown", [
+    ("당일 (10/11)", "10/11"), ("1일전 (10/08)", "10/08"), ("1주일전 (10/01)", "10/01"),
+    ("2주일전 (09/24)", "09/24"),
+])
+def test_only_the_date_of_a_price_is_kept(label, shown):
+    """KAMIS 라벨의 "1일전" 같은 말은 버리고 날짜만 남긴다 (2026-10-11).
+
+    그 말은 **조회한 날짜** 기준이다. 연휴에 자료가 있는 날까지 거슬러 올라가 조회하면
+    (fetch_category_prices) 오늘 기준으로는 틀린 말이 된다 - 10월 11일 화면에 "1일전 (10/08)"이
+    나왔다. 날짜는 항상 맞으므로 날짜만 쓴다.
+    """
+    assert price_agent._price_date(label) == shown
+
+
+def test_a_label_without_a_date_is_passed_through():
+    """날짜를 못 읽으면 지어내지 않고 받은 그대로 둔다."""
+    assert price_agent._price_date("평년") == "평년"
+    assert price_agent._price_date(None) is None
 
 
 def test_prices_older_than_two_weeks_are_never_used():

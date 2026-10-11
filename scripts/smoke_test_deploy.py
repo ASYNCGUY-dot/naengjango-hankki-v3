@@ -563,6 +563,11 @@ if res.status_code == 200:
     listed = [e.get("ingredient") for e in price_body.get("excluded", [])] + price_body.get("unmatched", [])
     titles = sorted({name for name in listed if name in ("주재료", "부재료", "장식", "양념", "양념장", "재료")})
     check("재료비가 구획 제목을 재료로 세지 않는다", not titles, f"빠진 재료 {len(listed)}개 중 제목 {titles}")
+    # 시세 날짜는 "10/08"처럼 날짜만 온다. KAMIS 라벨의 "1일전" 같은 말은 조회한 날짜 기준이라
+    # 연휴에 거슬러 올라가 조회하면 틀린 말이 된다(2026-10-11에 화면에 "1일전 (10/08)"이 나왔다).
+    days = basis.get("price_days", [])
+    odd_days = [day for day in days if not re.fullmatch(r"\d{2}/\d{2}", day or "")]
+    check("시세 날짜가 날짜만으로 온다", bool(days) and not odd_days, f"{days}")
 else:
     check("KAMIS 재료비(서울 소매가)", res.status_code == 503, f"{res.status_code} (503이면 KAMIS 일시 무응답)")
 

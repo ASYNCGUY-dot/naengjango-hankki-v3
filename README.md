@@ -100,7 +100,7 @@ KAMIS의 kg 환산 응답은 **가격만 1kg당으로 바꾸고 단위 표기("1
 |---|---|
 | 백엔드 | FastAPI, psycopg2, Supabase(Postgres) — 라우터 21개, 엔드포인트 60경로 |
 | 프론트 | Vite, React 19, TypeScript 6, React Router 7 — 화면 16개 |
-| 테스트 | pytest 690개, Vitest 257개 |
+| 테스트 | pytest 695개, Vitest 257개 |
 | 배포 | Render (정적 사이트 + 웹 서비스), 무료 티어 |
 | 접근성 | Lighthouse 100점 (모바일) |
 
@@ -155,7 +155,7 @@ docs/         작업 기록
 받는다. `.env`의 `POSTGRES_URL`은 **운영 DB**를 가리킨다 — 로컬에서 서버를 띄우거나 스크립트를
 돌리면 운영 데이터에 닿는다. 테스트는 sqlite(`tests/fixtures/seed.sql`)로 돌아 운영에 닿지 않는다.
 
-**지금 상태.** 배포본은 `main`과 같다. pytest 690개, Vitest 257개, 배포 점검 58항목이 통과한다.
+**지금 상태.** 배포본은 `main`과 같다. pytest 695개, Vitest 257개, 배포 점검 59항목이 통과한다.
 최근 작업(9월 말~10월)은 [PROJECT_REPORT_V3.md](PROJECT_REPORT_V3.md) §4.4~§4.9에 날짜순으로
 있다 — 재료 구매 링크, KAMIS 재료비, 추천의 조미료 판정, 재료 이름 정리.
 
@@ -201,7 +201,7 @@ cd frontend && npm ci && npm run dev
 ./.venv/Scripts/python.exe scripts/smoke_test_deploy.py
 ```
 
-배포된 서비스를 58항목으로 실제로 태운다 — 가입부터 추천·즐겨찾기·후기·레시피 등록·자랑하기·피드백·구매 링크·KAMIS 재료비까지
+배포된 서비스를 59항목으로 실제로 태운다 — 가입부터 추천·즐겨찾기·후기·레시피 등록·자랑하기·피드백·구매 링크·KAMIS 재료비까지
 지인이 밟을 흐름 그대로다. CORS는 "Render 정적 사이트 → Render API"라는 경계에서만
 검증되므로 로컬 테스트가 덮지 못한다.
 

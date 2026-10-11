@@ -52,7 +52,8 @@ class IncludedCost(BaseModel):
     amount_g: float
     cost: float
     is_estimated: bool
-    # 어느 날 시세인지. "당일 (09/30)" / "1주일전 (09/23)" 같은 KAMIS 라벨 그대로.
+    # 어느 날 시세인지. "09/30"처럼 날짜만 준다. KAMIS 라벨의 "1일전" 같은 말은 조회한 날짜
+    # 기준이라, 연휴에 거슬러 올라가 조회하면 틀린 말이 된다(price_agent._price_date).
     price_day: str | None = None
 
 
@@ -66,7 +67,8 @@ class PriceBasis(BaseModel):
 
     provider: str
     market: str
-    # 재료비에 들어간 가격의 날짜 라벨. 많이 쓰인 순. 여럿이면 일부는 더 이전 시세라는 뜻이다.
+    # 재료비에 들어간 가격의 날짜("10/08"). 많이 쓰인 순. 여럿이면 날짜가 섞여 있다는 뜻이다 -
+    # 앞의 것이 가장 최근이라는 뜻은 아니다.
     price_days: list[str]
 
 

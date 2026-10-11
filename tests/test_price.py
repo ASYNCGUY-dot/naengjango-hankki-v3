@@ -217,8 +217,8 @@ def test_section_titles_are_not_listed_as_unpriced_ingredients(client, db_conn, 
 def test_price_response_says_where_and_when_the_prices_come_from(client, monkeypatch):
     """화면이 "KAMIS · 서울 소매가 · 09/30 기준"을 지어내지 않고 받아서 보여줘야 한다."""
     items = [
-        {**FAKE_KAMIS_ITEMS[0], "price_day": "당일 (09/30)"},
-        {**FAKE_KAMIS_ITEMS[1], "price_day": "1주일전 (09/23)"},
+        {**FAKE_KAMIS_ITEMS[0], "price_day": "09/30"},
+        {**FAKE_KAMIS_ITEMS[1], "price_day": "09/23"},
     ]
     monkeypatch.setattr(price_agent, "get_all_prices", lambda: items)
     user_id, headers = _signup_with_household_size_2(client, "u_price_basis")
@@ -230,5 +230,5 @@ def test_price_response_says_where_and_when_the_prices_come_from(client, monkeyp
     assert body["household_size"] == 2
     assert body["basis"]["provider"].startswith("KAMIS")
     assert body["basis"]["market"] == "서울 소매가"
-    assert set(body["basis"]["price_days"]) == {"당일 (09/30)", "1주일전 (09/23)"}
-    assert {i["price_day"] for i in body["included"]} == {"당일 (09/30)", "1주일전 (09/23)"}
+    assert set(body["basis"]["price_days"]) == {"09/30", "09/23"}
+    assert {i["price_day"] for i in body["included"]} == {"09/30", "09/23"}

@@ -23,16 +23,16 @@ function body(overrides: Record<string, unknown> = {}) {
     unmatched: [],
     total_cost: 3244.6,
     included: [
-      { ingredient: '양파', matched_name: '양파', amount_g: 200, cost: 500, is_estimated: false, price_day: '당일 (09/30)' },
-      { ingredient: '달걀', matched_name: '계란', amount_g: 120, cost: 800, is_estimated: true, price_day: '당일 (09/30)' },
-      { ingredient: '돼지고기(삼겹살)', matched_name: '돼지', amount_g: 300, cost: 1944.6, is_estimated: false, price_day: '당일 (09/30)' },
+      { ingredient: '양파', matched_name: '양파', amount_g: 200, cost: 500, is_estimated: false, price_day: '09/30' },
+      { ingredient: '달걀', matched_name: '계란', amount_g: 120, cost: 800, is_estimated: true, price_day: '09/30' },
+      { ingredient: '돼지고기(삼겹살)', matched_name: '돼지', amount_g: 300, cost: 1944.6, is_estimated: false, price_day: '09/30' },
     ],
     excluded: [
       { ingredient: '두부', reason: 'KAMIS 가격 매칭 안 됨' },
       { ingredient: '고추장', reason: 'KAMIS 가격 매칭 안 됨' },
     ],
     household_size: 2,
-    basis: { provider: 'KAMIS 농산물유통정보(aT)', market: '서울 소매가', price_days: ['당일 (09/30)'] },
+    basis: { provider: 'KAMIS 농산물유통정보(aT)', market: '서울 소매가', price_days: ['09/30'] },
     ...overrides,
   }
 }
@@ -69,9 +69,9 @@ describe('재료비 카드', () => {
         body({
           total_cost: 1112,
           included: [
-            { ingredient: '미나리', matched_name: '미나리', amount_g: 20, cost: 404, is_estimated: false, price_day: '당일 (10/11)' },
-            { ingredient: '달걀', matched_name: '계란', amount_g: 50, cost: 354, is_estimated: true, price_day: '당일 (10/11)' },
-            { ingredient: '닭가슴살', matched_name: '닭', amount_g: 60, cost: 354, is_estimated: false, price_day: '당일 (10/11)' },
+            { ingredient: '미나리', matched_name: '미나리', amount_g: 20, cost: 404, is_estimated: false, price_day: '10/11' },
+            { ingredient: '달걀', matched_name: '계란', amount_g: 50, cost: 354, is_estimated: true, price_day: '10/11' },
+            { ingredient: '닭가슴살', matched_name: '닭', amount_g: 60, cost: 354, is_estimated: false, price_day: '10/11' },
           ],
         }),
       ),
@@ -89,8 +89,8 @@ describe('재료비 카드', () => {
         body({
           total_cost: 7,
           included: [
-            { ingredient: '청양고추', matched_name: '풋고추', amount_g: 1, cost: 4, is_estimated: false, price_day: '당일 (10/11)' },
-            { ingredient: '양파', matched_name: '양파', amount_g: 1, cost: 3, is_estimated: false, price_day: '당일 (10/11)' },
+            { ingredient: '청양고추', matched_name: '풋고추', amount_g: 1, cost: 4, is_estimated: false, price_day: '10/11' },
+            { ingredient: '양파', matched_name: '양파', amount_g: 1, cost: 3, is_estimated: false, price_day: '10/11' },
           ],
         }),
       ),
@@ -107,7 +107,7 @@ describe('재료비 카드', () => {
     renderWithProviders(<RecipeCostCard recipeId={67} />)
 
     expect(
-      await screen.findByText(/KAMIS 농산물유통정보\(aT\) · 서울 소매가 · 당일 \(09\/30\) 기준/),
+      await screen.findByText(/KAMIS 농산물유통정보\(aT\) · 서울 소매가 · 09\/30 기준/),
     ).toBeInTheDocument()
   })
 
@@ -130,14 +130,17 @@ describe('재료비 카드', () => {
     expect(screen.getAllByText('추정')).toHaveLength(1)
   })
 
-  it('시세 날짜가 섞여 있으면 일부는 더 이전 값이라고 알린다', async () => {
+  it('시세 날짜가 섞여 있으면 일부는 다른 날 값이라고 알린다', async () => {
+    // "더 이전"이라고 쓰지 않는다. 가장 많은 날짜를 앞에 쓰는데, 나머지가 더 최근일 수도 있다
+    // (연휴에는 대부분 10/08 시세이고 축산물만 10/11이었다).
     signIn()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      json(body({ basis: { provider: 'KAMIS', market: '서울 소매가', price_days: ['당일 (09/30)', '1주일전 (09/23)'] } })),
+      json(body({ basis: { provider: 'KAMIS', market: '서울 소매가', price_days: ['10/08', '10/11'] } })),
     )
     renderWithProviders(<RecipeCostCard recipeId={67} />)
 
-    expect(await screen.findByText(/일부 재료는 더 이전 시세/)).toBeInTheDocument()
+    expect(await screen.findByText(/10\/08 기준 \(일부 재료는 다른 날 시세\)/)).toBeInTheDocument()
+    expect(screen.queryByText(/더 이전/)).not.toBeInTheDocument()
   })
 
   it.each(['가성비', '기본', '프리미엄', '정보부족'])(

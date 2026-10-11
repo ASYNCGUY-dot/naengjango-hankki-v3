@@ -243,12 +243,24 @@ def _extract_price(item: dict) -> float | None:
     return _extract_price_and_day(item)[0]
 
 
+def _price_date(label: str | None) -> str | None:
+    """KAMIS 날짜 라벨("1일전 (10/08)")에서 날짜("10/08")만 남긴다 (2026-10-11).
+
+    "당일"·"1일전" 같은 말은 **조회한 날짜** 기준이다. 연휴에 자료가 있는 날까지 거슬러 올라가
+    조회하면(fetch_category_prices) 오늘 기준으로는 틀린 말이 된다 - 10월 11일 화면에 "1일전
+    (10/08)"이 나왔다. 날짜는 항상 맞으므로 날짜만 쓴다. 날짜를 못 읽으면 지어내지 않고 받은
+    그대로 둔다.
+    """
+    found = re.search(r"\((\d{2}/\d{2})\)", label or "")
+    return found.group(1) if found else label
+
+
 def _extract_price_and_day(item: dict) -> tuple[float | None, str | None]:
-    """가격과, 그 가격이 어느 날 값인지("당일 (09/30)")를 함께 준다.
+    """가격과, 그 가격이 어느 날 값인지("09/30")를 함께 준다.
 
     칸의 뜻은 KAMIS 응답의 day1~day7 라벨로 확인했다(2026-09-29): dpr1 당일, dpr2 1일전,
     dpr3 1주일전, dpr4 2주일전, dpr5 1개월전, dpr6 1년전, dpr7 평년. 2주일 전(dpr4)까지만
-    쓴다 - 그보다 오래된 값을 오늘 재료비로 보여주면 안 된다. 화면은 이 라벨로 "몇 월 며칠
+    쓴다 - 그보다 오래된 값을 오늘 재료비로 보여주면 안 된다. 화면은 이 날짜로 "몇 월 며칠
     시세인지"를 밝힌다.
     """
     for n in (1, 2, 3, 4):
@@ -260,7 +272,7 @@ def _extract_price_and_day(item: dict) -> tuple[float | None, str | None]:
                 continue
             # 0원은 값이 없는 것이다. 닭 절단육이 당일 "0"으로 와서 닭 재료비가 0원으로 나왔다.
             if price > 0:
-                return price, item.get(f"day{n}")
+                return price, _price_date(item.get(f"day{n}"))
     return None, None
 
 
