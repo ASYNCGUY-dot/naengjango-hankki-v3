@@ -539,6 +539,72 @@ def test_lookback_is_bounded_when_no_day_has_data(monkeypatch):
     assert len(asked) == price_agent.MAX_LOOKBACK_DAYS
 
 
+# ---------- 인증값 보호 (2026-10-16) ----------
+#
+# KAMIS 인증 ID·키는 요청 쿼리에 들어간다. 요청을 http://로 보내면 KAMIS가 https://로 돌려보내는데,
+# 그 전에 인증값이 담긴 첫 요청이 암호화되지 않은 채 나간다(실측: 리다이렉트 1회). 또 requests의
+# 연결 오류·시간 초과 메시지에는 쿼리를 포함한 주소 전체가 들어 있어서(실측), 그 메시지를 그대로
+# 출력하면 서버 로그에 인증 키가 남는다.
+
+FAKE_KEY = "FAKE-CERT-KEY-12345"
+FAKE_ID = "fake-cert-id"
+
+
+def _raising_get(exc):
+    def fake_get(url, params=None, timeout=None):
+        query = "&".join(f"{k}={v}" for k, v in (params or {}).items())
+        raise exc(f"Max retries exceeded with url: /service/price/xml.do?{query}")
+    return fake_get
+
+
+def test_kamis_is_called_over_https(monkeypatch):
+    seen = []
+
+    class FakeResponse:
+        def json(self):
+            return {"data": {"error_code": "000", "item": [_ONE_KAMIS_ROW]}}
+
+    def fake_get(url, params=None, timeout=None):
+        seen.append(url)
+        return FakeResponse()
+
+    monkeypatch.setattr(price_agent.requests, "get", fake_get)
+    price_agent.fetch_category_prices("200")
+    assert seen and all(url.startswith("https://") for url in seen)
+
+
+@pytest.mark.parametrize("exc", [
+    price_agent.requests.exceptions.ConnectionError,
+    price_agent.requests.exceptions.ConnectTimeout,
+    price_agent.requests.exceptions.ReadTimeout,
+])
+def test_failure_log_never_contains_credentials(monkeypatch, capsys, exc):
+    monkeypatch.setattr(price_agent, "CERT_KEY", FAKE_KEY)
+    monkeypatch.setattr(price_agent, "CERT_ID", FAKE_ID)
+    monkeypatch.setattr(price_agent.requests, "get", _raising_get(exc))
+
+    assert price_agent.fetch_category_prices("200") == []
+    out = capsys.readouterr()
+    logged = out.out + out.err
+    assert FAKE_KEY not in logged and FAKE_ID not in logged
+    # 무엇이 실패했는지는 남긴다 - 부류와 오류 종류.
+    assert "200" in logged and exc.__name__ in logged
+
+
+def test_broken_json_log_never_contains_credentials(monkeypatch, capsys):
+    monkeypatch.setattr(price_agent, "CERT_KEY", FAKE_KEY)
+    monkeypatch.setattr(price_agent, "CERT_ID", FAKE_ID)
+
+    class BrokenResponse:
+        def json(self):
+            raise ValueError(f"Expecting value: p_cert_key={FAKE_KEY}")
+
+    monkeypatch.setattr(price_agent.requests, "get", lambda *a, **k: BrokenResponse())
+    assert price_agent.fetch_category_prices("200") == []
+    out = capsys.readouterr()
+    assert FAKE_KEY not in out.out + out.err
+
+
 def test_a_network_failure_does_not_walk_back(monkeypatch):
     """응답 자체가 없으면 날짜 탓이 아니다. 하루씩 다시 물어봐야 같은 실패만 반복된다."""
     calls = []

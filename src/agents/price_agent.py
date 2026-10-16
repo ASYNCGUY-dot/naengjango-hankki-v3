@@ -301,7 +301,10 @@ def fetch_category_prices(category_code: str) -> list[dict]:
     못해 AttributeError가 났고, 라우터가 503으로 바꿔서 일요일마다 재료비 카드가 안 나왔다.
     어느 날 시세인지는 응답의 날짜 라벨이 그대로 말해 준다.
     """
-    url = "http://www.kamis.or.kr/service/price/xml.do"
+    # https로 부른다(2026-10-16). 인증 ID·키가 쿼리에 들어가는데, http로 보내면 KAMIS가 https로
+    # 돌려보내기 전에 첫 요청이 암호화되지 않은 채 나간다(실측: 리다이렉트 1회). https가 실패해도
+    # http로 되돌아가지 않는다.
+    url = "https://www.kamis.or.kr/service/price/xml.do"
     payload = None
     for days_back in range(MAX_LOOKBACK_DAYS):
         params = {
@@ -322,7 +325,9 @@ def fetch_category_prices(category_code: str) -> list[dict]:
             data = response.json()
         except (requests.exceptions.RequestException, ValueError) as e:
             # 응답 자체가 없으면 날짜 탓이 아니다. 거슬러 올라가도 같은 실패만 반복된다.
-            print(f"(경고) KAMIS 부류코드 {category_code} 조회 실패: {e}")
+            # 오류 **종류만** 남긴다. requests의 연결 오류·시간 초과 메시지에는 쿼리를 포함한 주소
+            # 전체가 들어 있어서(실측), 메시지를 그대로 찍으면 서버 로그에 인증 키가 남는다.
+            print(f"(경고) KAMIS 부류코드 {category_code} 조회 실패: {type(e).__name__}")
             return []
 
         payload = data.get("data") if isinstance(data, dict) else None

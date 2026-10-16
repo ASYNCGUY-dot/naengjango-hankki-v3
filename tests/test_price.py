@@ -214,6 +214,26 @@ def test_section_titles_are_not_listed_as_unpriced_ingredients(client, db_conn, 
     assert body["total_cost"] == 475.0
 
 
+def test_kamis_failure_never_puts_credentials_in_the_response_or_log(client, monkeypatch, capsys):
+    """KAMIS 연결이 끊겨도 인증값이 API 응답이나 서버 로그에 나오지 않는다 (2026-10-16)."""
+    fake_key = "FAKE-CERT-KEY-12345"
+    monkeypatch.setattr(price_agent, "CERT_KEY", fake_key)
+    monkeypatch.setattr(price_agent, "CERT_ID", "fake-cert-id")
+
+    def down(url, params=None, timeout=None):
+        query = "&".join(f"{k}={v}" for k, v in (params or {}).items())
+        raise requests.exceptions.ConnectionError(f"Max retries exceeded with url: /service/price/xml.do?{query}")
+
+    monkeypatch.setattr(price_agent.requests, "get", down)
+    user_id, headers = _signup(client, "u_price_secret")
+    res = client.get(f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": user_id}, headers=headers)
+
+    assert res.status_code == 503
+    assert fake_key not in res.text
+    out = capsys.readouterr()
+    assert fake_key not in out.out + out.err
+
+
 def test_price_response_says_where_and_when_the_prices_come_from(client, monkeypatch):
     """화면이 "KAMIS · 서울 소매가 · 09/30 기준"을 지어내지 않고 받아서 보여줘야 한다."""
     items = [
