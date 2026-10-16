@@ -413,6 +413,9 @@ def match_ingredient_price(ingredient_name: str, all_items: list[dict]) -> dict 
     - 띄어쓰기는 양쪽 다 없애고 비교한다(2026-10-08). 레시피는 "붉은 고추", KAMIS는 "붉은고추"로
       쓰고, KAMIS 품종 쪽에 띄어쓰기가 있는 경우("흰 콩")도 있다.
     - 그래도 못 찾으면, 확인해 둔 품목(_HEAD_ITEMS)에 한해 이름의 끝말로 찾는다.
+
+    돌려주는 품목에는 match_basis(이 가격이 재료와 어떤 관계인지)를 붙인다 - MATCH_BASES 참고.
+    원본 품목 dict는 캐시에 들어 있는 것이라 고치지 않고 사본을 돌려준다.
     """
     base, hint = _base_and_hint(ingredient_name)
     base, hint = _compact(base), _compact(hint)
@@ -420,25 +423,44 @@ def match_ingredient_price(ingredient_name: str, all_items: list[dict]) -> dict 
         return None  # 빈 이름은 모든 품목 이름의 부분 문자열이라 아무 데나 붙는다
 
     found = _find_item(base, hint, all_items)
-    if found is not None:
-        return found
+    if found is None:
+        # 앞에 색·손질이 붙은 이름("노랑파프리카", "다진양파"). 위에서 못 찾았을 때만 본다 - 이름이
+        # 그대로 KAMIS에 있으면(양배추, 알배기배추) 그쪽이 먼저다.
+        if base in _NOT_THE_ITEM or base.startswith(_NOT_FRESH_PREFIXES):
+            return None
+        head = next((h for h in _HEAD_ITEMS if base.endswith(h)), None)
+        if head is None:
+            return None
+        found = _find_item(head, hint, all_items)
+        if found is None:
+            return None
+    item, basis = found
+    return {**item, "match_basis": basis}
 
-    # 앞에 색·손질이 붙은 이름("노랑파프리카", "다진양파"). 위에서 못 찾았을 때만 본다 - 이름이
-    # 그대로 KAMIS에 있으면(양배추, 알배기배추) 그쪽이 먼저다.
-    if base in _NOT_THE_ITEM or base.startswith(_NOT_FRESH_PREFIXES):
-        return None
-    for head in _HEAD_ITEMS:
-        if base.endswith(head):
-            return _find_item(head, hint, all_items)
-    return None
+
+# 매칭된 가격이 재료와 어떤 관계인지 (2026-10-16, 인계서 작업 A).
+#
+# 예전에는 이 구분이 없어서, 닭가슴살에 닭 전체 시세가, 삼겹살 시세가 없을 때 목심 시세가,
+# 새우에 건새우 시세가 **정확한 값처럼** 계산에 들어갔다. is_estimated는 개수를 무게로 바꾼
+# 추정만 뜻하므로 여기에 섞지 않는다.
+MATCH_EXACT = "exact"                    # 품목·품종이 재료와 같다
+MATCH_REPRESENTATIVE = "representative"  # 품목은 맞지만 품종·부위가 안 적혀 있어 가운데 값을 썼다
+MATCH_OTHER_CUT = "other_cut"            # 재료가 적은 부위·품종의 시세가 없어 다른 부위·전체 값을 썼다
+MATCH_OTHER_STATE = "other_state"        # 생물 재료에 말린 품목처럼 상태가 다른 품목 값을 썼다
+MATCH_BASES = (MATCH_EXACT, MATCH_REPRESENTATIVE, MATCH_OTHER_CUT, MATCH_OTHER_STATE)
+
+# KAMIS에 부위 가격이 없어 닭 전체(육계) 값으로 보내는 부위들(MEAT_SYNONYMS 중).
+_PART_TO_WHOLE = {"닭가슴살", "닭다리살", "닭다릿살", "닭봉", "닭날개", "닭안심살"}
+# 다른 품종으로 보내는 채소 동의어(VEGETABLE_SYNONYMS 중). 단호박은 애호박·쥬키니가 아니다.
+_OTHER_KIND_SYNONYMS = {"단호박"}
 
 
 def _compact(text: str | None) -> str:
     return (text or "").replace(" ", "")
 
 
-def _find_item(base: str, hint: str, all_items: list[dict]) -> dict | None:
-    """띄어쓰기를 없앤 이름(base)과 품종 힌트(hint)로 KAMIS 품목 하나를 찾는다."""
+def _find_item(base: str, hint: str, all_items: list[dict]) -> tuple[dict, str] | None:
+    """띄어쓰기를 없앤 이름(base)과 품종 힌트(hint)로 KAMIS 품목 하나와 매칭 근거를 찾는다."""
     # 0) 표기만 다른 이름을 KAMIS 쪽 이름으로 바꾼다. 품종 이름으로 바꾸는 것(주키니호박 ->
     #    쥬키니)이 있어서 품종 찾기보다 먼저 한다.
     base = NAME_SYNONYMS.get(base, base)
@@ -454,7 +476,7 @@ def _find_item(base: str, hint: str, all_items: list[dict]) -> dict | None:
     if kind_hits:
         pool = [i for i in kind_hits if "수입" not in i["item_name"]] or kind_hits
         if len({i["item_name"] for i in pool}) == 1:
-            return _prefer_domestic(pool)
+            return _prefer_domestic(pool), MATCH_EXACT
 
     search_key = _compact(VEGETABLE_SYNONYMS.get(base) or MEAT_SYNONYMS.get(base) or base)
 
@@ -465,14 +487,34 @@ def _find_item(base: str, hint: str, all_items: list[dict]) -> dict | None:
             if _compact(i["item_name"]) == search_key and _compact(_kind_base(i.get("kind_name"))) == hint
         ]
         if hinted:
-            return _prefer_domestic(hinted)
+            return _prefer_domestic(hinted), MATCH_EXACT
 
     exact_matches = [i for i in all_items if _compact(i["item_name"]) == search_key]
     matches = exact_matches if exact_matches else [i for i in all_items if search_key in _compact(i["item_name"])]
     if not matches:
         return None
 
-    return _prefer_domestic(matches)
+    chosen = _prefer_domestic(matches)
+    return chosen, _basis_of_fallback(base, hint, search_key, chosen, matches)
+
+
+def _basis_of_fallback(base: str, hint: str, search_key: str, chosen: dict, matches: list[dict]) -> str:
+    """품종으로 바로 찾지 못하고 품목으로 찾았을 때, 그 가격이 재료와 어떤 관계인지."""
+    if hint or base in _PART_TO_WHOLE or base in _OTHER_KIND_SYNONYMS:
+        # 재료가 부위·품종을 적었는데(괄호 힌트, 닭가슴살, 단호박) 그 시세가 없어 다른 것을 썼다.
+        return MATCH_OTHER_CUT
+    item = _compact(chosen["item_name"])
+    if item != search_key and item.endswith(search_key) and item[: -len(search_key)] in _NOT_FRESH_PREFIXES:
+        # "새우"가 "건새우"에 붙었다. 이름이 들어 있다고 같은 상태의 재료는 아니다.
+        return MATCH_OTHER_STATE
+    domestic = [m for m in matches if "수입" not in m["item_name"] and "수입" not in (m.get("kind_name") or "")]
+    pool = [m for m in (domestic or matches) if m.get("unit") == chosen.get("unit")]
+    kinds = {(m["item_name"], _kind_base(m.get("kind_name"))) for m in pool}
+    if item != search_key or len(kinds) > 1:
+        # 품종·부위가 여럿인데 재료가 안 적었다("쇠고기", "오이"), 또는 넓은 이름("버섯")이
+        # 좁은 품목에 붙었다. 가운데 값을 대표로 썼다.
+        return MATCH_REPRESENTATIVE
+    return MATCH_EXACT
 
 
 def _kind_base(kind_name: str | None) -> str:

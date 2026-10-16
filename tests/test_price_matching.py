@@ -296,6 +296,63 @@ def test_chopped_onion_is_still_an_ingredient():
     assert not price_agent.is_price_staple("다진양파")
 
 
+# ---------- 매칭 근거 (2026-10-16, 외부 검토 인계서 작업 A) ----------
+#
+# 닭가슴살에 닭 전체 시세가, 삼겹살 시세가 없을 때 목심 시세가, 새우에 건새우 시세가 **정확한 값처럼**
+# 계산에 들어갔다(인계서의 재현 사례, 순수 함수로 확인). 그 값을 계산에서 뺄지 "대체"로 보여 줄지는
+# 사용자가 정한다. 어느 쪽이든 먼저 "이 가격이 재료와 어떤 관계인지"를 구분해야 한다.
+
+def _basis(name, items):
+    m = price_agent.match_ingredient_price(name, items)
+    return m["match_basis"] if m else None
+
+
+@pytest.mark.parametrize("name, items, expected", [
+    # 인계서의 실패 사례 세 건
+    ("닭가슴살", [_item("닭", "육계(kg)", price=6000, category_code="500")], price_agent.MATCH_OTHER_CUT),
+    ("돼지고기(삼겹살)", [_item("돼지", "목심", price=20000, category_code="500")], price_agent.MATCH_OTHER_CUT),
+    ("새우", [_item("건새우", "건새우(1kg)", price=10000, category_code="600")], price_agent.MATCH_OTHER_STATE),
+    # 부위·품종을 적었는데 그 시세가 없다
+    ("소고기(우둔", [_item("소", "양지", price=79000, category_code="500"), _item("소", "설도", price=45000, category_code="500")],
+     price_agent.MATCH_OTHER_CUT),
+    ("단호박", [_item("호박", "애호박(1개)", price=1500, unit="1개"), _item("호박", "쥬키니(1개)", price=2500, unit="1개")],
+     price_agent.MATCH_OTHER_CUT),
+])
+def test_a_price_for_another_cut_or_state_is_marked(name, items, expected):
+    assert _basis(name, items) == expected
+
+
+@pytest.mark.parametrize("name, items", [
+    ("돼지고기(삼겹살)", [_item("돼지", "목심", price=20000, category_code="500"),
+                         _item("돼지", "삼겹살", price=30000, category_code="500")]),
+    ("삼겹살", [_item("돼지", "삼겹살", price=30000, category_code="500")]),
+    ("달걀", [_item("계란", "특란10구", price=4000, unit="10구", category_code="500")]),
+    ("양파", [_item("양파", "양파(1kg)", price=2000)]),
+    ("노랑 파프리카", [_item("파프리카", "파프리카(1개)", price=2000, unit="1개")]),
+    ("청양고추", [_item("풋고추", "꽈리고추(1kg)", price=15000), _item("풋고추", "청양고추(1kg)", price=12000)]),
+    ("브로컬리", [_item("브로콜리", "브로콜리(1개)", price=3000, unit="1개")]),
+])
+def test_the_same_item_and_kind_is_exact(name, items):
+    assert _basis(name, items) == price_agent.MATCH_EXACT
+
+
+@pytest.mark.parametrize("name, items", [
+    ("쇠고기", [_item("소", "안심", price=190000, category_code="500"), _item("소", "양지", price=79000, category_code="500")]),
+    ("오이", [_item("오이", "가시계통(10개)", price=9000, unit="10개"), _item("오이", "다다기계통(10개)", price=8000, unit="10개")]),
+    ("버섯", [_item("느타리버섯", "느타리버섯(1kg)", price=20000, category_code="300")]),
+])
+def test_an_unspecified_cut_or_kind_is_a_representative_price(name, items):
+    """재료가 부위·품종을 안 적었다. 다른 것을 쓴 게 아니라 가운데 값을 대표로 쓴 것이다."""
+    assert _basis(name, items) == price_agent.MATCH_REPRESENTATIVE
+
+
+def test_matching_does_not_write_into_the_cached_price_list():
+    """돌려주는 것은 사본이다. 캐시에 든 품목에 match_basis가 붙으면 다음 요청에 섞인다."""
+    items = [_item("닭", "육계(kg)", price=6000, category_code="500")]
+    price_agent.match_ingredient_price("닭가슴살", items)
+    assert "match_basis" not in items[0]
+
+
 # ---------- 이름만 다른 것 ----------
 
 @pytest.mark.parametrize(
