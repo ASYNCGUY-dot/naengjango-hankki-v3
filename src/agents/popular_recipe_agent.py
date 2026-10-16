@@ -42,7 +42,8 @@ def _get_view_counts(video_ids: list[str]) -> dict[str, int]:
         response = requests.get(url, params=params, timeout=10)
         items = response.json().get("items", [])
     except Exception as e:
-        print(f"(경고) 조회수 확인 실패: {e}")
+        # 오류 종류만 남긴다. 메시지에는 key가 든 요청 주소 전체가 들어 있다(2026-10-16).
+        print(f"(경고) 조회수 확인 실패: {type(e).__name__}")
         return {}
 
     return {item["id"]: int(item.get("statistics", {}).get("viewCount", 0)) for item in items}
@@ -69,7 +70,8 @@ def _search_videos(query: str, max_results: int = 5) -> list[dict]:
         response = requests.get(url, params=params, timeout=10)
         items = response.json().get("items", [])
     except Exception as e:
-        print(f"(경고) 유튜브 검색 실패 ({query}): {e}")
+        # 오류 종류만 남긴다. 메시지에는 key가 든 요청 주소 전체가 들어 있다(2026-10-16).
+        print(f"(경고) 유튜브 검색 실패 ({query}): {type(e).__name__}")
         return []
 
     video_ids = [item["id"]["videoId"] for item in items if item.get("id", {}).get("videoId")]

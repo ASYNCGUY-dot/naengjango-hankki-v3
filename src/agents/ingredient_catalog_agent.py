@@ -233,7 +233,8 @@ def run_bulk_collect(max_pages_per_run: int = DEFAULT_MAX_PAGES_PER_RUN):
             time.sleep(REQUEST_DELAY_SEC)
 
     except requests.exceptions.RequestException as e:
-        print(f"(오류) 네트워크 문제로 중단되었습니다: {e}")
+        # 오류 종류만 남긴다. 메시지에는 serviceKey가 든 요청 주소 전체가 들어 있다(2026-10-16).
+        print(f"(오류) 네트워크 문제로 중단되었습니다: {type(e).__name__}")
         print("지금까지 받은 내용은 저장되어 있으니, 나중에 다시 실행하면 이어서 받습니다.")
     finally:
         conn.close()

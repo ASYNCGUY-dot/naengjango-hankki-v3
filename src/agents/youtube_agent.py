@@ -38,7 +38,8 @@ def search_youtube_video(query: str) -> str | None:
         response = requests.get(url, params=params, timeout=10)
         data = response.json()
     except Exception as e:
-        print(f"(경고) 유튜브 검색 실패 ({query}): {e}")
+        # 오류 종류만 남긴다. 메시지에는 key가 든 요청 주소 전체가 들어 있다(2026-10-16).
+        print(f"(경고) 유튜브 검색 실패 ({query}): {type(e).__name__}")
         return None
 
     # HTTP 상태 코드가 200이 아니거나 응답 JSON에 "error" 키가 있으면

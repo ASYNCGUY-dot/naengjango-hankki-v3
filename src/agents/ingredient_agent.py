@@ -84,7 +84,8 @@ def match_nutrition(ingredient_name: str) -> dict | None:
             print(f"  (경고) '{ingredient_name}' 재시도도 실패해서 건너뜁니다.")
             return None
         except requests.exceptions.RequestException as e:
-            print(f"  (경고) '{ingredient_name}' 요청 중 오류: {e}")
+            # 오류 종류만 남긴다. 메시지에는 serviceKey가 든 요청 주소 전체가 들어 있다(2026-10-16).
+            print(f"  (경고) '{ingredient_name}' 요청 중 오류: {type(e).__name__}")
             return None
 
     data = response.json()
