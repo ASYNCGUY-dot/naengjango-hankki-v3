@@ -95,6 +95,16 @@
   line-height: var(--line-height-base);
 }
 
+/* 다른 부위·상태 시세라서 뺀 재료와 그 이유. 빠진 재료 문단 바로 아래에 붙여 읽힌다. */
+.substitutes {
+  list-style: none;
+  padding: 0;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-base);
+}
+
 /* 출처는 KAMIS 데이터를 썼다는 표시라 접거나 흐리게 숨기지 않는다. */
 .source {
   padding-top: var(--space-2);

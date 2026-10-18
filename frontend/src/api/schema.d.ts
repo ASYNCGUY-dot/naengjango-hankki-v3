@@ -1253,6 +1253,8 @@ export interface components {
             ingredient: string;
             /** Reason */
             reason: string;
+            /** Reason Code */
+            reason_code: string;
         };
         /** ExpiryUpdateRequest */
         ExpiryUpdateRequest: {
@@ -1305,10 +1307,18 @@ export interface components {
             ingredient: string;
             /** Is Estimated */
             is_estimated: boolean;
+            /** Match Basis */
+            match_basis: string;
+            /** Matched Kind */
+            matched_kind?: string | null;
             /** Matched Name */
             matched_name: string;
             /** Price Day */
             price_day?: string | null;
+            /** Unit */
+            unit: string;
+            /** Unit Price */
+            unit_price: number;
         };
         /** IngredientDisplayItem */
         IngredientDisplayItem: {

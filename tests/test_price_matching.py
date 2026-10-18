@@ -346,6 +346,85 @@ def test_an_unspecified_cut_or_kind_is_a_representative_price(name, items):
     assert _basis(name, items) == price_agent.MATCH_REPRESENTATIVE
 
 
+# ---------- 다른 부위·상태는 재료비에서 뺀다 (2026-10-17, 사용자 결정) ----------
+#
+# 정한 것: 다른 부위·상태의 시세는 합계에 넣지 않고 "빠진 재료"에 이유를 단다. KAMIS에 정확한
+# 부위 시세가 없으니 그 값이 얼마나 틀렸는지 잴 방법도 없어서다. 부위·품종을 안 적은 재료는
+# 같은 품목의 가운데 값(대표값)으로 넣되 표시한다. 멸치·다시마·미역은 레시피에서 원래 말린 것을
+# 쓰므로 말린 품목 시세가 정확한 값이다.
+
+def _cost(rows, items):
+    return price_agent.estimate_recipe_total_cost(
+        [{"name": n, "amount": g, "unit": "g" if g is not None else None} for n, g in rows], items,
+    )
+
+
+def test_other_cut_and_state_are_left_out_of_the_cost_with_a_reason():
+    items = [
+        _item("닭", "육계(kg)", price=6000, category_code="500"),
+        _item("돼지", "목심", price=20000, category_code="500"),
+        _item("건새우", "건새우(1kg)", price=10000, category_code="600"),
+        _item("양파", "양파(1kg)", price=2000),
+    ]
+    result = _cost([("닭가슴살", 100), ("돼지고기(삼겹살)", 100), ("새우", 100), ("양파", 100)], items)
+
+    assert [i["ingredient"] for i in result["included"]] == ["양파"]
+    assert result["total_cost"] == pytest.approx(200)
+    codes = {e["ingredient"]: e["reason_code"] for e in result["excluded"]}
+    assert codes == {
+        "닭가슴살": price_agent.MATCH_OTHER_CUT,
+        "돼지고기(삼겹살)": price_agent.MATCH_OTHER_CUT,
+        "새우": price_agent.MATCH_OTHER_STATE,
+    }
+    # 무엇의 시세만 있었는지 이유에 밝힌다.
+    reasons = {e["ingredient"]: e["reason"] for e in result["excluded"]}
+    assert "닭" in reasons["닭가슴살"] and "목심" in reasons["돼지고기(삼겹살)"] and "건새우" in reasons["새우"]
+
+
+def test_a_representative_price_is_included_and_marked():
+    beef = [
+        _item("소", "안심", price=190000, category_code="500"),
+        _item("소", "양지", price=79000, category_code="500"),
+        _item("소", "설도", price=45000, category_code="500"),
+    ]
+    row = _cost([("쇠고기", 100)], beef)["included"][0]
+    assert row["match_basis"] == price_agent.MATCH_REPRESENTATIVE
+    assert row["matched_kind"] == "양지"
+    assert row["cost"] == pytest.approx(7900)  # 양지 79,000원/kg x 0.1kg
+
+
+def test_included_rows_say_which_price_was_used():
+    """적용한 품목·품종·단위·단가를 응답에서 추적할 수 있어야 한다(인계서 작업 A)."""
+    row = _cost([("청양고추", 10)], [_item("풋고추", "청양고추(1kg)", price=12000)])["included"][0]
+    assert (row["matched_name"], row["matched_kind"], row["unit"], row["unit_price"], row["match_basis"]) == (
+        "풋고추", "청양고추", "1kg", 12000, price_agent.MATCH_EXACT,
+    )
+
+
+def test_every_excluded_row_has_a_reason_code():
+    result = _cost([("두부", 100), ("양파", None)], [_item("양파", "양파(1kg)", price=2000)])
+    assert {e["ingredient"]: e["reason_code"] for e in result["excluded"]} == {"두부": "no_match", "양파": "no_amount"}
+
+
+@pytest.mark.parametrize("name, item", [("멸치", "마른멸치"), ("다시마", "건다시마"), ("미역", "마른미역")])
+def test_ingredients_usually_used_dried_get_the_dried_price_as_exact(name, item):
+    """국물용 멸치·다시마는 원래 말린 것이다. 멸치액젓(이름에 "멸치"가 든 다른 품목)에는 붙지 않는다."""
+    items = [
+        _item("멸치액젓", "멸치액젓(1kg)", price=5800, category_code="600"),
+        _item(item, f"{item}(1kg)", price=30000, category_code="600"),
+    ]
+    matched = price_agent.match_ingredient_price(name, items)
+    assert matched["item_name"] == item
+    assert matched["match_basis"] == price_agent.MATCH_EXACT
+
+
+def test_fresh_shrimp_still_prefers_the_fresh_item_when_both_exist():
+    items = [_item("건새우", "건새우(1kg)", price=10000, category_code="600"),
+             _item("새우", "흰다리(1kg)", price=20000, category_code="600")]
+    matched = price_agent.match_ingredient_price("새우", items)
+    assert (matched["item_name"], matched["match_basis"]) == ("새우", price_agent.MATCH_EXACT)
+
+
 def test_matching_does_not_write_into_the_cached_price_list():
     """돌려주는 것은 사본이다. 캐시에 든 품목에 match_basis가 붙으면 다음 요청에 섞인다."""
     items = [_item("닭", "육계(kg)", price=6000, category_code="500")]

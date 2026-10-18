@@ -49,8 +49,16 @@ class MatchedIngredient(BaseModel):
 class IncludedCost(BaseModel):
     ingredient: str
     matched_name: str
+    # 어느 품종·단위·단가로 계산했는지 (2026-10-17). 계산을 되짚을 수 있게 싣는다.
+    matched_kind: str | None = None
+    unit: str
+    unit_price: float
+    # 이 가격이 재료와 어떤 관계인지. exact(같은 품목·품종) 또는 representative(부위·품종을 안
+    # 적어 같은 품목의 가운데 값). 다른 부위·상태의 시세는 합계에 넣지 않고 excluded로 보낸다.
+    match_basis: str
     amount_g: float
     cost: float
+    # 개수 단위를 평균 무게로 바꾼 값인지. match_basis와 다른 뜻이다(섞지 않는다).
     is_estimated: bool
     # 어느 날 시세인지. "09/30"처럼 날짜만 준다. KAMIS 라벨의 "1일전" 같은 말은 조회한 날짜
     # 기준이라, 연휴에 거슬러 올라가 조회하면 틀린 말이 된다(price_agent._price_date).
@@ -60,6 +68,9 @@ class IncludedCost(BaseModel):
 class ExcludedCost(BaseModel):
     ingredient: str
     reason: str
+    # 왜 뺐는지: no_amount(양이 g로 안 적힘)·no_match(KAMIS에 없음)·unit(단위 환산 불가)·
+    # other_cut(정확한 부위·품종 시세 없음)·other_state(상태가 다른 품목 시세뿐). 화면이 이유별로 안내한다.
+    reason_code: str
 
 
 class PriceBasis(BaseModel):

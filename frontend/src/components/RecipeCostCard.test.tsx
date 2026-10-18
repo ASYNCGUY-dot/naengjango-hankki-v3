@@ -23,13 +23,13 @@ function body(overrides: Record<string, unknown> = {}) {
     unmatched: [],
     total_cost: 3244.6,
     included: [
-      { ingredient: '양파', matched_name: '양파', amount_g: 200, cost: 500, is_estimated: false, price_day: '09/30' },
-      { ingredient: '달걀', matched_name: '계란', amount_g: 120, cost: 800, is_estimated: true, price_day: '09/30' },
-      { ingredient: '돼지고기(삼겹살)', matched_name: '돼지', amount_g: 300, cost: 1944.6, is_estimated: false, price_day: '09/30' },
+      { ingredient: '양파', matched_name: '양파', matched_kind: '양파', unit: '1kg', unit_price: 2500, match_basis: 'exact', amount_g: 200, cost: 500, is_estimated: false, price_day: '09/30' },
+      { ingredient: '달걀', matched_name: '계란', matched_kind: '특란10구', unit: '10구', unit_price: 4000, match_basis: 'exact', amount_g: 120, cost: 800, is_estimated: true, price_day: '09/30' },
+      { ingredient: '돼지고기(삼겹살)', matched_name: '돼지', matched_kind: '삼겹살', unit: '1kg', unit_price: 6482, match_basis: 'exact', amount_g: 300, cost: 1944.6, is_estimated: false, price_day: '09/30' },
     ],
     excluded: [
-      { ingredient: '두부', reason: 'KAMIS 가격 매칭 안 됨' },
-      { ingredient: '고추장', reason: 'KAMIS 가격 매칭 안 됨' },
+      { ingredient: '두부', reason: 'KAMIS 가격 매칭 안 됨', reason_code: 'no_match' },
+      { ingredient: '고추장', reason: 'KAMIS 가격 매칭 안 됨', reason_code: 'no_match' },
     ],
     household_size: 2,
     basis: { provider: 'KAMIS 농산물유통정보(aT)', market: '서울 소매가', price_days: ['09/30'] },
@@ -119,6 +119,58 @@ describe('재료비 카드', () => {
 
     expect(await screen.findByText(/실제 장보기 비용보다 적게 나와요/)).toBeInTheDocument()
     expect(screen.getByText(/빠진 재료 2개: 두부 · 고추장/)).toBeInTheDocument()
+  })
+
+  it('부위·품종을 안 적은 재료는 대표값이라고 밝힌다', async () => {
+    // "쇠고기"처럼 부위가 안 적히면 같은 품목의 가운데 시세로 계산한다. 확정값처럼 보이면 안 된다(2026-10-17).
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      json(
+        body({
+          included: [
+            { ingredient: '쇠고기', matched_name: '소', matched_kind: '양지', unit: '1kg', unit_price: 79000, match_basis: 'representative', amount_g: 100, cost: 7900, is_estimated: false, price_day: '10/15' },
+            { ingredient: '양파', matched_name: '양파', matched_kind: '양파', unit: '1kg', unit_price: 2000, match_basis: 'exact', amount_g: 100, cost: 200, is_estimated: false, price_day: '10/15' },
+          ],
+        }),
+      ),
+    )
+    renderWithProviders(<RecipeCostCard recipeId={91} />)
+
+    expect(await screen.findByText('8,100원')).toBeInTheDocument()
+    expect(screen.getAllByText('대표값')).toHaveLength(1)
+    expect(screen.getByText(/부위나 품종이 안 적힌 재료는 같은 품목의 가운데 시세/)).toBeInTheDocument()
+  })
+
+  it('정확한 시세만 있으면 대표값 표시가 없다', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(body()))
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    await screen.findByText('3,240원')
+    expect(screen.queryByText('대표값')).not.toBeInTheDocument()
+  })
+
+  it('다른 부위·상태 시세라서 뺀 재료는 이유를 보여준다', async () => {
+    // 닭가슴살에 닭 전체 시세를 쓰지 않고 뺀다. 왜 빠졌는지 안 보이면 계산을 못 한 것처럼 읽힌다.
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      json(
+        body({
+          excluded: [
+            { ingredient: '닭가슴살', reason: '정확한 부위·품종 시세가 없어요 (KAMIS에는 닭(육계) 시세만 있어요)', reason_code: 'other_cut' },
+            { ingredient: '새우', reason: '상태가 다른 품목 시세뿐이에요 (KAMIS에는 건새우 시세만 있어요)', reason_code: 'other_state' },
+            { ingredient: '두부', reason: 'KAMIS 가격 매칭 안 됨', reason_code: 'no_match' },
+          ],
+        }),
+      ),
+    )
+    renderWithProviders(<RecipeCostCard recipeId={90} />)
+
+    expect(await screen.findByText(/닭가슴살: 정확한 부위·품종 시세가 없어요 \(KAMIS에는 닭\(육계\) 시세만 있어요\)/)).toBeInTheDocument()
+    expect(screen.getByText(/새우: 상태가 다른 품목 시세뿐이에요/)).toBeInTheDocument()
+    // 일반 "매칭 안 됨"은 지금처럼 이름만 보인다.
+    expect(screen.queryByText(/두부: /)).not.toBeInTheDocument()
+    expect(screen.getByText(/빠진 재료 3개/)).toBeInTheDocument()
   })
 
   it('무게로 환산한 재료에는 추정이라고 붙인다', async () => {

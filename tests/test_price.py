@@ -234,6 +234,32 @@ def test_kamis_failure_never_puts_credentials_in_the_response_or_log(client, mon
     assert fake_key not in out.out + out.err
 
 
+def test_price_response_traces_each_price_and_why_rows_were_left_out(client, db_conn, monkeypatch):
+    """적용한 품종·단위·단가와 매칭 근거를 싣고, 다른 부위 시세는 이유와 함께 뺀다 (2026-10-17)."""
+    db_conn.execute(
+        "INSERT INTO recipe_ingredients (recipe_id, name, amount, unit, base_servings) "
+        "VALUES (1, '닭가슴살', 100, 'g', 2)"
+    )
+    items = FAKE_KAMIS_ITEMS + [
+        {"item_name": "닭", "kind_name": "육계(kg)", "unit": "1kg", "price": 6000,
+         "category_code": "500", "category_name": "축산물"},
+    ]
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: items)
+    user_id, headers = _signup_with_household_size_2(client, "u_price_trace")
+
+    body = client.get(
+        f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": user_id}, headers=headers,
+    ).json()
+
+    onion = next(i for i in body["included"] if i["ingredient"] == "양파")
+    assert (onion["unit"], onion["unit_price"], onion["match_basis"]) == ("1kg", 1500, "exact")
+    chicken = next(e for e in body["excluded"] if e["ingredient"] == "닭가슴살")
+    assert chicken["reason_code"] == "other_cut"
+    assert "닭" in chicken["reason"]
+    # 닭 전체 값(600원)이 합계에 섞이지 않는다. 두부 400 + 양파 75.
+    assert body["total_cost"] == 475.0
+
+
 def test_price_response_says_where_and_when_the_prices_come_from(client, monkeypatch):
     """화면이 "KAMIS · 서울 소매가 · 09/30 기준"을 지어내지 않고 받아서 보여줘야 한다."""
     items = [

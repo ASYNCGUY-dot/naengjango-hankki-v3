@@ -245,11 +245,16 @@
           "reason": {
             "title": "Reason",
             "type": "string"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
           }
         },
         "required": [
           "ingredient",
-          "reason"
+          "reason",
+          "reason_code"
         ],
         "title": "ExcludedCost",
         "type": "object"
@@ -411,6 +416,21 @@
             "title": "Is Estimated",
             "type": "boolean"
           },
+          "match_basis": {
+            "title": "Match Basis",
+            "type": "string"
+          },
+          "matched_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Kind"
+          },
           "matched_name": {
             "title": "Matched Name",
             "type": "string"
@@ -425,11 +445,22 @@
               }
             ],
             "title": "Price Day"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "unit_price": {
+            "title": "Unit Price",
+            "type": "number"
           }
         },
         "required": [
           "ingredient",
           "matched_name",
+          "unit",
+          "unit_price",
+          "match_basis",
           "amount_g",
           "cost",
           "is_estimated"

@@ -111,6 +111,12 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
   // 0이면 서버 합계로 쓴다("0원"이라고 쓰지 않으려고).
   const shownTotal = included.reduce((sum, item) => sum + roundToTen(item.cost), 0)
   const totalText = won(shownTotal > 0 ? shownTotal : price.total_cost)
+  // 부위·품종을 안 적어 같은 품목의 가운데 시세로 계산한 재료(2026-10-17). 확정값처럼 보이면 안 된다.
+  const hasRepresentative = included.some((item) => item.match_basis === 'representative')
+  // 다른 부위·상태의 시세밖에 없어 뺀 재료. 이유가 안 보이면 계산을 못 한 것처럼 읽힌다.
+  const substitutes = excluded.filter(
+    (e) => e.reason_code === 'other_cut' || e.reason_code === 'other_state',
+  )
 
   return (
     <section className={styles.card} aria-labelledby="cost-heading">
@@ -134,6 +140,11 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
                   {item.ingredient}
                   {/* 개수 단위(계란 10구 등)를 평균 무게로 바꾼 값이다. */}
                   {item.is_estimated && <span className={styles.estimate}>추정</span>}
+                  {item.match_basis === 'representative' && (
+                    <span className={styles.estimate} title="부위나 품종이 안 적혀 있어 같은 품목의 가운데 시세로 계산했어요">
+                      대표값
+                    </span>
+                  )}
                 </span>
                 <span className={styles.amount}>{Math.round(item.amount_g)}g</span>
                 <span className={styles.cost}>{won(item.cost)}</span>
@@ -146,6 +157,11 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
             시세를 찾은 재료만 더해서 실제 장보기 비용보다 적게 나와요. 소금·간장 같은 조미료는
             집에 있다고 보고 뺐어요.
           </p>
+          {hasRepresentative && (
+            <p className={styles.note}>
+              대표값: 부위나 품종이 안 적힌 재료는 같은 품목의 가운데 시세로 계산했어요.
+            </p>
+          )}
         </>
       )}
 
@@ -155,6 +171,15 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
           <br />
           두부·고추장 같은 가공식품과 양이 안 적힌 재료는 KAMIS 시세로 계산할 수 없어요.
         </p>
+      )}
+      {substitutes.length > 0 && (
+        <ul className={styles.substitutes}>
+          {substitutes.map((e) => (
+            <li key={e.ingredient}>
+              {e.ingredient}: {e.reason}
+            </li>
+          ))}
+        </ul>
       )}
 
       <p className={styles.source}>

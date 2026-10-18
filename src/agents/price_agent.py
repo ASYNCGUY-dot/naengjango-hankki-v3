@@ -82,6 +82,9 @@ NAME_SYNONYMS = {
     "마른고추": "건고추",     # 말린 붉은 고추
     # KAMIS에서는 품목 "호박"의 **품종** "쥬키니"다. 품목으로 보내면 애호박 값이 섞인다.
     "주키니호박": "쥬키니", "쥬키니호박": "쥬키니", "돼지호박": "쥬키니",
+    # 레시피에서 원래 말린 것을 쓰는 재료 (2026-10-17, 사용자 결정). KAMIS에는 말린 품목만 있다.
+    # 이름이 들어 있다는 이유로 붙이면 "다른 상태"로 걸러지고, "멸치"는 멸치액젓에도 걸릴 수 있다.
+    "멸치": "마른멸치", "다시마": "건다시마", "미역": "마른미역",
 }
 
 # 앞에 색·손질이 붙어도 그 품목인 것 (2026-10-08). "노랑 파프리카"·"적양파"·"다진양파"·"영양부추".
@@ -197,6 +200,10 @@ def estimate_recipe_total_cost(scaled_items: list[dict], all_items: list[dict]) 
       (portion_agent가 인분수에 맞춰 환산해둔 값. amount/unit이 없거나 단위가 "g"이 아니면 계산에서 제외)
     - 반환값의 total_cost는 "포함된 재료"만 합산한 부분 합계이며, 실제 총 재료비보다 적을 수 있다
       (지침 8번 원칙: 가격 정보는 참고용, 최신 정보는 공식 채널 재확인 권장).
+    - 다른 부위·상태의 시세(match_basis가 other_cut·other_state)는 합계에 넣지 않고 이유와 함께
+      뺀다(2026-10-17, 사용자 결정). KAMIS에 정확한 부위 시세가 없으니 그 값이 얼마나 틀렸는지
+      잴 방법도 없다. 부위·품종을 안 적은 재료의 대표값(representative)은 넣고 표시한다.
+    - 빠진 재료마다 reason_code를 단다: no_amount·no_match·unit·other_cut·other_state.
     """
     included = []
     excluded = []
@@ -209,17 +216,24 @@ def estimate_recipe_total_cost(scaled_items: list[dict], all_items: list[dict]) 
         if is_price_staple(name):
             continue  # 조미료는 가격 등급과 마찬가지로 원가 계산에서도 제외
         if amount is None or unit != "g":
-            excluded.append({"ingredient": name, "reason": "양(g) 정보가 없거나 g 단위가 아님"})
+            excluded.append({"ingredient": name, "reason": "양(g) 정보가 없거나 g 단위가 아님", "reason_code": "no_amount"})
             continue
 
         matched = match_ingredient_price(name, all_items)
         if matched is None:
-            excluded.append({"ingredient": name, "reason": "KAMIS 가격 매칭 안 됨"})
+            excluded.append({"ingredient": name, "reason": "KAMIS 가격 매칭 안 됨", "reason_code": "no_match"})
+            continue
+
+        basis = matched.get("match_basis", MATCH_EXACT)
+        kind = _kind_base(matched.get("kind_name")) or None
+        if basis in (MATCH_OTHER_CUT, MATCH_OTHER_STATE):
+            excluded.append({"ingredient": name, "reason": _substitute_reason(basis, matched["item_name"], kind),
+                             "reason_code": basis})
             continue
 
         lot_grams, is_estimated = _kamis_unit_to_grams(matched["unit"], matched["item_name"])
         if lot_grams is None or lot_grams <= 0:
-            excluded.append({"ingredient": name, "reason": f"단위({matched['unit']}) 환산 불가"})
+            excluded.append({"ingredient": name, "reason": f"단위({matched['unit']}) 환산 불가", "reason_code": "unit"})
             continue
 
         price_per_g = matched["price"] / lot_grams
@@ -228,6 +242,11 @@ def estimate_recipe_total_cost(scaled_items: list[dict], all_items: list[dict]) 
         included.append({
             "ingredient": name,
             "matched_name": matched["item_name"],
+            # 어느 품종·단위·단가로 계산했는지. 화면과 문서에서 계산을 되짚을 수 있게 싣는다.
+            "matched_kind": kind,
+            "unit": matched["unit"],
+            "unit_price": matched["price"],
+            "match_basis": basis,
             "amount_g": amount,
             "cost": cost,
             "is_estimated": is_estimated,
@@ -236,6 +255,14 @@ def estimate_recipe_total_cost(scaled_items: list[dict], all_items: list[dict]) 
 
     total_cost = sum(i["cost"] for i in included)
     return {"total_cost": total_cost, "included": included, "excluded": excluded}
+
+
+def _substitute_reason(basis: str, item_name: str, kind: str | None) -> str:
+    """다른 부위·상태라서 뺀 재료의 이유. 무엇의 시세만 있었는지 밝힌다."""
+    found = f"{item_name}({kind})" if kind and kind != item_name else item_name
+    if basis == MATCH_OTHER_STATE:
+        return f"상태가 다른 품목 시세뿐이에요 (KAMIS에는 {found} 시세만 있어요)"
+    return f"정확한 부위·품종 시세가 없어요 (KAMIS에는 {found} 시세만 있어요)"
 
 
 def _extract_price(item: dict) -> float | None:
