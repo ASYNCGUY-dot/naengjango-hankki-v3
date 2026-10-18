@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import RecipeCostCard from './RecipeCostCard'
@@ -46,6 +47,7 @@ describe('재료비 카드', () => {
     renderWithProviders(<RecipeCostCard recipeId={67} />)
 
     expect(screen.getByText(/로그인하면 KAMIS 농산물 시세로/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '로그인하기' })).toHaveAttribute('href', '/login')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -220,20 +222,74 @@ describe('재료비 카드', () => {
     expect(screen.queryByText(/0원/)).not.toBeInTheDocument()
   })
 
-  it('KAMIS가 응답하지 않으면(503) 잠시 뒤 다시 보라고 알린다', async () => {
+  it('KAMIS가 응답하지 않으면(503) 알리고, 다시 불러오면 재료비를 보여준다', async () => {
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ detail: 'KAMIS 응답 없음' }, 503))
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(json({ detail: 'KAMIS 응답 없음' }, 503))
+      .mockResolvedValueOnce(json(body()))
+    const user = userEvent.setup()
     renderWithProviders(<RecipeCostCard recipeId={67} />)
 
-    expect(await screen.findByText(/시세를 잠시 못 불러왔어요/)).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('KAMIS 시세를 잠시 못 불러왔어요.')
+    await user.click(screen.getByRole('button', { name: '다시 불러오기' }))
+
+    expect(await screen.findByText('3,240원')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
-  it('재료 수량 정보가 없는 레시피(404)에서는 카드를 숨긴다', async () => {
+  it('연결이 끊겨도 카드를 숨기지 않고 다시 불러올 수 있게 한다', async () => {
+    // 전에는 503이 아닌 실패는 전부 카드를 숨겨서, 잠깐 끊긴 것과 계산이 안 되는 레시피가 똑같이 보였다.
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('재료비를 불러오지 못했어요.')
+    expect(screen.getByRole('button', { name: '다시 불러오기' })).toBeInTheDocument()
+  })
+
+  it('서버 오류(500)도 다시 불러올 수 있다', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ detail: 'Internal Server Error' }, 500))
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('재료비를 불러오지 못했어요.')
+    expect(screen.getByRole('button', { name: '다시 불러오기' })).toBeInTheDocument()
+  })
+
+  it('다시 불러오기를 눌러도 키보드 초점이 카드에 남는다', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(json({ detail: 'KAMIS 응답 없음' }, 503))
+      .mockResolvedValueOnce(json({ detail: 'KAMIS 응답 없음' }, 503))
+    const user = userEvent.setup()
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    await user.click(await screen.findByRole('button', { name: '다시 불러오기' }))
+
+    // 버튼이 "불러오는 중"으로 바뀌며 사라져도 초점이 문서 맨 앞(body)으로 튀지 않는다.
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: '재료비는 얼마나 들까요' }))
+    expect(await screen.findByRole('button', { name: '다시 불러오기' })).toBeInTheDocument()
+  })
+
+  it('로그인이 만료되면(401) 다시 불러오기 대신 다시 로그인하라고 한다', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ detail: '로그인이 만료되었습니다.' }, 401))
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('로그인이 만료됐어요.')
+    expect(screen.getByRole('link', { name: '다시 로그인하기' })).toHaveAttribute('href', '/login')
+    expect(screen.queryByRole('button', { name: '다시 불러오기' })).not.toBeInTheDocument()
+  })
+
+  it('재료 수량 정보가 없는 레시피(404)는 계산할 수 없다고 말한다', async () => {
+    // 다시 불러와도 결과가 같으니 버튼을 주지 않는다.
     signIn()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ detail: '수량 정보 없음' }, 404))
-    const { container } = renderWithProviders(<RecipeCostCard recipeId={67} />)
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
 
-    await vi.waitFor(() => expect(container.querySelector('section')).toBeNull())
+    expect(await screen.findByText(/재료 양이 적혀 있지 않아 재료비를 계산할 수 없어요/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '다시 불러오기' })).not.toBeInTheDocument()
   })
 
   it('응답 모양이 예상과 달라도 카드가 죽지 않는다', async () => {
