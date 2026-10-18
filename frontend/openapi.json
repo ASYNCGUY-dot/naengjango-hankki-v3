@@ -1439,6 +1439,11 @@
             "title": "Market",
             "type": "string"
           },
+          "partial": {
+            "default": false,
+            "title": "Partial",
+            "type": "boolean"
+          },
           "price_days": {
             "items": {
               "type": "string"
@@ -1449,6 +1454,11 @@
           "provider": {
             "title": "Provider",
             "type": "string"
+          },
+          "stale": {
+            "default": false,
+            "title": "Stale",
+            "type": "boolean"
           }
         },
         "required": [

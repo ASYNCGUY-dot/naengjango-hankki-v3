@@ -1621,10 +1621,20 @@ export interface components {
         PriceBasis: {
             /** Market */
             market: string;
+            /**
+             * Partial
+             * @default false
+             */
+            partial: boolean;
             /** Price Days */
             price_days: string[];
             /** Provider */
             provider: string;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
         };
         /** PriceResponse */
         PriceResponse: {
