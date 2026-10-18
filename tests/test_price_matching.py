@@ -418,6 +418,19 @@ def test_ingredients_usually_used_dried_get_the_dried_price_as_exact(name, item)
     assert matched["match_basis"] == price_agent.MATCH_EXACT
 
 
+@pytest.mark.parametrize("name", ["노랑 파프리카(¼개)", "파프리카(1개)", "감자(2개=360g)", "다시마(3g"])
+def test_an_amount_in_parentheses_is_not_a_cut(name):
+    """괄호 안이 양이면 부위·품종 표시가 아니다. 부위로 읽으면 "다른 부위"로 잘못 빠진다(2026-10-18 측정에서 발견)."""
+    items = [
+        _item("파프리카", "파프리카(1개)", price=2000, unit="1개"),
+        _item("감자", "수미(1kg)", price=3000),
+        _item("건다시마", "완도산(1kg)", price=30000, category_code="600"),
+    ]
+    matched = price_agent.match_ingredient_price(name, items)
+    assert matched is not None
+    assert matched["match_basis"] == price_agent.MATCH_EXACT
+
+
 def test_fresh_shrimp_still_prefers_the_fresh_item_when_both_exist():
     items = [_item("건새우", "건새우(1kg)", price=10000, category_code="600"),
              _item("새우", "흰다리(1kg)", price=20000, category_code="600")]

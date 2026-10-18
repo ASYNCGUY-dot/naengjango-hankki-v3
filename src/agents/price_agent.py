@@ -446,6 +446,10 @@ def match_ingredient_price(ingredient_name: str, all_items: list[dict]) -> dict 
     """
     base, hint = _base_and_hint(ingredient_name)
     base, hint = _compact(base), _compact(hint)
+    if _AMOUNT_HINT.search(hint):
+        # "감자(2개=360g)", "다시마(3g"의 괄호는 양이지 부위·품종이 아니다. 부위로 읽으면 "다른 부위"로
+        # 잘못 빠진다(2026-10-18 측정에서 발견).
+        hint = ""
     if not base:
         return None  # 빈 이름은 모든 품목 이름의 부분 문자열이라 아무 데나 붙는다
 
@@ -475,6 +479,9 @@ MATCH_REPRESENTATIVE = "representative"  # 품목은 맞지만 품종·부위가
 MATCH_OTHER_CUT = "other_cut"            # 재료가 적은 부위·품종의 시세가 없어 다른 부위·전체 값을 썼다
 MATCH_OTHER_STATE = "other_state"        # 생물 재료에 말린 품목처럼 상태가 다른 품목 값을 썼다
 MATCH_BASES = (MATCH_EXACT, MATCH_REPRESENTATIVE, MATCH_OTHER_CUT, MATCH_OTHER_STATE)
+
+# 괄호 안이 양(숫자·분수)이면 품종 힌트가 아니다.
+_AMOUNT_HINT = re.compile(r"[\d½¼¾⅓⅔⅛]")
 
 # KAMIS에 부위 가격이 없어 닭 전체(육계) 값으로 보내는 부위들(MEAT_SYNONYMS 중).
 _PART_TO_WHOLE = {"닭가슴살", "닭다리살", "닭다릿살", "닭봉", "닭날개", "닭안심살"}
