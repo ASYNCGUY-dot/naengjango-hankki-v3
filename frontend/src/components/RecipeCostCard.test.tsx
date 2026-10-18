@@ -292,6 +292,38 @@ describe('재료비 카드', () => {
     expect(screen.queryByRole('button', { name: '다시 불러오기' })).not.toBeInTheDocument()
   })
 
+  it('이번 조회가 실패해 이전 시세로 계산했으면 그렇다고 밝힌다', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      json(body({ basis: { provider: 'KAMIS 농산물유통정보(aT)', market: '서울 소매가', price_days: ['09/30'], stale: true, partial: false } })),
+    )
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    expect(await screen.findByText(/이전에 받아 둔 시세로 계산했어요/)).toBeInTheDocument()
+    expect(screen.queryByText(/시세 일부를 이번에 받지 못해/)).not.toBeInTheDocument()
+  })
+
+  it('부류 일부를 못 받았으면 빠진 재료가 더 있을 수 있다고 밝힌다', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      json(body({ basis: { provider: 'KAMIS 농산물유통정보(aT)', market: '서울 소매가', price_days: ['09/30'], stale: false, partial: true } })),
+    )
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    expect(await screen.findByText(/시세 일부를 이번에 받지 못해/)).toBeInTheDocument()
+    expect(screen.queryByText(/이전에 받아 둔 시세로/)).not.toBeInTheDocument()
+  })
+
+  it('새로 받은 온전한 시세면 이전 시세·일부 누락 안내가 없다', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(body()))
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    expect(await screen.findByText('3,240원')).toBeInTheDocument()
+    expect(screen.queryByText(/이전에 받아 둔 시세로/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/시세 일부를 이번에 받지 못해/)).not.toBeInTheDocument()
+  })
+
   it('응답 모양이 예상과 달라도 카드가 죽지 않는다', async () => {
     signIn()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ tier: '기본', total_cost: 0 }))

@@ -234,6 +234,16 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
         </ul>
       )}
 
+      {/* 이번 조회가 실패해 서버가 받아 둔 시세(24시간 안)로 계산했을 때(2026-10-18). 날짜는 아래
+          출처 줄에 그대로 나오지만, 그것만으로는 "방금 받은 시세"로 읽힌다. */}
+      {price.basis?.stale === true && (
+        <p className={styles.note}>KAMIS 시세를 이번에 새로 받지 못해, 이전에 받아 둔 시세로 계산했어요.</p>
+      )}
+      {/* 부류 일부를 못 받아 그 부류 재료가 "KAMIS에 없음"과 똑같이 빠졌을 때. */}
+      {price.basis?.partial === true && (
+        <p className={styles.note}>KAMIS 시세 일부를 이번에 받지 못해, 빠진 재료가 평소보다 많을 수 있어요.</p>
+      )}
+
       <p className={styles.source}>
         시세: {price.basis?.provider ?? 'KAMIS'} · {price.basis?.market ?? ''}
         {days[0] && ` · ${days[0]} 기준`}

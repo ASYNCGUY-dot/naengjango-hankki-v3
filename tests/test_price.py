@@ -186,6 +186,102 @@ def test_a_complete_older_result_beats_a_partial_fresh_one(client, monkeypatch):
     assert body["total_cost"] == 475.0  # 양파가 빠진 400원이 아니다
 
 
+# ---------- 이전 시세는 24시간까지만 (2026-10-18) ----------
+#
+# 갱신이 계속 실패하면 며칠 전 시세도 기간 제한 없이 "이번 조회 결과"처럼 나갔다. 이제 받은 지
+# 24시간 안의 것만 쓰고, 썼다는 것을 basis.stale로 밝힌다. 시간은 가짜 시계로 옮긴다.
+
+class _FakeClock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def _timeout():
+    raise requests.Timeout("KAMIS 응답 없음")
+
+
+@pytest.fixture
+def fake_clock(monkeypatch):
+    clock = _FakeClock()
+    monkeypatch.setattr(price_router._prices_cache, "_clock", clock)
+    return clock
+
+
+def test_fresh_prices_are_neither_stale_nor_partial(client, monkeypatch, fake_clock):
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: FAKE_KAMIS_ITEMS)
+    user_id, headers = _signup_with_household_size_2(client, "u_price_fresh")
+
+    body = client.get(f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": user_id}, headers=headers).json()
+
+    assert body["basis"]["stale"] is False
+    assert body["basis"]["partial"] is False
+
+
+def test_previous_prices_within_24_hours_are_used_and_marked_stale(client, monkeypatch, fake_clock):
+    user_id, headers = _signup_with_household_size_2(client, "u_price_stale_ok")
+    url = f"/recommendation/recipes/{RECIPE_ID}/price"
+    items = [{**item, "price_day": "10/16"} for item in FAKE_KAMIS_ITEMS]
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: items)
+    client.get(url, params={"user_id": user_id}, headers=headers)
+
+    # 날짜가 바뀐 다음 날 저녁(23시간 뒤)에 갱신이 실패한다. 시세 날짜는 받은 그대로 10/16이다.
+    fake_clock.now += 23 * 60 * 60
+    monkeypatch.setattr(price_agent, "get_all_prices", _timeout)
+    res = client.get(url, params={"user_id": user_id}, headers=headers)
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["total_cost"] == 475.0
+    assert body["basis"]["stale"] is True
+    assert body["basis"]["price_days"] == ["10/16"]
+
+
+def test_previous_prices_older_than_24_hours_are_refused(client, monkeypatch, fake_clock):
+    user_id, headers = _signup_with_household_size_2(client, "u_price_stale_old")
+    url = f"/recommendation/recipes/{RECIPE_ID}/price"
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: FAKE_KAMIS_ITEMS)
+    client.get(url, params={"user_id": user_id}, headers=headers)
+
+    fake_clock.now += 24 * 60 * 60
+    monkeypatch.setattr(price_agent, "get_all_prices", _timeout)
+
+    assert client.get(url, params={"user_id": user_id}, headers=headers).status_code == 503
+
+
+def test_partial_fresh_prices_win_over_previous_prices_past_24_hours(client, monkeypatch, fake_clock):
+    """온전한 이전 결과가 24시간을 넘겼으면, 일부만 받은 이번 결과로 계산하고 partial이라고 밝힌다."""
+    user_id, headers = _signup_with_household_size_2(client, "u_price_partial_old")
+    url = f"/recommendation/recipes/{RECIPE_ID}/price"
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: FAKE_KAMIS_ITEMS)
+    client.get(url, params={"user_id": user_id}, headers=headers)
+
+    fake_clock.now += 25 * 60 * 60
+    monkeypatch.setattr(price_agent, "get_all_prices", _partial([FAKE_KAMIS_ITEMS[0]]))
+    body = client.get(url, params={"user_id": user_id}, headers=headers).json()
+
+    assert body["total_cost"] == 400.0  # 두부만. 양파는 이번에 못 받은 부류다
+    assert body["basis"]["partial"] is True
+    assert body["basis"]["stale"] is False
+
+
+def test_a_complete_result_within_24_hours_is_marked_stale_over_a_partial_one(client, monkeypatch, fake_clock):
+    user_id, headers = _signup_with_household_size_2(client, "u_price_partial_new")
+    url = f"/recommendation/recipes/{RECIPE_ID}/price"
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: FAKE_KAMIS_ITEMS)
+    client.get(url, params={"user_id": user_id}, headers=headers)
+
+    fake_clock.now += 60 * 60
+    monkeypatch.setattr(price_agent, "get_all_prices", _partial([FAKE_KAMIS_ITEMS[0]]))
+    body = client.get(url, params={"user_id": user_id}, headers=headers).json()
+
+    assert body["total_cost"] == 475.0
+    assert body["basis"]["stale"] is True
+    assert body["basis"]["partial"] is False
+
+
 def test_nothing_fetched_at_all_is_a_503(client, monkeypatch):
     monkeypatch.setattr(price_agent, "get_all_prices", _partial([]))
     user_id, headers = _signup(client, "u_price_none")

@@ -17,7 +17,8 @@ safety.py에서 식약처 API 무응답을 503으로 감싼 것과 같은 원칙
 2026-07-19 추가: KAMIS는 부류(채소/곡물/축산/수산) 4개를 매 요청마다 순차 호출해서
 느리고, 그만큼 실패할 기회도 4배다. get_all_prices() 결과를 TTLCache로 10분간
 재사용해서 호출 빈도를 줄이고, 방금 실패해도 직전 성공 응답이 있으면 그대로 돌려준다
-(safety.py와 동일한 원칙, api/ttl_cache.py 참고).
+(safety.py와 동일한 원칙, api/ttl_cache.py 참고). 2026-10-18부터 그 직전 응답은 받은 지
+24시간 안의 것만 쓰고, 썼다는 것을 응답(basis.stale)으로 밝힌다.
 """
 
 import sqlite3
@@ -35,7 +36,12 @@ from src.agents import portion_agent, price_agent, recommendation_agent
 
 router = APIRouter(prefix="/recommendation/recipes", tags=["price"])
 
-_prices_cache = TTLCache(ttl_seconds=600)
+# 10분 동안은 받은 시세를 그대로 다시 쓴다. 갱신에 실패하면 이전에 받은 시세를 **24시간까지만**
+# 쓴다(2026-10-18 결정). KAMIS 시세는 하루 단위로 바뀌어서, 그보다 오래 붙잡으면 날짜가 밝혀져
+# 있어도 "지금 시세"로 읽힌다. 시세 날짜 자체는 품목마다 price_day로 따로 밝히고, 조회는 최대
+# 7일까지만 거슬러 올라간다(price_agent.MAX_LOOKBACK_DAYS).
+KAMIS_MAX_STALE_SECONDS = 24 * 60 * 60
+_prices_cache = TTLCache(ttl_seconds=600, max_stale_seconds=KAMIS_MAX_STALE_SECONDS)
 
 
 class MatchedIngredient(BaseModel):
@@ -81,6 +87,11 @@ class PriceBasis(BaseModel):
     # 재료비에 들어간 가격의 날짜("10/08"). 많이 쓰인 순. 여럿이면 날짜가 섞여 있다는 뜻이다 -
     # 앞의 것이 가장 최근이라는 뜻은 아니다.
     price_days: list[str]
+    # 이번 조회가 실패해서 이전에 받아 둔 시세(받은 지 24시간 안)로 계산했는지 (2026-10-18).
+    stale: bool = False
+    # 이번 조회에서 부류 일부를 못 받았고 쓸 만한 이전 결과도 없어 받은 것만으로 계산했는지.
+    # 이때는 못 받은 부류의 재료가 "KAMIS에 없음"과 똑같이 빠진다.
+    partial: bool = False
 
 
 class PriceResponse(BaseModel):
@@ -133,15 +144,16 @@ def get_recipe_price(
         status_code=503,
         detail="KAMIS 가격 정보 서비스가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요.",
     )
+    partial = False
     try:
-        all_items = _prices_cache.get_or_fetch(price_agent.get_all_prices)
-    except price_agent.PartialPricesError as partial:
-        # 부류 일부만 받았다. 직전의 온전한 결과가 있었다면 캐시가 그것을 돌려줬을 테니, 여기
+        all_items, stale = _prices_cache.get_or_fetch_with_status(price_agent.get_all_prices)
+    except price_agent.PartialPricesError as error:
+        # 부류 일부만 받았다. 24시간 안의 온전한 결과가 있었다면 캐시가 그것을 돌려줬을 테니, 여기
         # 왔다는 건 그것도 없다는 뜻이다. 받은 일부로 응답하되 캐시하지 않는다 - 다음 요청이
         # 바로 다시 시도한다. 빠진 부류의 재료는 화면에 "가격 정보 없음"으로 나온다.
-        if not partial.items:
+        if not error.items:
             raise unavailable
-        all_items = partial.items
+        all_items, stale, partial = error.items, False, True
     except (requests.RequestException, AttributeError, ValueError, TypeError):
         raise unavailable
     tier_result = price_agent.estimate_recipe_price_tier(ingredient_names, all_items)
@@ -152,6 +164,8 @@ def get_recipe_price(
         provider="KAMIS 농산물유통정보(aT)",
         market="서울 소매가",
         price_days=[day for day, _ in days.most_common()],
+        stale=stale,
+        partial=partial,
     )
 
     return PriceResponse(
