@@ -1,0 +1,270 @@
+{
+  "measured_at": "2026-10-18T19:34:56+09:00",
+  "kamis": {
+    "action": "dailyPriceByCategoryList",
+    "region": "서울(1101)",
+    "distribution": "소매(01)",
+    "categories": [
+      "식량작물",
+      "채소류",
+      "특용작물",
+      "과일류",
+      "축산물",
+      "수산물"
+    ],
+    "kg_convert": "Y(무게 단위는 1kg당으로 맞춤)",
+    "items": 174,
+    "price_days": [
+      [
+        "10/16",
+        146
+      ],
+      [
+        "10/18",
+        28
+      ]
+    ],
+    "snapshot_sha256": "ddd663afa4e5d835af0ab3bc1f6e0f64df6743ed82fca6ddc0511790cccc87ec",
+    "snapshot_file": "data/kamis_snapshots/2026-10-18.json"
+  },
+  "dataset": {
+    "recipes": 1144,
+    "ingredient_rows": 12963,
+    "denominator_rows": 9057,
+    "fingerprint_sha256": "a2b410d0c063d9cc39015c688152570b39c75c867a78df8644cdd3ceee379383"
+  },
+  "versions": [
+    {
+      "label": "9월 개편 전(도매·4부류, 시세 조건이 다름)",
+      "ref": "6b6cd3a~1",
+      "sha": "bfb693980a29dee8d5a0d1457305038b3cd39a84",
+      "input": "원래 이름",
+      "same_snapshot": false,
+      "priced_rows": 2496,
+      "priced_rows_rate": 0.27558794302749257,
+      "recipes_with_3plus": 235,
+      "recipes_with_3plus_rate": 0.20541958041958042,
+      "recipes_with_1plus": 793,
+      "recipes_with_1plus_rate": 0.6931818181818182,
+      "included_rows_by_basis": {
+        "(구분 없음)": 1664
+      },
+      "substitute_rows": 0,
+      "substitutes_top": []
+    },
+    {
+      "label": "코드 fe1c6e6",
+      "ref": "fe1c6e6",
+      "sha": "fe1c6e6f08392f5647525bcb81f29e8f69c33fd4",
+      "input": "이름 정리·구획 제목 제외",
+      "same_snapshot": true,
+      "priced_rows": 4102,
+      "priced_rows_rate": 0.4529093518825218,
+      "recipes_with_3plus": 573,
+      "recipes_with_3plus_rate": 0.5008741258741258,
+      "recipes_with_1plus": 982,
+      "recipes_with_1plus_rate": 0.8583916083916084,
+      "included_rows_by_basis": {
+        "(구분 없음)": 3139
+      },
+      "substitute_rows": 0,
+      "substitutes_top": []
+    },
+    {
+      "label": "코드 d7fcee3",
+      "ref": "d7fcee3",
+      "sha": "d7fcee3eb37397f0d39cb6bf0b3a0d9ddb121d79",
+      "input": "이름 정리·구획 제목 제외",
+      "same_snapshot": true,
+      "priced_rows": 3911,
+      "priced_rows_rate": 0.4318206911780943,
+      "recipes_with_3plus": 552,
+      "recipes_with_3plus_rate": 0.4825174825174825,
+      "recipes_with_1plus": 964,
+      "recipes_with_1plus_rate": 0.8426573426573427,
+      "included_rows_by_basis": {
+        "exact": 2733,
+        "representative": 280
+      },
+      "substitute_rows": 129,
+      "substitutes_top": [
+        [
+          "단호박",
+          52
+        ],
+        [
+          "닭가슴살",
+          50
+        ],
+        [
+          "닭다리살",
+          6
+        ],
+        [
+          "닭봉",
+          2
+        ],
+        [
+          "닭안심살",
+          2
+        ],
+        [
+          "닭다릿살",
+          2
+        ],
+        [
+          "닭 가슴살",
+          1
+        ],
+        [
+          "오렌지(껍질)",
+          1
+        ],
+        [
+          "레몬(껍질)",
+          1
+        ],
+        [
+          "새우(대하)",
+          1
+        ],
+        [
+          "닭날개",
+          1
+        ],
+        [
+          "닭고기(가슴살)",
+          1
+        ],
+        [
+          "닭고기(다리살)",
+          1
+        ],
+        [
+          "소고기(치맛살)",
+          1
+        ],
+        [
+          "쇠고기(우둔)",
+          1
+        ],
+        [
+          "돼지고기(전지)",
+          1
+        ],
+        [
+          "돼지고기(불고기용)",
+          1
+        ],
+        [
+          "바지락(모시조개(",
+          1
+        ],
+        [
+          "현미(불린것)",
+          1
+        ],
+        [
+          "호두(각",
+          1
+        ],
+        [
+          "소고기(다짐육)",
+          1
+        ]
+      ]
+    },
+    {
+      "label": "지금 작업 트리",
+      "ref": "HEAD",
+      "sha": "aece597509b8d26b4a34fc29247d3403e6f8b822",
+      "input": "이름 정리·구획 제목 제외",
+      "same_snapshot": true,
+      "priced_rows": 3889,
+      "priced_rows_rate": 0.42939163078281994,
+      "recipes_with_3plus": 545,
+      "recipes_with_3plus_rate": 0.4763986013986014,
+      "recipes_with_1plus": 961,
+      "recipes_with_1plus_rate": 0.840034965034965,
+      "included_rows_by_basis": {
+        "exact": 2717,
+        "representative": 270
+      },
+      "substitute_rows": 126,
+      "substitutes_top": [
+        [
+          "단호박",
+          52
+        ],
+        [
+          "닭가슴살",
+          50
+        ],
+        [
+          "닭다리살",
+          6
+        ],
+        [
+          "닭봉",
+          2
+        ],
+        [
+          "닭안심살",
+          2
+        ],
+        [
+          "닭다릿살",
+          2
+        ],
+        [
+          "닭 가슴살",
+          1
+        ],
+        [
+          "오렌지(껍질)",
+          1
+        ],
+        [
+          "레몬(껍질)",
+          1
+        ],
+        [
+          "새우(대하)",
+          1
+        ],
+        [
+          "닭날개",
+          1
+        ],
+        [
+          "닭고기(가슴살)",
+          1
+        ],
+        [
+          "닭고기(다리살)",
+          1
+        ],
+        [
+          "소고기(치맛살)",
+          1
+        ],
+        [
+          "쇠고기(우둔)",
+          1
+        ],
+        [
+          "바지락(모시조개(",
+          1
+        ],
+        [
+          "현미(불린것)",
+          1
+        ],
+        [
+          "호두(각",
+          1
+        ]
+      ]
+    }
+  ]
+}

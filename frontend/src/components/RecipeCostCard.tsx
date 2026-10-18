@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 
 import { ApiError } from '../api/client'
 import { getRecipePrice, type RecipePrice } from '../api/price'
@@ -36,67 +37,120 @@ function won(amount: number): string {
   return `${roundToTen(amount).toLocaleString('ko-KR')}원`
 }
 
-type State = 'loading' | 'ready' | 'unavailable' | 'hidden'
+/**
+ * 못 보여 주는 이유를 넷으로 나눈다(2026-10-18). 전에는 503만 알리고 나머지는 카드를 숨겼다 -
+ * 그러면 "이 레시피는 계산이 안 된다", "로그인이 풀렸다", "잠깐 못 받았다"가 전부 카드가 없는
+ * 것으로 똑같이 보여서, 다시 해 볼지 로그인할지 그냥 넘어갈지 알 수 없다.
+ *
+ * - `kamis`: 서버가 KAMIS를 못 받았다(503). 서버가 실패를 캐시하지 않으니 다시 부르면 된다
+ * - `network`: 연결 실패·시간 초과·그 밖의 서버 오류. 마찬가지로 다시 부를 수 있다
+ * - `auth`: 로그인이 만료됐거나 무효하다(401·403). 다시 불러도 소용없고 로그인해야 한다
+ * - `no_quantity`: 재료 양이 안 적힌 레시피(404). 이 레시피는 계산할 수 없다
+ */
+type Failure = 'kamis' | 'network' | 'auth' | 'no_quantity'
+
+function failureOf(caught: unknown): Failure {
+  if (caught instanceof ApiError) {
+    if (caught.status === 401 || caught.status === 403) return 'auth'
+    // 이 경로의 404는 사실상 재료 수량이 없는 레시피다. 사용자는 토큰 확인에서 이미 걸러지고,
+    // 레시피는 상세 화면이 먼저 불러와서 있는 것이 확인된 상태다.
+    if (caught.status === 404) return 'no_quantity'
+    if (caught.status === 503) return 'kamis'
+  }
+  return 'network'
+}
+
+type State = { kind: 'loading' } | { kind: 'ready'; price: RecipePrice } | { kind: 'failed'; failure: Failure }
 
 export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
   const { userId, isAuthenticated } = useAuth()
-  const [price, setPrice] = useState<RecipePrice | null>(null)
-  const [state, setState] = useState<State>('loading')
+  const [state, setState] = useState<State>({ kind: 'loading' })
+  // "다시 불러오기"를 누를 때마다 올려서 아래 effect를 다시 돌린다.
+  const [attempt, setAttempt] = useState(0)
+  const cardRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     if (userId === null) return
     const controller = new AbortController()
-    setState('loading')
+    setState({ kind: 'loading' })
     getRecipePrice(recipeId, userId, controller.signal)
-      .then((result) => {
-        setPrice(result)
-        setState('ready')
-      })
+      .then((price) => setState({ kind: 'ready', price }))
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return
-        // 503은 KAMIS가 잠깐 응답하지 않는 것이라 알린다. 그 밖의 실패(재료 수량 정보가
-        // 없는 레시피의 404 등)는 카드를 숨긴다 - 레시피 본문은 이미 보이고 있다.
-        setState(caught instanceof ApiError && caught.status === 503 ? 'unavailable' : 'hidden')
+        setState({ kind: 'failed', failure: failureOf(caught) })
       })
     return () => controller.abort()
-  }, [recipeId, userId])
+  }, [recipeId, userId, attempt])
 
-  const heading = (
-    <h2 id="cost-heading">재료비는 얼마나 들까요</h2>
+  function retry() {
+    // 누른 버튼이 "불러오는 중"으로 바뀌며 사라지면 키보드 초점이 문서 맨 앞으로 튄다.
+    // 카드는 상태가 바뀌어도 같은 section이라, 카드에 초점을 두면 그 자리에서 이어서 읽힌다.
+    cardRef.current?.focus()
+    setAttempt((n) => n + 1)
+  }
+
+  const card = (children: ReactNode) => (
+    <section ref={cardRef} tabIndex={-1} className={styles.card} aria-labelledby="cost-heading">
+      <h2 id="cost-heading">재료비는 얼마나 들까요</h2>
+      {children}
+    </section>
   )
 
   if (!isAuthenticated) {
-    return (
-      <section className={styles.card} aria-labelledby="cost-heading">
-        {heading}
+    return card(
+      <>
         <p className={styles.guide}>
           로그인하면 KAMIS 농산물 시세로 이 레시피 재료비를 계산해드려요.
         </p>
-      </section>
+        <Link className={styles.action} to="/login">
+          로그인하기
+        </Link>
+      </>,
     )
   }
 
-  if (state === 'hidden') return null
+  if (state.kind === 'loading') {
+    return card(
+      <p className={styles.guide} role="status">
+        KAMIS 시세를 불러오는 중이에요…
+      </p>,
+    )
+  }
 
-  if (state === 'loading') {
-    return (
-      <section className={styles.card} aria-labelledby="cost-heading">
-        {heading}
-        <p className={styles.guide} role="status">
-          KAMIS 시세를 불러오는 중이에요…
+  if (state.kind === 'failed') {
+    const { failure } = state
+    if (failure === 'no_quantity') {
+      return card(
+        <p className={styles.guide}>이 레시피는 재료 양이 적혀 있지 않아 재료비를 계산할 수 없어요.</p>,
+      )
+    }
+    if (failure === 'auth') {
+      return card(
+        <>
+          <p className={styles.guide} role="alert">
+            로그인이 만료됐어요. 다시 로그인하면 재료비를 계산해드려요.
+          </p>
+          <Link className={styles.action} to="/login">
+            다시 로그인하기
+          </Link>
+        </>,
+      )
+    }
+    return card(
+      <>
+        <p className={styles.guide} role="alert">
+          {failure === 'kamis'
+            ? 'KAMIS 시세를 잠시 못 불러왔어요.'
+            : '재료비를 불러오지 못했어요. 연결이 불안정하거나 서버가 잠시 응답하지 않아요.'}
         </p>
-      </section>
+        <button type="button" className={styles.action} onClick={retry}>
+          다시 불러오기
+        </button>
+      </>,
     )
   }
 
-  if (state === 'unavailable' || price === null) {
-    return (
-      <section className={styles.card} aria-labelledby="cost-heading">
-        {heading}
-        <p className={styles.guide}>KAMIS 시세를 잠시 못 불러왔어요. 잠시 뒤 다시 열어주세요.</p>
-      </section>
-    )
-  }
+  const { price } = state
 
   // 응답 모양을 그냥 믿지 않는다. 배열이 빠져 있어도 카드가 죽으면 안 된다
   // (홈 화면이 영상 분류 때문에 통째로 빈 화면이 됐던 것과 같은 종류다).
@@ -118,10 +172,8 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
     (e) => e.reason_code === 'other_cut' || e.reason_code === 'other_state',
   )
 
-  return (
-    <section className={styles.card} aria-labelledby="cost-heading">
-      {heading}
-
+  return card(
+    <>
       {included.length === 0 ? (
         <p className={styles.guide}>KAMIS 시세로 계산할 수 있는 재료가 없어요.</p>
       ) : (
@@ -188,6 +240,6 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
         {/* "더 이전"이라고 쓰지 않는다. 가장 많은 날짜를 앞에 쓰는데 나머지가 더 최근일 수도 있다. */}
         {days.length > 1 && ' (일부 재료는 다른 날 시세)'}
       </p>
-    </section>
+    </>,
   )
 }

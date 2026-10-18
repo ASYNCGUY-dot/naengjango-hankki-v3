@@ -19,6 +19,29 @@
   color: var(--color-text-secondary);
 }
 
+/* 안내 바로 아래의 "다시 불러오기"·"로그인하기". 링크와 버튼이 같은 모양이어야 둘 다 누를 수
+   있는 것으로 읽힌다. */
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target-min);
+  margin-top: var(--space-3);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--color-surface-sunken);
+}
+
 .total {
   margin-top: var(--space-3);
   font-size: var(--font-size-sm);

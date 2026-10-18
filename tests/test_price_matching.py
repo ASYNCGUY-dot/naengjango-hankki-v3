@@ -431,6 +431,56 @@ def test_an_amount_in_parentheses_is_not_a_cut(name):
     assert matched["match_basis"] == price_agent.MATCH_EXACT
 
 
+# ---------- 정확도 표본에서 나온 것 (2026-10-18, 작업 E) ----------
+
+@pytest.mark.parametrize("name", ["밤", "마", "조"])
+def test_one_letter_names_do_not_match_inside_other_names(name):
+    """밤(16행)이 고구마 품종 "밤"에, 마(12행)가 방울토마토에, 조(좁쌀)가 조기에 붙어 있었다.
+    한 글자는 다른 이름 안에 우연히 들어 있기 쉽다. 이름이 정확히 같은 품목에만 붙인다."""
+    items = [
+        _item("고구마", "밤(1kg)", price=5000),
+        _item("방울토마토", "방울토마토(1kg)", price=9000),
+        _item("토마토", "토마토(1kg)", price=6000),
+        _item("조기", "참조기(1마리)", price=3000, unit="1마리", category_code="600"),
+    ]
+    assert price_agent.match_ingredient_price(name, items) is None
+
+
+@pytest.mark.parametrize("name, item", [("무", "무"), ("배", "배"), ("귤", "감귤")])
+def test_one_letter_names_that_are_items_still_match(name, item):
+    items = [_item("무", "고랭지(1개)", price=2000, unit="1개"), _item("배", "신고(10개)", price=40000, unit="10개"),
+             _item("감귤", "노지(10개)", price=5000, unit="10개", category_code="400")]
+    assert price_agent.match_ingredient_price(name, items)["item_name"] == item
+
+
+@pytest.mark.parametrize("name", ["미니양배추", "방울양배추"])
+def test_brussels_sprouts_are_not_cabbage(name):
+    """미니양배추·방울양배추는 방울다다기양배추라 양배추 시세가 아니다."""
+    assert price_agent.match_ingredient_price(name, [_item("양배추", "양배추(1포기)", price=4000, unit="1포기")]) is None
+
+
+@pytest.mark.parametrize("name", ["돼지고기(불고기용)", "소고기(다짐육)", "돼지고기(찌개용)"])
+def test_a_usage_in_parentheses_is_not_a_cut(name):
+    """"불고기용"·"다짐육"은 부위가 아니라 용도·형태다. 부위를 안 적은 것과 같으니 대표값으로 본다."""
+    items = [_item("돼지", "앞다리", price=17000, category_code="500"), _item("돼지", "목심", price=28000, category_code="500"),
+             _item("소", "양지", price=80000, category_code="500"), _item("소", "설도", price=45000, category_code="500")]
+    assert price_agent.match_ingredient_price(name, items)["match_basis"] == price_agent.MATCH_REPRESENTATIVE
+
+
+def test_pork_jeonji_is_the_front_leg():
+    """정육에서 전지는 앞다리살이다. KAMIS 돼지 "앞다리" 시세가 맞는 값인데 다른 부위로 빠지고 있었다."""
+    items = [_item("돼지", "앞다리", price=17000, category_code="500"), _item("돼지", "목심", price=28000, category_code="500")]
+    matched = price_agent.match_ingredient_price("돼지고기(전지)", items)
+    assert (price_agent._kind_base(matched["kind_name"]), matched["match_basis"]) == ("앞다리", price_agent.MATCH_EXACT)
+
+
+@pytest.mark.parametrize("name", ["콩(백태", "콩(대두"])
+def test_white_soybean_hints_are_the_white_bean_kind(name):
+    """백태·대두는 KAMIS의 "흰 콩"이다. 다른 부위로 빠지고 있었다."""
+    matched = price_agent.match_ingredient_price(name, [_item("콩", "흰 콩(국산)(500g)", price=6000, unit="500g", category_code="100")])
+    assert matched["match_basis"] == price_agent.MATCH_EXACT
+
+
 def test_fresh_shrimp_still_prefers_the_fresh_item_when_both_exist():
     items = [_item("건새우", "건새우(1kg)", price=10000, category_code="600"),
              _item("새우", "흰다리(1kg)", price=20000, category_code="600")]
