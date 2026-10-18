@@ -467,6 +467,13 @@ def test_a_usage_in_parentheses_is_not_a_cut(name):
     assert price_agent.match_ingredient_price(name, items)["match_basis"] == price_agent.MATCH_REPRESENTATIVE
 
 
+def test_pork_jeonji_is_the_front_leg():
+    """정육에서 전지는 앞다리살이다. KAMIS 돼지 "앞다리" 시세가 맞는 값인데 다른 부위로 빠지고 있었다."""
+    items = [_item("돼지", "앞다리", price=17000, category_code="500"), _item("돼지", "목심", price=28000, category_code="500")]
+    matched = price_agent.match_ingredient_price("돼지고기(전지)", items)
+    assert (price_agent._kind_base(matched["kind_name"]), matched["match_basis"]) == ("앞다리", price_agent.MATCH_EXACT)
+
+
 @pytest.mark.parametrize("name", ["콩(백태", "콩(대두"])
 def test_white_soybean_hints_are_the_white_bean_kind(name):
     """백태·대두는 KAMIS의 "흰 콩"이다. 다른 부위로 빠지고 있었다."""
