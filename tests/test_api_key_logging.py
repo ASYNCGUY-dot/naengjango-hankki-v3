@@ -11,7 +11,9 @@ KAMIS에서 같은 문제를 먼저 고쳤다(tests/test_price_matching.py의 �
 import pytest
 import requests
 
-from src.agents import ingredient_agent, ingredient_catalog_agent, popular_recipe_agent, youtube_agent
+from api.routers import safety as safety_router
+from helpers import signup_body
+from src.agents import ingredient_agent, ingredient_catalog_agent, popular_recipe_agent, safety_agent, youtube_agent
 
 FAKE_KEY = "FAKE-API-KEY-12345"
 ERRORS = [
@@ -82,3 +84,49 @@ def test_recipe_video_search_failure_hides_the_key(monkeypatch, capsys, exc):
     logged = _logged(capsys)
     assert FAKE_KEY not in logged
     assert "실패" in logged
+
+
+# ---------- 식약처 회수 정보 (2026-10-20) ----------
+#
+# 10월 16일에 고친 네 곳과 KAMIS에서 빠져 있었다. 식약처 API는 키를 쿼리가 아니라 **주소 경로**에 넣는데
+# (`/api/{키}/I0490/...`) 그 주소를 http로 불러서, 실패할 때가 아니라 **매번** 키가 암호화되지 않은 채
+# 나갔다. https로 불러도 같은 응답이 오는 것을 확인했다(샘플 키, 2026-10-20).
+
+class _RecallResponse:
+    def __init__(self, body):
+        self._body = body
+
+    def json(self):
+        return self._body
+
+
+def test_food_safety_key_is_sent_only_over_https(monkeypatch):
+    urls = []
+
+    def fake_get(url, timeout=None):
+        urls.append(url)
+        return _RecallResponse({"I0490": {"total_count": "1", "row": [{"PRDTNM": "두부"}]}})
+
+    monkeypatch.setattr(safety_agent, "API_KEY", FAKE_KEY)
+    monkeypatch.setattr(safety_agent.requests, "get", fake_get)
+
+    assert safety_agent.get_all_recalls() == [{"PRDTNM": "두부"}]
+    assert len(urls) == 2  # 건수 확인 1번 + 전체 1번
+    assert all(url.startswith("https://") for url in urls), urls
+
+
+@pytest.mark.parametrize("exc", ERRORS)
+def test_food_safety_failure_hides_the_key(client, monkeypatch, capsys, exc):
+    safety_router._recalls_cache.clear()
+    monkeypatch.setattr(safety_agent, "API_KEY", FAKE_KEY)
+    monkeypatch.setattr(safety_agent.requests, "get", _raising_get(exc))
+    res = client.post("/auth/signup", json=signup_body("u_recall_key"))
+    user_id, token = res.json()["user_id"], res.json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    client.post(f"/pantry/{user_id}", json={"name": "두부", "expiry_date": None}, headers=headers)
+
+    res = client.get("/safety/overview", params={"user_id": user_id}, headers=headers)
+
+    assert res.status_code == 503
+    assert FAKE_KEY not in res.text
+    assert FAKE_KEY not in _logged(capsys)
