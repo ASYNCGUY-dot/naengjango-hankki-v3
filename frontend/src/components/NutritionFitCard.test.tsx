@@ -1,4 +1,6 @@
-import { screen } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import NutritionFitCard from './NutritionFitCard'
@@ -130,13 +132,70 @@ describe('나에게 맞는 영양', () => {
     )
   })
 
-  it('이 카드가 실패해도 레시피 화면을 망치지 않는다', async () => {
+  it('조회 실패를 알리고 재시도하는 동안 같은 버튼의 초점을 유지한다', async () => {
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json({ detail: '오류' }, 500))
-    const { container } = renderWithProviders(<NutritionFitCard recipeId={67} />)
+    const user = userEvent.setup()
+    let resolve!: (response: Response) => void
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(json({ detail: '오류' }, 500))
+      .mockImplementationOnce(() => new Promise<Response>((done) => { resolve = done }))
+    renderWithProviders(<NutritionFitCard recipeId={67} />)
 
-    // 아무것도 안 그린다. 오류 문구로 레시피 본문을 가리지 않는다.
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(container.querySelector('section')).toBeNull()
+    expect(await screen.findByRole('alert')).toHaveTextContent('영양 정보를 불러오지 못했어요')
+    const retry = screen.getByRole('button', { name: '영양 정보 다시 불러오기' })
+    await user.click(retry)
+    expect(screen.getByRole('status')).toHaveTextContent('불러오는 중')
+    expect(retry).toHaveFocus()
+    expect(retry).toHaveAttribute('aria-disabled', 'true')
+    await user.keyboard('{Enter}')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await act(async () => resolve(json(fit())))
+    expect(await screen.findByText('단백질')).toBeInTheDocument()
+    expect(retry).toHaveFocus()
+    expect(retry).toHaveAttribute('aria-disabled', 'false')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('영양 재시도 중 다른 입력으로 이동하면 완료 후에도 그 초점을 유지한다', async () => {
+    signIn()
+    const user = userEvent.setup()
+    let resolve!: (response: Response) => void
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(json({}, 502))
+      .mockImplementationOnce(() => new Promise<Response>((done) => { resolve = done }))
+    renderWithProviders(<><NutritionFitCard recipeId={67} /><input aria-label="후기 입력" /></>)
+    await user.click(await screen.findByRole('button', { name: '영양 정보 다시 불러오기' }))
+    const input = screen.getByLabelText('후기 입력')
+    await user.click(input)
+    await user.type(input, '후기 작성 중')
+    await act(async () => resolve(json(fit())))
+    expect(await screen.findByText('단백질')).toBeInTheDocument()
+    expect(input).toHaveFocus()
+    expect(input).toHaveValue('후기 작성 중')
+  })
+
+  it('다른 레시피로 이동한 뒤 도착한 이전 응답은 표시하지 않는다', async () => {
+    signIn()
+    const user = userEvent.setup()
+    let resolveOld!: (response: Response) => void
+    let resolveNew!: (response: Response) => void
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) =>
+      new Promise<Response>((done) => {
+        if (String(url).includes('/67/')) resolveOld = done
+        else resolveNew = done
+      }),
+    )
+    function Fixture() {
+      const [recipeId, setRecipeId] = useState(67)
+      return <><button onClick={() => setRecipeId(68)}>다음 레시피</button><NutritionFitCard recipeId={recipeId} /></>
+    }
+    renderWithProviders(<Fixture />)
+    expect(screen.getByRole('status')).toHaveTextContent('영양 정보를 불러오는 중')
+    await user.click(screen.getByRole('button', { name: '다음 레시피' }))
+    await act(async () => resolveNew(json(fit({ bracket_label: '새 레시피 기준' }))))
+    expect(await screen.findByText('새 레시피 기준')).toBeInTheDocument()
+    await act(async () => resolveOld(json(fit({ bracket_label: '이전 레시피 기준' }))))
+    await waitFor(() => expect(screen.queryByText('이전 레시피 기준')).not.toBeInTheDocument())
+    expect(screen.getByText('새 레시피 기준')).toBeInTheDocument()
   })
 })

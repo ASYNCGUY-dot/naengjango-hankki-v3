@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { MIN_PASSWORD_LENGTH, sessionStore, type SignupBody } from '../api/auth'
@@ -6,6 +6,8 @@ import { getProfile, getProfileOptions, type ProfileOptions } from '../api/profi
 import { ApiError, TimeoutError } from '../api/client'
 import { useAuth } from '../auth/context'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
+import { useDeferredFocus } from '../hooks/비동기초점'
+import Icon from '../components/아이콘'
 import styles from './AuthPage.module.css'
 
 type Mode = 'login' | 'signup'
@@ -63,56 +65,97 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   const [agreedPrivacy, setAgreedPrivacy] = useState(false)
   const [agreedMarketing, setAgreedMarketing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorField, setErrorField] = useState<string | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const errorRef = useRef<HTMLParagraphElement>(null)
+  const optionsFocus = useRef<(() => boolean) | null>(null)
+  const submitFocus = useRef<(() => boolean) | null>(null)
+  const { capture: captureFocus } = useDeferredFocus()
   const [isPending, setIsPending] = useState(false)
   const isSlow = useSlowRequestHint(isPending)
 
   // 선택지는 서버가 정한다. 화면이 목록을 들고 있다가 서버가 아는 값과 어긋난 적이 있다.
   const [options, setOptions] = useState<ProfileOptions | null>(null)
+  const [optionsState, setOptionsState] = useState<'loading' | 'loaded' | 'error'>('loading')
+  const [optionsAttempt, setOptionsAttempt] = useState(0)
   useEffect(() => {
     if (mode !== 'signup') return
     const controller = new AbortController()
     getProfileOptions(controller.signal)
-      .then(setOptions)
-      // 못 받으면 성별·연령대 칸이 비는데, 가입 자체를 막지는 않는다.
-      .catch(() => {})
+      .then((result) => {
+        if (controller.signal.aborted) return
+        if (!result.genders.length || !result.age_groups.length) {
+          setOptionsState('error')
+          return
+        }
+        setOptions(result)
+        setOptionsState('loaded')
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setOptionsState('error')
+      })
     return () => controller.abort()
-  }, [mode])
+  }, [mode, optionsAttempt])
+
+  useEffect(() => {
+    if (error && errorField === null) {
+      const canRestore = submitFocus.current
+      submitFocus.current = null
+      if (canRestore?.()) errorRef.current?.focus()
+    }
+  }, [error, errorField])
+
+  useEffect(() => {
+    if (mode === 'signup' && optionsState === 'loaded') {
+      const canRestore = optionsFocus.current
+      optionsFocus.current = null
+      if (canRestore?.()) formRef.current?.querySelector<HTMLSelectElement>('#gender')?.focus()
+    }
+  }, [mode, optionsState])
 
   const set = (key: keyof typeof EMPTY_SIGNUP) => (value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }))
 
-  function validate(): string | null {
+  function validate(): { field: string; message: string } | null {
     // 백엔드도 같은 것들을 검사하지만, 여기서 먼저 걸러야 콜드스타트 30초를 기다린 끝에
     // "비밀번호가 짧습니다"를 보는 일이 없다.
+    if (!form.username.trim()) return { field: 'username', message: '아이디를 입력해주세요.' }
     if (form.password.length < MIN_PASSWORD_LENGTH) {
-      return `비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`
+      return { field: 'password', message: `비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.` }
     }
     if (mode === 'login') return null
 
-    if (!form.name.trim()) return '이름을 입력해주세요.'
-    if (!form.phone.trim()) return '연락처를 입력해주세요.'
+    if (!form.name.trim()) return { field: 'name', message: '이름을 입력해주세요.' }
+    if (!form.phone.trim()) return { field: 'phone', message: '연락처를 입력해주세요.' }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
-      return '이메일 형식이 올바르지 않습니다.'
+      return { field: 'email', message: '이메일 형식이 올바르지 않습니다.' }
     }
-    if (!form.gender) return '성별을 선택해주세요.'
-    if (!form.age_group) return '연령대를 선택해주세요.'
+    if (!form.gender) return { field: 'gender', message: '성별을 선택해주세요.' }
+    if (!form.age_group) return { field: 'age_group', message: '연령대를 선택해주세요.' }
     if (!agreedTerms || !agreedPrivacy) {
-      return '이용약관과 개인정보 수집·이용에 동의해야 가입할 수 있습니다.'
+      return {
+        field: !agreedTerms ? 'agree-terms' : 'agree-privacy',
+        message: '이용약관과 개인정보 수집·이용에 동의해야 가입할 수 있습니다.',
+      }
     }
     return null
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (isPending) return
+    if (isPending || (mode === 'signup' && optionsState !== 'loaded')) return
 
     setError(null)
+    setErrorField(null)
     const problem = validate()
     if (problem !== null) {
-      setError(problem)
+      setError(problem.message)
+      setErrorField(problem.field)
+      formRef.current?.querySelector<HTMLElement>(`#${problem.field}`)?.focus()
       return
     }
 
+    submitFocus.current = captureFocus()
     setIsPending(true)
     try {
       if (mode === 'login') {
@@ -150,14 +193,27 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   }
 
   return (
-    <main className={styles.page}>
-      <div className={styles.brand}>
-        <div className={styles.logo} aria-hidden="true">
-          🍚
-        </div>
+    <main className={`${styles.page} ${mode === 'signup' ? styles.signup : ''}`}>
+      <header className={styles.brand}>
+        <Icon name="bowl" size={26} className={styles.logo} />
         <h1>냉장고 한끼</h1>
-        <p className={styles.tagline}>냉장고에 있는 재료로 한 끼</p>
-      </div>
+      </header>
+
+      {mode === 'login' ? (
+        <section className={styles.intro} aria-label="냉장고 한끼 소개">
+          <p className={styles.tagline}>냉장고 속 재료로,<br />오늘 한 끼.</p>
+          <p className={styles.description}>내 재료로 요리를 찾고, 집밥을 나눠요.</p>
+          <div className={styles.photos} aria-hidden="true">
+            <div className={styles.ricePhoto} />
+            <div className={styles.stewPhoto} />
+          </div>
+        </section>
+      ) : (
+        <div className={styles.signupIntro}>
+          <h2>우리 집 식탁을 시작해요</h2>
+          <p className={styles.description}>나에게 맞는 한 끼를 함께 찾아봐요.</p>
+        </div>
+      )}
 
       {isSlow && (
         <p className={styles.wake} role="status">
@@ -171,36 +227,61 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
       {/* role="alert"라 오류가 생기면 화면 낭독기가 바로 읽는다. */}
       {error !== null && (
-        <p className={styles.error} role="alert">
+        <p id="auth-error" ref={errorRef} className={styles.error} role="alert" tabIndex={-1}>
           {error}
         </p>
       )}
 
-      <form onSubmit={handleSubmit} noValidate>
+      <form ref={formRef} className={styles.form} onSubmit={handleSubmit} noValidate>
         <Field id="username" label="아이디" value={form.username} onChange={set('username')}
+          invalid={errorField === 'username'}
           autoComplete="username" placeholder="아이디를 입력하세요" />
 
         <Field id="password" label="비밀번호" value={form.password} onChange={set('password')}
+          invalid={errorField === 'password'}
           type="password"
           autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          placeholder={`${MIN_PASSWORD_LENGTH}자 이상`}
-          hint={`${MIN_PASSWORD_LENGTH}자 이상 입력해주세요`} />
+          placeholder={mode === 'login' ? '비밀번호를 입력하세요' : `${MIN_PASSWORD_LENGTH}자 이상`}
+          hint={mode === 'signup' ? `${MIN_PASSWORD_LENGTH}자 이상 입력해주세요` : undefined} />
 
         {mode === 'signup' && (
           <>
             <Field id="name" label="이름" value={form.name} onChange={set('name')}
+              invalid={errorField === 'name'}
               autoComplete="name" placeholder="이름을 입력하세요" />
 
             <Field id="phone" label="연락처" value={form.phone} onChange={set('phone')}
+              invalid={errorField === 'phone'}
               type="tel" autoComplete="tel" placeholder="010-0000-0000" />
 
             <Field id="email" label="이메일" value={form.email} onChange={set('email')}
+              invalid={errorField === 'email'}
               type="email" autoComplete="email" placeholder="name@example.com"
               hint="비밀번호를 잊었을 때 초기화 링크를 받을 주소예요" />
 
+            {optionsState === 'loading' && (
+              <p id="profile-options-state" className={styles.hint} role="status">
+                성별·연령대 선택지를 불러오는 중이에요…
+              </p>
+            )}
+            {optionsState === 'error' && (
+              <div className={styles.optionsNotice}>
+                <p id="profile-options-state" role="alert">
+                  성별·연령대 선택지를 불러오지 못했어요. 다시 불러온 뒤 가입할 수 있어요.
+                </p>
+                <button type="button" className={styles.retry} onClick={() => {
+                  optionsFocus.current = captureFocus()
+                  setOptionsState('loading')
+                  setOptionsAttempt((attempt) => attempt + 1)
+                }}>선택지 다시 불러오기</button>
+              </div>
+            )}
+
             <div className={styles.field}>
               <label htmlFor="gender">성별</label>
-              <select id="gender" value={form.gender} onChange={(e) => set('gender')(e.target.value)}>
+              <select id="gender" value={form.gender} onChange={(e) => set('gender')(e.target.value)}
+                required disabled={optionsState !== 'loaded'} aria-invalid={errorField === 'gender'}
+                aria-describedby={errorField === 'gender' ? 'auth-error' : optionsState !== 'loaded' ? 'profile-options-state' : undefined}>
                 <option value="">선택하세요</option>
                 {(options?.genders ?? []).map((option) => (
                   <option key={option} value={option}>{option}</option>
@@ -211,6 +292,8 @@ export default function AuthPage({ mode }: { mode: Mode }) {
             <div className={styles.field}>
               <label htmlFor="age_group">연령대</label>
               <select id="age_group" value={form.age_group}
+                required disabled={optionsState !== 'loaded'} aria-invalid={errorField === 'age_group'}
+                aria-describedby={errorField === 'age_group' ? 'auth-error' : optionsState !== 'loaded' ? 'profile-options-state' : undefined}
                 onChange={(e) => set('age_group')(e.target.value)}>
                 <option value="">선택하세요</option>
                 {(options?.age_groups ?? []).map((option) => (
@@ -224,9 +307,11 @@ export default function AuthPage({ mode }: { mode: Mode }) {
               {/* 라벨과 링크를 분리한다. 라벨 안에 링크를 넣으면 링크를 누를 때 체크박스가
                   함께 토글돼서, 문서를 보려던 사람이 동의를 켜버린다. */}
               <Checkbox id="agree-terms" checked={agreedTerms} onChange={setAgreedTerms}
+                required invalid={errorField === 'agree-terms'}
                 label="(필수) 이용약관에 동의합니다"
                 to="/terms" />
               <Checkbox id="agree-privacy" checked={agreedPrivacy} onChange={setAgreedPrivacy}
+                required invalid={errorField === 'agree-privacy'}
                 label="(필수) 개인정보 수집·이용에 동의합니다"
                 to="/privacy" />
               <Checkbox id="agree-marketing" checked={agreedMarketing} onChange={setAgreedMarketing}
@@ -240,7 +325,8 @@ export default function AuthPage({ mode }: { mode: Mode }) {
           </>
         )}
 
-        <button className={styles.cta} type="submit" disabled={isPending}>
+        <button className={styles.cta} type="submit"
+          disabled={isPending || (mode === 'signup' && optionsState !== 'loaded')}>
           {isPending ? copy.pending : copy.submit}
         </button>
       </form>
@@ -271,6 +357,7 @@ function Field(props: {
   autoComplete?: string
   placeholder?: string
   hint?: string
+  invalid?: boolean
 }) {
   const hintId = props.hint ? `${props.id}-hint` : undefined
   return (
@@ -284,7 +371,9 @@ function Field(props: {
         placeholder={props.placeholder}
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
-        aria-describedby={hintId}
+        required
+        aria-invalid={props.invalid}
+        aria-describedby={[hintId, props.invalid ? 'auth-error' : undefined].filter(Boolean).join(' ') || undefined}
       />
       {props.hint && (
         <span className={styles.hint} id={hintId}>
@@ -302,6 +391,8 @@ function Checkbox(props: {
   label: string
   /** 있으면 라벨 옆에 "보기" 링크를 단다. 동의 대상 문서로 가는 길이다. */
   to?: string
+  required?: boolean
+  invalid?: boolean
 }) {
   return (
     <div className={styles.checkboxRow}>
@@ -310,6 +401,9 @@ function Checkbox(props: {
           id={props.id}
           type="checkbox"
           checked={props.checked}
+          required={props.required}
+          aria-invalid={props.invalid}
+          aria-describedby={props.invalid ? 'auth-error' : undefined}
           onChange={(e) => props.onChange(e.target.checked)}
         />
         {props.label}

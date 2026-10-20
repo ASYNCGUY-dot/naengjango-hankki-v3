@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { ApiError } from '../api/client'
 import {
@@ -34,27 +34,29 @@ export default function PartnerKeyPage() {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const busy = useRef(false)
 
   useEffect(() => {
     if (userId === null) return
+    setStatus(null)
+    setLoadError(false)
     const controller = new AbortController()
     getPartnerKeyStatus(userId, controller.signal)
-      .then(setStatus)
+      .then((value) => { if (!controller.signal.aborted) setStatus(value) })
       .catch(() => {
-        // 못 불러왔으면 기준 숫자를 모른다. 0으로 두고 화면에서 숫자 대신 "여러"로 적는다 -
-        // 여기서 아무 숫자나 넣으면 그게 곧 화면이 서버 기준을 지어내는 것이 된다.
-        if (!controller.signal.aborted) {
-          setStatus({ registered: false, updated_at: null, revenue_min_likes: 0 })
-        }
+        if (!controller.signal.aborted) setLoadError(true)
       })
     return () => controller.abort()
-  }, [userId])
+  }, [userId, retry])
 
   if (userId === null) return null
 
   async function handleSave(event: React.FormEvent) {
     event.preventDefault()
-    if (userId === null) return
+    if (userId === null || status === null || busy.current) return
+    busy.current = true
     setError(null)
     setSaved(false)
     setIsBusy(true)
@@ -67,12 +69,14 @@ export default function PartnerKeyPage() {
     } catch (caught: unknown) {
       setError(caught instanceof ApiError ? caught.message : '저장하지 못했어요. 잠시 후 다시 시도해주세요.')
     } finally {
+      busy.current = false
       setIsBusy(false)
     }
   }
 
   async function handleDelete() {
-    if (userId === null) return
+    if (userId === null || busy.current) return
+    busy.current = true
     setError(null)
     setSaved(false)
     setIsBusy(true)
@@ -81,6 +85,7 @@ export default function PartnerKeyPage() {
     } catch (caught: unknown) {
       setError(caught instanceof ApiError ? caught.message : '해제하지 못했어요.')
     } finally {
+      busy.current = false
       setIsBusy(false)
     }
   }
@@ -113,7 +118,11 @@ export default function PartnerKeyPage() {
         </ul>
       </div>
 
-      {status?.registered ? (
+      {loadError ? (
+        <div className={styles.unregistered}><p role="alert">등록 상태를 불러오지 못했어요.</p><button className={styles.retry} type="button" onClick={() => setRetry((value) => value + 1)}>등록 상태 다시 불러오기</button></div>
+      ) : status === null ? (
+        <p className={styles.unregistered} role="status">등록 상태를 불러오는 중…</p>
+      ) : status.registered ? (
         <p className={styles.registered} role="status">
           키가 등록돼 있어요.
           {status.updated_at && <small>마지막 갱신 {status.updated_at.slice(0, 10)}</small>}
@@ -122,7 +131,7 @@ export default function PartnerKeyPage() {
         <p className={styles.unregistered} role="status">아직 등록된 키가 없어요.</p>
       )}
 
-      <form className={styles.form} onSubmit={handleSave}>
+      {status !== null && <form className={styles.form} onSubmit={handleSave} aria-busy={isBusy}>
         <label>
           <span>Access Key</span>
           <input
@@ -152,7 +161,7 @@ export default function PartnerKeyPage() {
         <button className={styles.primary} type="submit" disabled={isBusy}>
           {status?.registered ? '키 바꾸기' : '키 등록하기'}
         </button>
-      </form>
+      </form>}
 
       {status?.registered && (
         <button className={styles.danger} type="button" onClick={handleDelete} disabled={isBusy}>

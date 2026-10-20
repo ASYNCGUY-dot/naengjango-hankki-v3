@@ -1017,7 +1017,9 @@ def _subject_particle(word: str) -> str:
     return "가"
 
 
-def _theme_rows(cur, where_sql: str, params: tuple, limit: int) -> tuple[list[dict], int]:
+def _theme_rows(
+    cur, where_sql: str, params: tuple, limit: int, offset: int = 0
+) -> tuple[list[dict], int]:
     """조건에 맞는 레시피 목록과 전체 개수를 함께 돌려준다.
 
     개수를 같이 주는 이유는 화면에 "32개"처럼 규모를 보여주기 위해서다. 열 개만 보여주고
@@ -1025,8 +1027,8 @@ def _theme_rows(cur, where_sql: str, params: tuple, limit: int) -> tuple[list[di
     """
     cur.execute(
         f"SELECT id, menu_name, category, calorie, image_url FROM recipes "
-        f"WHERE {where_sql} ORDER BY id LIMIT ?",
-        (*params, limit),
+        f"WHERE {where_sql} ORDER BY id LIMIT ? OFFSET ?",
+        (*params, limit, offset),
     )
     recipes = [
         {"id": r[0], "menu_name": r[1], "category": r[2], "calorie": r[3], "image_url": r[4]}
@@ -1036,17 +1038,26 @@ def _theme_rows(cur, where_sql: str, params: tuple, limit: int) -> tuple[list[di
     return recipes, cur.fetchone()[0]
 
 
-def get_home_themes(cur, seasonal_ingredients: list[str], month: int, limit: int = 10) -> list[dict]:
-    """홈 화면에 줄 단위로 보여줄 테마들.
+def get_home_themes(
+    cur,
+    seasonal_ingredients: list[str],
+    month: int,
+    limit: int = 10,
+    *,
+    theme: str | None = None,
+    offset: int = 0,
+) -> list[dict]:
+    """홈 미리보기 또는 선택한 테마의 한 페이지.
 
     제철 재료는 호출부가 넘긴다 - 이 함수가 달력을 읽으면 테스트가 날짜에 묶인다.
 
-    한 번의 요청으로 네 테마를 다 돌려준다. 테마마다 따로 부르면 무료 티어(0.1 CPU)에서
-    왕복이 네 배가 되고, 콜드스타트까지 겹치면 첫 화면이 그만큼 늦어진다.
+    기본 호출은 한 번에 네 테마를 조회해 홈의 왕복 횟수를 줄인다.
+    전체보기에서는 선택한 테마만 조회한다. 명시적으로 선택한 테마는 빈 페이지여도
+    제목과 전체 개수를 남겨, 화면이 빈 목록과 조회 실패를 구분할 수 있게 한다.
     """
     themes: list[dict] = []
 
-    if seasonal_ingredients:
+    if theme in (None, "seasonal") and seasonal_ingredients:
         # 제철 품목 이름이 재료에 들어 있는 레시피. LIKE 패턴은 문자열에 박지 않고
         # 파라미터로 바인딩한다(8.1 함정 - psycopg2가 리터럴 %를 자리표시자로 오인한다).
         likes = " OR ".join(["ri.name LIKE ?"] * len(seasonal_ingredients))
@@ -1055,8 +1066,8 @@ def get_home_themes(cur, seasonal_ingredients: list[str], month: int, limit: int
             f"(SELECT ri.recipe_id FROM recipe_ingredients ri WHERE {likes})"
         )
         params = tuple(f"%{name}%" for name in seasonal_ingredients)
-        recipes, total = _theme_rows(cur, where, params, limit)
-        if recipes:
+        recipes, total = _theme_rows(cur, where, params, limit, offset)
+        if recipes or theme == "seasonal":
             themes.append({
                 "key": "seasonal",
                 "title": f"{month}월 제철",
@@ -1068,45 +1079,49 @@ def get_home_themes(cur, seasonal_ingredients: list[str], month: int, limit: int
                 "recipes": recipes,
             })
 
-    recipes, total = _theme_rows(
-        cur,
-        "status = 'approved' AND id IN "
-        "(SELECT recipe_id FROM recipe_ingredients GROUP BY recipe_id HAVING COUNT(*) <= ?)",
-        (SIMPLE_INGREDIENT_MAX,),
-        limit,
-    )
-    if recipes:
-        themes.append({
-            "key": "simple",
-            "title": "간단하게",
-            "subtitle": f"재료 {SIMPLE_INGREDIENT_MAX}개 이하로 만들어요",
-            "total": total,
-            "recipes": recipes,
-        })
+    if theme in (None, "simple"):
+        recipes, total = _theme_rows(
+            cur,
+            "status = 'approved' AND id IN "
+            "(SELECT recipe_id FROM recipe_ingredients GROUP BY recipe_id HAVING COUNT(*) <= ?)",
+            (SIMPLE_INGREDIENT_MAX,),
+            limit,
+            offset,
+        )
+        if recipes or theme == "simple":
+            themes.append({
+                "key": "simple",
+                "title": "간단하게",
+                "subtitle": f"재료 {SIMPLE_INGREDIENT_MAX}개 이하로 만들어요",
+                "total": total,
+                "recipes": recipes,
+            })
 
-    recipes, total = _theme_rows(
-        cur, "status = 'approved' AND calorie <= ?", (LIGHT_CALORIE_MAX,), limit
-    )
-    if recipes:
-        themes.append({
-            "key": "light",
-            "title": "가볍게",
-            "subtitle": f"{LIGHT_CALORIE_MAX}kcal 이하",
-            "total": total,
-            "recipes": recipes,
-        })
+    if theme in (None, "light"):
+        recipes, total = _theme_rows(
+            cur, "status = 'approved' AND calorie <= ?", (LIGHT_CALORIE_MAX,), limit, offset
+        )
+        if recipes or theme == "light":
+            themes.append({
+                "key": "light",
+                "title": "가볍게",
+                "subtitle": f"{LIGHT_CALORIE_MAX}kcal 이하",
+                "total": total,
+                "recipes": recipes,
+            })
 
-    recipes, total = _theme_rows(
-        cur, "status = 'approved' AND calorie >= ?", (HEARTY_CALORIE_MIN,), limit
-    )
-    if recipes:
-        themes.append({
-            "key": "hearty",
-            "title": "든든하게",
-            "subtitle": f"{HEARTY_CALORIE_MIN}kcal 이상",
-            "total": total,
-            "recipes": recipes,
-        })
+    if theme in (None, "hearty"):
+        recipes, total = _theme_rows(
+            cur, "status = 'approved' AND calorie >= ?", (HEARTY_CALORIE_MIN,), limit, offset
+        )
+        if recipes or theme == "hearty":
+            themes.append({
+                "key": "hearty",
+                "title": "든든하게",
+                "subtitle": f"{HEARTY_CALORIE_MIN}kcal 이상",
+                "total": total,
+                "recipes": recipes,
+            })
 
     return themes
 

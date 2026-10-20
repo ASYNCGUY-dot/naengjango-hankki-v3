@@ -1,13 +1,16 @@
 .card {
-  margin: var(--space-6) var(--space-4);
+  min-width: 0;
+  margin: var(--space-6) var(--feed-page-padding);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
+  overflow-wrap: anywhere;
 }
 
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
@@ -21,7 +24,6 @@
 .pct {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  white-space: nowrap;
 }
 
 .guide,
@@ -90,22 +92,26 @@
    부족한 재료를 "무엇으로 대신할 수 있나"가 먼저고 사는 건 그 다음이다. */
 .buy {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-1);
 }
 
 .buy a {
-  padding: 0.125rem var(--space-2);
+  max-width: 100%;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface-raised);
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   text-decoration: none;
   /* 모바일에서 손가락으로 누를 수 있어야 한다. 글자만으로는 너무 얇다. */
-  min-height: 1.75rem;
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
 }
 
 .buy a:hover,

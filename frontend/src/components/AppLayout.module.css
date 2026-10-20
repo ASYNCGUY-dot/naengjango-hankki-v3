@@ -9,17 +9,26 @@
 
 .content {
   flex: 1;
-  padding-bottom: var(--space-4);
+  min-width: 0;
+  container-type: inline-size;
+  padding-bottom: calc(var(--nav-occupied-height, var(--feed-nav-height)) + var(--space-4));
 }
 
 .tabbar {
-  position: sticky;
+  position: fixed;
+  z-index: 20;
   bottom: 0;
-  display: flex;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  max-width: var(--content-max-width);
+  min-height: var(--feed-nav-height);
   background: var(--color-surface-raised);
   border-top: 1px solid var(--color-border);
   /* 홈 인디케이터가 있는 기기에서 탭이 가려지지 않게 한다. */
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 }
 
 .tab {
@@ -29,15 +38,22 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.15em;
-  padding: var(--space-2) 0;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
   text-decoration: none;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   font-size: var(--font-size-xs);
-  /* 라벨이 네 글자라 좁은 화면에서 줄바꿈될 수 있다. 두 줄이 되면 탭 높이가
-     들쭉날쭉해진다. */
-  white-space: nowrap;
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  /* 큰 글자에서는 라벨을 줄바꿈하고 실제 메뉴 높이만큼 본문 여백을 확보한다. */
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  text-align: center;
 }
+
+.tab span { max-width: 100%; }
 
 .active {
   color: var(--color-accent-text);
@@ -45,6 +61,43 @@
 }
 
 .icon {
-  font-size: var(--font-size-lg);
-  line-height: 1;
+  flex-shrink: 0;
+}
+
+.active .icon { color: var(--feed-coral); stroke-width: 2; }
+.tab:hover { background: var(--color-surface-sunken); }
+
+@media (min-width: 513px) {
+  .shell, .tabbar { border-inline: 1px solid var(--color-border); }
+}
+
+@media (min-width: 48rem) {
+  .shell { max-width: 70rem; }
+  .tabbar {
+    position: sticky;
+    top: 0;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    max-width: none;
+    min-height: 4.5rem;
+    padding: var(--space-2) var(--space-5);
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .tab { flex-direction: row; gap: var(--space-2); font-size: var(--font-size-sm); }
+  .content { padding-bottom: var(--space-6); }
+}
+
+/* 가로 화면처럼 높이가 낮을 때는 메뉴가 본문 위를 계속 덮지 않도록 한다. */
+@media (max-height: 30rem) {
+  .tabbar {
+    position: static;
+    transform: none;
+    max-width: none;
+    border-top: 0;
+    border-bottom: 1px solid var(--color-border);
+    padding-block: var(--space-2);
+  }
+  .tab { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
 }

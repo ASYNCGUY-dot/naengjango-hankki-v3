@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useLayoutEffect, useRef } from 'react'
 
 import AuthPage from '../routes/AuthPage'
+import Icon, { type IconName } from './아이콘'
 import { useAuth } from '../auth/context'
 import styles from './AppLayout.module.css'
 
@@ -11,13 +13,13 @@ import styles from './AppLayout.module.css'
  * 쓰고 탭에는 "맞춤추천"으로 줄인다.
  */
 const TABS = [
-  { to: '/', label: '홈', icon: '🏠', end: true },
-  { to: '/recommend', label: '맞춤추천', icon: '✨', end: false },
-  { to: '/brags', label: '자랑하기', icon: '📸', end: false },
+  { to: '/', label: '홈', icon: 'home', end: true },
+  { to: '/recommend', label: '맞춤추천', icon: 'search', end: false },
+  { to: '/brags', label: '자랑하기', icon: 'plus', end: false },
   // 냉장고는 탭에서 빼고 마이 안으로 넣었다. 매일 여는 화면이 아니라 가끔 정리하는
   // 화면이라, 네 칸 중 하나를 계속 차지할 자리가 아니라고 봤다.
-  { to: '/my', label: '마이', icon: '👤', end: false },
-]
+  { to: '/my', label: '마이', icon: 'user', end: false },
+] satisfies { to: string; label: string; icon: IconName; end: boolean }[]
 
 /**
  * 로그인 없이도 열리는 경로.
@@ -38,6 +40,25 @@ export default function AppLayout() {
   const { isAuthenticated } = useAuth()
   const { pathname } = useLocation()
   const isPublic = PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  const navRef = useRef<HTMLElement>(null)
+
+  useLayoutEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    const measure = () => {
+      const occupied = getComputedStyle(nav).position === 'fixed' ? nav.getBoundingClientRect().height : 0
+      document.documentElement.style.setProperty('--nav-occupied-height', `${occupied}px`)
+    }
+    measure()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    observer?.observe(nav)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', measure)
+      document.documentElement.style.removeProperty('--nav-occupied-height')
+    }
+  }, [isAuthenticated, isPublic])
 
   if (!isAuthenticated && !isPublic) {
     return <AuthPage mode="login" />
@@ -45,13 +66,9 @@ export default function AppLayout() {
 
   return (
     <div className={styles.shell}>
-      <main className={styles.content}>
-        <Outlet />
-      </main>
-
       {/* 비로그인이 공유 링크로 들어온 경우에는 탭바를 감춘다. 갈 수 있는 곳이 없다. */}
       {isAuthenticated && (
-        <nav className={styles.tabbar} aria-label="주요 메뉴">
+        <nav ref={navRef} className={styles.tabbar} aria-label="주요 메뉴">
           {TABS.map((tab) => (
             <NavLink
               key={tab.to}
@@ -62,14 +79,15 @@ export default function AppLayout() {
               }
             >
               {/* 아이콘은 장식이므로 보조기기에서 읽지 않는다. 라벨이 이름을 담당한다. */}
-              <span className={styles.icon} aria-hidden="true">
-                {tab.icon}
-              </span>
-              {tab.label}
+              <Icon className={styles.icon} name={tab.icon} size={26} />
+              <span>{tab.label}</span>
             </NavLink>
           ))}
         </nav>
       )}
+      <main className={styles.content}>
+        <Outlet />
+      </main>
     </div>
   )
 }

@@ -34,6 +34,47 @@ describe('toHttps', () => {
   })
 })
 
+describe('API 주소 구성', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
+  it.each([
+    ['https://api.example.test', '/profile/options', 'https://api.example.test/profile/options'],
+    ['https://api.example.test/', 'profile/options', 'https://api.example.test/profile/options'],
+    ['https://api.example.test/api/', '/profile/options', 'https://api.example.test/api/profile/options'],
+    ['/api', '/profile/options', `${window.location.origin}/api/profile/options`],
+    ['/api/', 'profile/options', `${window.location.origin}/api/profile/options`],
+  ])('기준 주소 %s와 요청 경로 %s를 올바르게 연결한다', async (base, path, expected) => {
+    vi.stubEnv('VITE_API_BASE', base)
+    const { buildApiUrl } = await import('./client')
+
+    expect(buildApiUrl(path)).toBe(expected)
+  })
+
+  it('상대 프록시 경로에서도 배열과 숫자·불리언 쿼리를 보존한다', async () => {
+    vi.stubEnv('VITE_API_BASE', '/api')
+    const { buildApiUrl } = await import('./client')
+    const url = new URL(buildApiUrl('/recommendation/demo', {
+      ingredients: ['고등어', '두부'],
+      limit: 10,
+      strict: false,
+      category: undefined,
+    }))
+
+    expect(url.pathname).toBe('/api/recommendation/demo')
+    expect(url.searchParams.getAll('ingredients')).toEqual(['고등어', '두부'])
+    expect(url.searchParams.get('limit')).toBe('10')
+    expect(url.searchParams.get('strict')).toBe('false')
+    expect(url.searchParams.has('category')).toBe(false)
+  })
+})
+
 describe('apiFetch', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -52,7 +93,9 @@ describe('apiFetch', () => {
 
     const url = new URL(fetchMock.mock.calls[0][0] as string)
     expect(url.searchParams.getAll('ingredients')).toEqual(['고등어', '두부'])
-    expect(url.origin + url.pathname).toBe(`${API_BASE}/recommendation/demo`)
+    expect(url.origin + url.pathname).toBe(
+      new URL(`${API_BASE.replace(/\/+$/, '')}/recommendation/demo`, window.location.origin).toString(),
+    )
   })
 
   it('undefined인 쿼리 값은 아예 붙이지 않는다', async () => {

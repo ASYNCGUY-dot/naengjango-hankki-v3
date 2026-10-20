@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import HomePage from './HomePage'
+import type { BragItem } from '../api/brags'
 import { PAGE_SIZE } from '../api/recipes'
 import { renderWithProviders } from '../test/renderWithProviders'
 
@@ -43,25 +44,30 @@ type Video = {
   fetched_at: string
 }
 
-/** 검색·분류·테마·인기·영상 다섯 종류의 요청이 오므로 경로로 갈라서 답한다. */
+/** 홈의 레시피·영상·집밥 피드 요청을 각각 실제 경로로 갈라서 답한다. */
 function mockApi(handlers: {
   search?: (url: URL) => Recipe[]
   categories?: () => { category: string; count: number }[]
-  themes?: () => Theme[]
+  themes?: (url: URL) => Theme[]
   popular?: () => (Recipe & { like_count: number })[]
   videoCategories?: () => string[]
   videos?: () => Video[]
+  brags?: () => BragItem[]
+  profile?: () => { has_profile: boolean; username: string }
 }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(input as string)
     let body: unknown
     // 영상 쪽을 먼저 본다. "/popular-videos/categories"가 아래의 endsWith('/categories')에
     // 먼저 걸리면 분류 칩 자리에 영상 분류가 들어간다.
-    if (url.pathname.startsWith('/popular-videos/categories')) {
+    if (url.pathname === '/brags') body = handlers.brags?.() ?? []
+    else if (url.pathname.startsWith('/profile/')) {
+      body = handlers.profile?.() ?? { has_profile: true, username: '내계정' }
+    } else if (url.pathname.startsWith('/popular-videos/categories')) {
       body = handlers.videoCategories?.() ?? []
     } else if (url.pathname.startsWith('/popular-videos/')) body = handlers.videos?.() ?? []
     else if (url.pathname.endsWith('/categories')) body = handlers.categories?.() ?? []
-    else if (url.pathname.endsWith('/themes')) body = handlers.themes?.() ?? []
+    else if (url.pathname.endsWith('/themes')) body = handlers.themes?.(url) ?? []
     else if (url.pathname.endsWith('/popular')) body = handlers.popular?.() ?? []
     else body = handlers.search?.(url) ?? []
     return new Response(JSON.stringify(body), {
@@ -91,6 +97,90 @@ describe('홈 화면', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('추천 탭에서 시작하고 재료 추천과 집밥 쓰기로 연결한다', () => {
+    mockApi({})
+    renderWithProviders(<HomePage />)
+
+    const tabs = screen.getByRole('tablist', { name: '둘러보기' })
+    expect(within(tabs).getByRole('tab', { name: '추천' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('link', { name: /내 재료로 만들 수 있는 요리/ })).toHaveAttribute(
+      'href',
+      '/recommend',
+    )
+    expect(screen.getByRole('link', { name: '집밥 올리기' })).toHaveAttribute('href', '/brags/new')
+  })
+
+  it('방향키와 Home·End 키로 탭을 선택하고 초점을 이동한다', async () => {
+    const user = userEvent.setup()
+    mockApi({})
+    renderWithProviders(<HomePage />)
+
+    const recommended = screen.getByRole('tab', { name: '추천' })
+    const videos = screen.getByRole('tab', { name: '요리 영상' })
+    const brags = screen.getByRole('tab', { name: '한 끼 자랑' })
+    recommended.focus()
+
+    await user.keyboard('{ArrowRight}')
+    expect(videos).toHaveFocus()
+    expect(videos).toHaveAttribute('aria-selected', 'true')
+
+    await user.keyboard('{End}')
+    expect(brags).toHaveFocus()
+    expect(brags).toHaveAttribute('aria-selected', 'true')
+
+    await user.keyboard('{Home}')
+    expect(recommended).toHaveFocus()
+    expect(recommended).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('한 끼 자랑 탭에서 실제 게시글과 연결된 레시피를 보여준다', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('naengjango.userId', '116')
+    localStorage.setItem('naengjango.token', 'tok-test')
+    mockApi({
+      brags: () => [{
+        id: 1,
+        recipe_id: 67,
+        image_url: 'https://cdn.example.com/집밥.jpg',
+        body: '냉장고에 남은 두부로 한 끼 만들었어요.',
+        created_at: '2026-10-19T09:30:00',
+        username: '집밥일기',
+        menu_name: '두부조림',
+        recipe_image_url: null,
+        like_count: 18,
+        liked_by_me: false,
+      }],
+    })
+    renderWithProviders(<HomePage />)
+
+    await user.click(screen.getByRole('tab', { name: '한 끼 자랑' }))
+
+    expect(await screen.findByText('냉장고에 남은 두부로 한 끼 만들었어요.')).toBeInTheDocument()
+    expect(screen.getByText('집밥일기')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /두부조림 레시피 보기/ })).toHaveAttribute('href', '/recipe/67')
+    expect(screen.queryByRole('heading', { name: '레시피 둘러보기' })).not.toBeInTheDocument()
+  })
+
+  it('다른 탭에서 검색하면 추천으로 돌아와 서버의 레시피 검색을 사용한다', async () => {
+    const user = userEvent.setup()
+    const fetchMock = mockApi({
+      search: (url) => url.searchParams.get('keyword') === '두부'
+        ? [recipe(67, { menu_name: '검색한 두부조림' })]
+        : [],
+    })
+    renderWithProviders(<HomePage />)
+    await user.click(screen.getByRole('tab', { name: '한 끼 자랑' }))
+
+    await user.type(screen.getByLabelText('레시피 검색'), '두부')
+
+    expect(screen.getByRole('tab', { name: '추천' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByText('검색한 두부조림')).toBeInTheDocument()
+    const searches = fetchMock.mock.calls
+      .map(([input]) => new URL(input as string))
+      .filter((url) => url.pathname === '/recommendation/recipes/search')
+    expect(searches.at(-1)?.searchParams.get('keyword')).toBe('두부')
   })
 
   it('레시피 목록과 분류 칩을 보여준다', async () => {
@@ -271,6 +361,23 @@ describe('테마 줄', () => {
     expect(within(section).getByText('가벼운메뉴')).toBeInTheDocument()
   })
 
+  it('전체보기는 같은 월의 해당 테마 목록으로 연결한다', async () => {
+    let requestedMonth: string | null = null
+    mockApi({
+      themes: (url) => {
+        requestedMonth = url.searchParams.get('month')
+        return [theme({ key: 'seasonal', title: '이달 제철', total: 218 })]
+      },
+    })
+    renderWithProviders(<HomePage />)
+
+    const section = await screen.findByRole('region', { name: '이달 제철' })
+    expect(requestedMonth).toMatch(/^(?:[1-9]|1[0-2])$/)
+    expect(within(section).getByRole('link', { name: '이달 제철 레시피 전체보기' }))
+      .toHaveAttribute('href', `/themes/seasonal?month=${requestedMonth}`)
+    expect(within(section).getByText('218개')).toBeInTheDocument()
+  })
+
   it('검색하면 테마를 감춘다', async () => {
     // 찾는 게 분명한 사람에게 테마는 방해다.
     const user = userEvent.setup()
@@ -333,11 +440,12 @@ describe('인기 요리 영상', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => vi.restoreAllMocks())
 
-  it('최상단에 영상을 보여주고 유튜브로 내보낸다', async () => {
-    // "오늘 뭐 먹지"에 가장 빨리 답하는 것이 남이 이미 검증한 영상이라 맨 위에 둔다.
+  it('요리 영상 탭을 열면 영상을 보여주고 유튜브로 내보낸다', async () => {
     // 우리 레시피와 연결이 없어서 카드가 아니라 외부 링크다.
+    const user = userEvent.setup()
     mockApi({ videoCategories: () => ['쉐프 레시피'], videos: () => [video()] })
     renderWithProviders(<HomePage />)
+    await user.click(screen.getByRole('tab', { name: '요리 영상' }))
 
     const link = await screen.findByRole('link', { name: /김치전을 바삭바삭하게/ })
     expect(link).toHaveAttribute('href', 'https://www.youtube.com/watch?v=47OIcvpqxlo')
@@ -353,6 +461,7 @@ describe('인기 요리 영상', () => {
       videos: () => [video()],
     })
     renderWithProviders(<HomePage />)
+    await user.click(screen.getByRole('tab', { name: '요리 영상' }))
 
     await user.click(await screen.findByRole('button', { name: '자취요리' }))
 
@@ -374,6 +483,38 @@ describe('인기 요리 영상', () => {
 
     expect(await screen.findByText('두부조림')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '인기 요리 영상' })).not.toBeInTheDocument()
+  })
+
+  it('영상 조회를 재시도해도 사용자가 고른 분류를 유지한다', async () => {
+    const user = userEvent.setup()
+    const fetchMock = mockApi({ videoCategories: () => ['쉐프 레시피', '자취요리'] })
+    const original = fetchMock.getMockImplementation()!
+    let failed = false
+    fetchMock.mockImplementation(async (input) => {
+      const path = decodeURIComponent(new URL(input as string).pathname)
+      if (path.includes('/popular-videos/자취요리')) {
+        if (!failed) {
+          failed = true
+          return new Response(JSON.stringify({ detail: '일시 오류' }), { status: 500 })
+        }
+        return new Response(JSON.stringify([video({ video_title: '다시 받은 자취요리' })]), {
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return original(input)
+    })
+    renderWithProviders(<HomePage />)
+    await user.click(screen.getByRole('tab', { name: '요리 영상' }))
+    await user.click(await screen.findByRole('button', { name: '자취요리' }))
+
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: '다시 불러오기' }))
+
+    expect(await screen.findByText('다시 받은 자취요리')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '자취요리' })).toHaveAttribute('aria-pressed', 'true')
+    const videoPaths = fetchMock.mock.calls.map(([input]) => decodeURIComponent(new URL(input as string).pathname))
+      .filter((path) => path.startsWith('/popular-videos/') && !path.endsWith('/categories'))
+    expect(videoPaths.at(-1)).toContain('자취요리')
   })
 })
 

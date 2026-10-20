@@ -143,6 +143,8 @@ describe('추천 결과 화면', () => {
     renderWithProviders(<RecommendPage />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('서버에서 문제가 발생했습니다.')
+    expect(screen.queryByText(/냉장고가 비어 있어요/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '추천 다시 불러오기' })).toBeInTheDocument()
   })
 
   it('카드는 상세로 가는 링크다', async () => {
@@ -196,6 +198,19 @@ describe('기준 재료 편집', () => {
 
     expect(screen.queryByRole('button', { name: '무 빼기' })).not.toBeInTheDocument()
     expect(recCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('재료 칩을 지우면 남은 칩으로, 모두 지우면 입력칸으로 초점을 옮긴다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockApi(pantry, [item()])
+    renderWithProviders(<RecommendPage />)
+    await screen.findByText('고등어무조림')
+    await user.click(screen.getByRole('button', { name: '고등어 빼기' }))
+    expect(screen.getByRole('button', { name: '무 빼기' })).toHaveFocus()
+    expect(screen.getByText('고등어 제외. 기준 재료 1개.')).toHaveAttribute('role', 'status')
+    await user.click(screen.getByRole('button', { name: '무 빼기' }))
+    expect(screen.getByLabelText('재료 추가')).toHaveFocus()
   })
 
   it('고친 재료로 다시 추천받을 수 있다', async () => {

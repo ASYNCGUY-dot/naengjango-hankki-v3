@@ -38,8 +38,29 @@ npm run gen:api
 
 ## API 주소
 
-`.env`의 `VITE_API_BASE`로 정한다. 로컬 개발은 이 저장소의 백엔드(`:8001`)를 본다 —
-배포된 쪽에는 V3에서 바꾼 인증·엔드포인트가 없을 수 있고, CORS 설정도 다르다.
+`VITE_API_BASE`로 정한다. 기본 로컬 개발은 이 저장소의 백엔드(`:8001`)를 본다.
+
+로컬 DB 설정이 없는 PC에서 기존 배포 API에 연결하려면 `frontend/.env.development.local`에
+아래 값을 넣고 `npm run dev`를 실행한다. 이 파일은 Git에 포함되지 않는다.
+
+```env
+VITE_API_BASE=/api
+DEV_API_PROXY_TARGET=https://naengjango-hankki-v2-api.onrender.com
+```
+
+프론트 개발 서버가 `/api` 요청을 전달하므로 백엔드 CORS 설정 변경이 필요 없다.
+가입·로그인·저장 요청은 실제 서비스에 반영된다. 빌드는 기존 배포용 `VITE_API_BASE` 설정을
+그대로 사용한다. 로컬 백엔드로 돌아가려면 이 로컬 설정 파일을 제거하고 개발 서버를 재시작한다.
+
+### 테마 전체보기
+
+홈의 전체보기는 `/themes/:themeKey?month=10`에서 같은 테마를 20개씩 조회한다.
+API의 `GET /recommendation/recipes/themes`에 `theme`, `month`, `limit=20`,
+`offset=0/20/40…`을 전달한다. 기존 홈 미리보기는 테마별 10개를 유지한다.
+
+개발 서버가 배포된 API를 프록시하는 경우, 해당 서버에도 테마 페이지 조회 변경이
+반영되어야 전체보기가 동작한다. 구형 서버는 `theme`와 `offset`을 무시하므로
+화면은 잘못된 미리보기를 전체 목록으로 표시하지 않고 조회 실패와 재시도를 안내한다.
 
 ## 화면
 

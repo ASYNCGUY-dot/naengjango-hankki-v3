@@ -41,6 +41,45 @@ describe('재료 정보 등록', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => vi.restoreAllMocks())
 
+  it('새 폼 첫 입력에 초점을 주고 취소하면 등록 버튼으로 복귀한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockApi()
+    renderWithProviders(<IngredientSubmissionPage />)
+    await user.click(screen.getByRole('button', { name: '새 재료 등록' }))
+    expect(screen.getByLabelText('재료 이름')).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: '취소' }))
+    expect(screen.getByRole('button', { name: '새 재료 등록' })).toHaveFocus()
+  })
+
+  it('수정 폼에서 취소하면 해당 재료 수정 버튼으로 복귀한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const item = { id: 3, ingredient_name: '할머니된장', calorie: 140, status: 'pending' }
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input).includes('/ingredient-submissions/3')) return json({ ...item, carbs_g: null, protein_g: null, fat_g: null, sodium_mg: null, price_per_100g: null })
+      return json([item])
+    })
+    renderWithProviders(<IngredientSubmissionPage />)
+    const trigger = await screen.findByRole('button', { name: '할머니된장 수정' })
+    await user.click(trigger)
+    expect(await screen.findByLabelText('재료 이름')).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: '취소' }))
+    expect(trigger).toHaveFocus()
+  })
+
+  it('목록 실패를 빈 목록으로 오인시키지 않고 재시도한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json({ detail: '조회 오류' }, 500))
+    renderWithProviders(<IngredientSubmissionPage />)
+    await screen.findByRole('alert')
+    expect(screen.queryByText('아직 등록한 재료가 없어요.')).not.toBeInTheDocument()
+    fetchMock.mockImplementation(async () => json([]))
+    await user.click(screen.getByRole('button', { name: '등록한 재료 다시 불러오기' }))
+    expect(await screen.findByText('아직 등록한 재료가 없어요.')).toBeInTheDocument()
+  })
+
   it('로그인하지 않으면 아무 요청도 보내지 않는다', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
     renderWithProviders(<IngredientSubmissionPage />)

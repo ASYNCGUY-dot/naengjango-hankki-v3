@@ -161,6 +161,45 @@ describe('분류 목록', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => vi.restoreAllMocks())
 
+  it('새 폼 첫 입력에 초점을 주고 취소하면 등록 버튼으로 복귀한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockApi()
+    renderWithProviders(<MyRecipesPage />)
+    await user.click(screen.getByRole('button', { name: '새 레시피 등록' }))
+    expect(screen.getByLabelText('메뉴 이름')).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: '취소' }))
+    expect(screen.getByRole('button', { name: '새 레시피 등록' })).toHaveFocus()
+  })
+
+  it('수정 폼에서 취소하면 해당 레시피 수정 버튼으로 복귀한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input).includes('/categories')) return json([{ category: '일품', count: 1 }])
+      if (String(input).includes('/my-recipes/1197')) return json({ ...item(), ingredients_text: '치즈', steps_text: '끓인다' })
+      return json([item()])
+    })
+    renderWithProviders(<MyRecipesPage />)
+    const trigger = await screen.findByRole('button', { name: '치즈라면 수정' })
+    await user.click(trigger)
+    expect(await screen.findByLabelText('메뉴 이름')).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: '취소' }))
+    expect(trigger).toHaveFocus()
+  })
+
+  it('목록 실패를 빈 목록으로 오인시키지 않고 재시도한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json({ detail: '조회 오류' }, 500))
+    renderWithProviders(<MyRecipesPage />)
+    await screen.findByRole('alert')
+    expect(screen.queryByText('아직 올린 레시피가 없어요.')).not.toBeInTheDocument()
+    fetchMock.mockImplementation(async (input) => json(String(input).includes('/categories') ? [] : [item()]))
+    await user.click(screen.getByRole('button', { name: '내 레시피 다시 불러오기' }))
+    expect(await screen.findByText('치즈라면')).toBeInTheDocument()
+  })
+
   it('서버가 준 분류만 고를 수 있다', async () => {
     // 화면이 목록을 따로 들고 있으면 서버가 아는 값과 조용히 어긋난다.
     // V3_HANDOFF 8.-5에 같은 사고 네 건이 적혀 있다.
@@ -183,7 +222,7 @@ describe('분류 목록', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderWithProviders(<MyRecipesPage />)
 
-    await user.click(await screen.findByRole('button', { name: '삭제' }))
+    await user.click(await screen.findByRole('button', { name: '치즈라면 삭제' }))
 
     expect(confirmSpy).toHaveBeenCalled()
     const deletes = fetchMock.mock.calls.filter(

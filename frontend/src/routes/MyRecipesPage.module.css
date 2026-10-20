@@ -1,9 +1,14 @@
 .page {
-  padding: var(--space-4);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-6) var(--feed-page-padding);
+  max-width: 48rem;
+  margin-inline: auto;
+  overflow-wrap: anywhere;
 }
 
 .page h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--feed-title-size);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
   margin-bottom: var(--space-4);
@@ -17,7 +22,7 @@
   min-height: var(--touch-target-min);
   padding: var(--space-3);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
   font-weight: var(--font-weight-bold);
@@ -51,7 +56,7 @@
   min-height: var(--touch-target-min);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
@@ -64,6 +69,7 @@
 }
 
 .form {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -75,21 +81,24 @@
 }
 
 .form label {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
 }
 
 .form input,
 .form select,
 .form textarea {
+  width: 100%;
+  min-width: 0;
   min-height: var(--touch-target-min);
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface-base);
   color: var(--color-text-primary);
   font-family: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
 }
 
 .form textarea {
@@ -109,6 +118,7 @@
 
 /* 영양 항목처럼 라벨과 입력이 짝지어 반복되는 줄. */
 .formRow {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -116,6 +126,7 @@
 
 .formActions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-2);
 }
@@ -149,6 +160,7 @@
 
 .itemHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
@@ -166,7 +178,7 @@
 .status {
   flex-shrink: 0;
   padding: 0 var(--space-2);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--color-warning-fill);
   color: var(--color-text-on-fill);
   font-size: var(--font-size-xs);
@@ -185,6 +197,7 @@
 
 .itemActions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-3);
 }

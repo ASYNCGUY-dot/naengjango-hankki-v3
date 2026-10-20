@@ -1,9 +1,14 @@
 .page {
-  padding: var(--space-4);
+  width: 100%;
+  max-width: 48rem;
+  margin-inline: auto;
+  min-width: 0;
+  padding: var(--space-6) var(--feed-page-padding);
+  overflow-wrap: anywhere;
 }
 
 .page h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--feed-title-size);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
   margin-bottom: var(--space-2);
@@ -24,6 +29,7 @@
 .form {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   gap: var(--space-2);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
@@ -32,7 +38,7 @@
 }
 
 .label {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -43,7 +49,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   line-height: var(--line-height-loose);
   color: var(--color-text-secondary);
 }
@@ -53,13 +59,16 @@
 }
 
 .textarea {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
   padding: var(--space-2);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface-base);
   color: var(--color-text-primary);
   font-family: inherit;
-  font-size: var(--font-size-sm);
+  font-size: 1rem;
   line-height: var(--line-height-loose);
   resize: vertical;
 }
@@ -69,13 +78,15 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  min-width: 0;
   min-height: var(--touch-target-min);
   margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-accent);
   color: var(--color-text-on-accent);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
   text-decoration: none;
   cursor: pointer;
@@ -137,6 +148,7 @@
 
 .itemFoot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-2);
@@ -159,9 +171,28 @@
   margin-left: auto;
   padding: 0 var(--space-2);
   border: none;
+  border-radius: var(--radius-md);
   background: none;
   color: var(--color-danger-text);
   font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.delete:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.retry {
+  min-height: var(--touch-target-min);
+  max-width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 

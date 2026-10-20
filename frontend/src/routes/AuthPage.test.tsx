@@ -91,7 +91,7 @@ describe('로그인 화면', () => {
     await fillAndSubmit(user)
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: '오늘 뭐 먹지?' })).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: '주요 메뉴' })).toBeInTheDocument()
     })
     expect(tokenStore.get()).toBe('tok-abc')
   })
@@ -107,6 +107,7 @@ describe('로그인 화면', () => {
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('아이디 또는 비밀번호가 올바르지 않습니다.')
+    expect(alert).toHaveFocus()
     // 실패했으면 화면이 그대로여야 한다.
     expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument()
   })
@@ -120,6 +121,9 @@ describe('로그인 화면', () => {
     await fillAndSubmit(user, 'short')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('8자 이상')
+    expect(screen.getByLabelText('비밀번호')).toHaveFocus()
+    expect(screen.getByLabelText('비밀번호')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('비밀번호')).toHaveAccessibleDescription('비밀번호는 8자 이상이어야 합니다.')
     expect(signupCalls(fetchMock)).toHaveLength(0)
   })
 
@@ -173,7 +177,7 @@ describe('로그인 화면', () => {
     await user.click(screen.getByRole('button', { name: '회원가입' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: '오늘 뭐 먹지?' })).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: '주요 메뉴' })).toBeInTheDocument()
     })
     expect(tokenStore.get()).toBe('tok-new')
 
@@ -202,6 +206,8 @@ describe('로그인 화면', () => {
     await user.click(screen.getByRole('button', { name: '회원가입' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('동의')
+    expect(screen.getByLabelText(/개인정보/)).toHaveFocus()
+    expect(screen.getByLabelText(/개인정보/)).toHaveAttribute('aria-describedby', 'auth-error')
     expect(signupCalls(fetchMock)).toHaveLength(0)
   })
 
@@ -217,6 +223,8 @@ describe('로그인 화면', () => {
     await user.click(screen.getByRole('button', { name: '회원가입' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(screen.getByLabelText(label)).toHaveFocus()
+    expect(screen.getByLabelText(label)).toHaveAttribute('aria-invalid', 'true')
     expect(signupCalls(fetchMock)).toHaveLength(0)
   })
 
@@ -236,6 +244,72 @@ describe('로그인 화면', () => {
     renderWithProviders(<App />, { route: '/login' })
     expect(screen.queryByLabelText('이메일')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('연락처')).not.toBeInTheDocument()
+  })
+
+  it('성별·연령대를 불러오기 전에는 로딩을 안내하고 가입을 막는다', () => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise<Response>(() => {}))
+    renderWithProviders(<App />, { route: '/signup' })
+
+    expect(screen.getByRole('status')).toHaveTextContent('성별·연령대 선택지를 불러오는 중')
+    expect(screen.getByLabelText('성별')).toBeDisabled()
+    expect(screen.getByLabelText('연령대')).toBeDisabled()
+    expect(screen.getByRole('button', { name: '회원가입' })).toBeDisabled()
+  })
+
+  it('선택지 실패를 알리고 입력을 보존한 채 서버 목록을 다시 받는다', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(async () => jsonResponse({ detail: '일시 오류' }, 500))
+      .mockImplementation(async () => jsonResponse({ ...PROFILE_OPTIONS, genders: ['서버 선택지'] }))
+    renderWithProviders(<App />, { route: '/signup' })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('성별·연령대 선택지를 불러오지 못했어요')
+    await user.type(screen.getByLabelText('아이디'), '입력유지')
+    expect(screen.getByRole('button', { name: '회원가입' })).toBeDisabled()
+    expect(screen.queryByRole('option', { name: '여성' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '선택지 다시 불러오기' }))
+
+    expect(await screen.findByRole('option', { name: '서버 선택지' })).toBeInTheDocument()
+    expect(screen.getByLabelText('아이디')).toHaveValue('입력유지')
+    expect(screen.getByLabelText('성별')).toBeEnabled()
+    expect(screen.getByLabelText('성별')).toHaveFocus()
+    expect(screen.getByRole('button', { name: '회원가입' })).toBeEnabled()
+    expect(signupCalls(fetchMock)).toHaveLength(0)
+  })
+
+  it('선택지 재시도를 기다리며 이메일을 입력하면 완료 후에도 입력을 이어갈 수 있다', async () => {
+    const user = userEvent.setup()
+    let release!: (response: Response) => void
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ detail: '일시 오류' }, 500))
+      .mockImplementation(() => new Promise((resolve) => { release = resolve }))
+    renderWithProviders(<App />, { route: '/signup' })
+    await user.click(await screen.findByRole('button', { name: '선택지 다시 불러오기' }))
+
+    const email = screen.getByLabelText('이메일')
+    await user.type(email, 'next@example.com')
+    await act(async () => { release(jsonResponse(PROFILE_OPTIONS)) })
+
+    expect(screen.getByLabelText('성별')).toBeEnabled()
+    expect(email).toHaveFocus()
+    expect(email).toHaveValue('next@example.com')
+  })
+
+  it('로그인 응답을 기다리며 입력을 고치면 오류 알림이 초점을 빼앗지 않는다', async () => {
+    const user = userEvent.setup()
+    let release!: (response: Response) => void
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise((resolve) => { release = resolve }))
+    renderWithProviders(<App />, { route: '/login' })
+    await fillAndSubmit(user)
+
+    const username = screen.getByLabelText('아이디')
+    await user.clear(username)
+    await user.type(username, '다른아이디')
+    await act(async () => { release(jsonResponse({ detail: '로그인 정보를 확인해주세요.' }, 401)) })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('로그인 정보를 확인해주세요.')
+    expect(username).toHaveFocus()
+    expect(username).toHaveValue('다른아이디')
   })
 
   it('둘러보기 링크를 두지 않는다', () => {

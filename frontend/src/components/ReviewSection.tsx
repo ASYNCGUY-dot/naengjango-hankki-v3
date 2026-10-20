@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { createReview, listReviews, type ReviewItem } from '../api/reviews'
 import { useAuth } from '../auth/context'
+import { useDeferredFocus } from '../hooks/비동기초점'
 import styles from './ReviewSection.module.css'
 
 const RATINGS = [5, 4, 3, 2, 1]
@@ -23,32 +24,62 @@ export default function ReviewSection({ recipeId }: { recipeId: number }) {
   const [text, setText] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retry, setRetry] = useState(0)
+  const saving = useRef(false)
+  const { capture } = useDeferredFocus()
+  const retryFocus = useRef<(() => boolean) | null>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const retryButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => { retryFocus.current = null }, [recipeId])
 
   useEffect(() => {
+    setReviews(null)
+    setLoadError(null)
     const controller = new AbortController()
     listReviews(recipeId, controller.signal)
-      // 배열이 아니면 버린다. 렌더링 중에 터지면 레시피 화면 전체가 비는데, 후기는
-      // 덤이라 그럴 값이 없다. 홈 테마에서 실제로 그렇게 빈 화면을 만든 적이 있다.
-      .then((rows) => setReviews(Array.isArray(rows) ? rows : []))
-      // 후기를 못 받아도 레시피 자체는 멀쩡하다. 목록 자리만 비운다.
-      .catch(() => {})
+      .then((rows) => {
+        if (!Array.isArray(rows)) throw new Error('후기 목록 형식 오류')
+        if (!controller.signal.aborted) setReviews(rows)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLoadError('후기를 불러오지 못했어요.')
+      })
     return () => controller.abort()
-  }, [recipeId])
+  }, [recipeId, retry])
 
-  if (reviews === null) return null
+  useEffect(() => {
+    if (reviews === null && loadError === null) return
+    const canRestore = retryFocus.current
+    retryFocus.current = null
+    if (canRestore?.()) {
+      const target = loadError === null ? headingRef.current : retryButtonRef.current
+      target?.focus({ preventScroll: true })
+    }
+  }, [reviews, loadError])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    if (userId === null || text.trim() === '') return
+    if (userId === null || text.trim() === '' || saving.current) return
+    saving.current = true
     setIsSaving(true)
     setError(null)
     try {
       await createReview(recipeId, userId, rating, text.trim())
       setText('')
-      setReviews(await listReviews(recipeId))
+      try {
+        const rows = await listReviews(recipeId)
+        if (!Array.isArray(rows)) throw new Error('후기 목록 형식 오류')
+        setReviews(rows)
+        setLoadError(null)
+      } catch {
+        setLoadError('후기는 저장했지만 목록을 새로 불러오지 못했어요.')
+      }
     } catch {
       setError('후기를 남기지 못했어요. 잠시 후 다시 시도해주세요.')
     } finally {
+      saving.current = false
       setIsSaving(false)
     }
   }
@@ -56,8 +87,8 @@ export default function ReviewSection({ recipeId }: { recipeId: number }) {
   return (
     <section className={styles.section} aria-labelledby="review-heading">
       <div className={styles.head}>
-        <h2 id="review-heading">후기</h2>
-        {reviews.length > 0 && <span>{reviews.length}개</span>}
+        <h2 id="review-heading" ref={headingRef} tabIndex={-1}>후기</h2>
+        {reviews !== null && reviews.length > 0 && <span>{reviews.length}개</span>}
       </div>
 
       {isAuthenticated ? (
@@ -103,7 +134,17 @@ export default function ReviewSection({ recipeId }: { recipeId: number }) {
         <p className={styles.empty}>후기를 남기려면 로그인이 필요해요.</p>
       )}
 
-      {reviews.length === 0 ? (
+      {loadError !== null ? (
+        <div className={styles.loadState}>
+          <p role="alert">{loadError}</p>
+          <button ref={retryButtonRef} className={styles.retry} type="button" onClick={() => {
+            retryFocus.current = capture()
+            setRetry((value) => value + 1)
+          }}>후기 다시 불러오기</button>
+        </div>
+      ) : reviews === null ? (
+        <p className={styles.empty} role="status">후기를 불러오는 중…</p>
+      ) : reviews.length === 0 ? (
         <p className={styles.empty}>아직 후기가 없어요. 만들어보셨다면 첫 후기를 남겨주세요.</p>
       ) : (
         <ul className={styles.list}>

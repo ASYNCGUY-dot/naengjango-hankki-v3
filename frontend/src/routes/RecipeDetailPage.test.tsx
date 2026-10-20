@@ -1,4 +1,5 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -204,6 +205,55 @@ describe('레시피 상세 화면', () => {
 
     expect(screen.getByText(/레시피를 찾을 수 없어요/)).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('조회 재시도에 성공하면 사라진 버튼 대신 레시피 제목으로 초점을 돌린다', async () => {
+    const user = userEvent.setup()
+    const fetchMock = mockDetailApi(detail())
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementationOnce(async () => json({ detail: '일시 오류' }, 500))
+      .mockImplementation(original)
+    renderDetail('/recipe/67')
+
+    await user.click(await screen.findByRole('button', { name: '다시 불러오기' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: '블랙빈 곤약국수' })).toHaveFocus()
+  })
+
+  it('재시도 중 다른 곳으로 옮긴 초점을 제목으로 빼앗지 않는다', async () => {
+    const user = userEvent.setup()
+    let release: (response: Response) => void = () => {}
+    const pending = new Promise<Response>((resolve) => { release = resolve })
+    const fetchMock = mockDetailApi(detail())
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementationOnce(async () => json({ detail: '일시 오류' }, 500))
+      .mockImplementationOnce(() => pending)
+      .mockImplementation(original)
+    renderWithProviders(<>
+      <button type="button">다른 메뉴</button>
+      <Routes><Route path="/recipe/:recipeId" element={<RecipeDetailPage />} /></Routes>
+    </>, { route: '/recipe/67' })
+
+    await user.click(await screen.findByRole('button', { name: '다시 불러오기' }))
+    expect(screen.getByRole('status')).toHaveTextContent('레시피를 불러오는 중')
+    await user.click(screen.getByRole('button', { name: '다른 메뉴' }))
+    await act(async () => { release(json(detail())) })
+
+    await screen.findByRole('heading', { level: 1, name: '블랙빈 곤약국수' })
+    expect(screen.getByRole('button', { name: '다른 메뉴' })).toHaveFocus()
+  })
+
+  it('조리 시작을 누르면 조리 순서로 초점과 화면을 이동한다', async () => {
+    const user = userEvent.setup()
+    mockDetailApi(detail())
+    const scroll = vi.fn()
+    renderDetail('/recipe/67')
+    const steps = await screen.findByRole('heading', { name: '조리 순서' })
+    steps.scrollIntoView = scroll
+    await user.click(screen.getByRole('link', { name: /조리 시작하기/ }))
+    expect(steps).toHaveFocus()
+    expect(scroll).toHaveBeenCalled()
+    expect(screen.getByRole('navigation', { name: '레시피 바로가기' })).toBeInTheDocument()
   })
 
   it('유튜브 링크는 새 탭에서 열고 opener를 넘기지 않는다', async () => {

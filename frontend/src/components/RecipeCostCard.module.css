@@ -1,6 +1,7 @@
 /* 부족한 재료 카드(MissingIngredientsCard)와 같은 틀을 쓴다. 두 카드가 이어서 읽히므로
    모양이 다르면 서로 다른 종류의 정보처럼 보인다. */
 .card {
+  container: recipe-cost / inline-size;
   margin: var(--space-6) var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
@@ -29,7 +30,8 @@
   margin-top: var(--space-3);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
+  max-width: 100%;
+  border-radius: 8px;
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
@@ -70,7 +72,7 @@
 
 .list > li {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: var(--space-3);
   align-items: baseline;
   padding: var(--space-2) var(--space-3);
@@ -85,8 +87,12 @@
 
 .name {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   gap: var(--space-1);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .estimate {
@@ -98,15 +104,41 @@
 }
 
 .amount {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
 .cost {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: var(--font-weight-medium);
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/* 좁은 카드에서는 재료명과 수량·금액을 줄로 나눠 읽을 공간을 확보한다. */
+@container recipe-cost (max-width: 24rem) {
+  .list > li {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-1) var(--space-3);
+  }
+
+  .name {
+    grid-column: 1 / -1;
+  }
+}
+
+@container recipe-cost (max-width: 14rem) {
+  .list > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cost {
+    text-align: left;
+  }
 }
 
 .note,

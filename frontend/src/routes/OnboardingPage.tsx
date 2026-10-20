@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ApiError, TimeoutError } from '../api/client'
@@ -18,6 +18,7 @@ import {
   updateProfile,
   type AllergyOption,
   type ProfileBody,
+  type ProfileOptions,
 } from '../api/profile'
 import { useAuth } from '../auth/context'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
@@ -38,8 +39,8 @@ function describe(caught: unknown): string {
  * 값이 남아 있는데, 그렇게 저장되면 사용자는 골랐다고 믿지만 필터는 아무것도 안 거른다.
  * 서버가 실제 태그에서 만들어 준 목록에서만 고르게 한다.
  *
- * 성별·연령대는 가입에서 이미 받았다. 다시 묻지 않고, 저장할 때 기존 값을 그대로 실어
- * 보낸다 - PUT이 프로필 전체를 덮어쓰기 때문이다.
+ * 성별·연령대는 가입에서 받은 값을 채워두고 여기서 수정할 수 있다.
+ * PUT이 프로필 전체를 덮어쓰므로 기존 정보를 읽은 뒤에만 저장을 허용한다.
  */
 export default function OnboardingPage() {
   const { userId, isAuthenticated } = useAuth()
@@ -57,8 +58,9 @@ export default function OnboardingPage() {
   // 서버가 아는 다섯 개 중에서만 고른다. 자유 입력은 조용히 버려진다.
   const [conditions, setConditions] = useState<string[]>([])
   const [conditionOptions, setConditionOptions] = useState<string[]>([])
+  const [profileOptions, setProfileOptions] = useState<ProfileOptions | null>(null)
 
-  // 가입에서 받은 값. 화면에 다시 묻지 않지만 저장할 때 함께 보내야 한다.
+  // 가입에서 받은 값을 초기값으로 쓰며, 수정하지 않은 값도 저장할 때 함께 보낸다.
   const [gender, setGender] = useState('')
   const [ageGroup, setAgeGroup] = useState('')
 
@@ -72,51 +74,72 @@ export default function OnboardingPage() {
   const [isProfileLoaded, setIsProfileLoaded] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorField, setErrorField] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const formRef = useRef<HTMLFormElement>(null)
+  const errorRef = useRef<HTMLParagraphElement>(null)
   const isSlow = useSlowRequestHint(isSaving)
 
   useEffect(() => {
     if (userId === null) return
     const controller = new AbortController()
 
-    getProfileOptions(controller.signal)
-      .then((opts) => setConditionOptions(opts.medical_conditions))
-      .catch(() => {})
-
-    listAllergyOptions(controller.signal)
-      .then(setAllergyOptions)
-      .catch(() => {
-        // 목록을 못 받으면 고를 수가 없다. 조용히 넘기지 않고 알린다.
-        if (!controller.signal.aborted) {
-          setError('알레르기 목록을 불러오지 못했어요. 새로고침해주세요.')
-        }
-      })
-
-    getProfile(userId, controller.signal)
-      .then((profile) => {
-        setGender(profile.gender ?? '')
-        setAgeGroup(profile.age_group ?? '')
-        // 이미 입력한 적이 있으면 그 값을 채워둔다 - 다시 처음부터 고르게 하지 않는다.
-        setAllergies(splitSelections(profile.allergy))
-        setTools(splitSelections(profile.cooking_tools))
-        setHealthGoal(profile.health_goal ?? '')
-        setPurpose(profile.purpose ?? '')
-        setCookingLevel(profile.cooking_level ?? '')
-        setNoveltyPref(profile.novelty_pref ?? '')
-        setHouseholdSize(profile.household_size ?? 1)
-        setSupplements(profile.supplements ?? '')
-        setConditions(splitSelections(profile.medical_conditions))
-        // 이미 동의한 사람에게 빈 체크박스를 보여주면 "동의한 적 없다"는 인상을 준다.
-        setHealthConsent(profile.health_data_consent)
-        setIsProfileLoaded(true)
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          setError('내 정보를 불러오지 못했어요. 새로고침해주세요.')
-        }
-      })
+    Promise.allSettled([
+      getProfile(userId, controller.signal),
+      getProfileOptions(controller.signal),
+      listAllergyOptions(controller.signal),
+    ]).then(([profileResult, optionsResult, allergyResult]) => {
+      if (controller.signal.aborted) return
+      const problems: string[] = []
+      if (profileResult.status === 'rejected') problems.push('내 정보를 불러오지 못했어요.')
+      if (optionsResult.status === 'rejected' ||
+        !optionsResult.value.genders.length || !optionsResult.value.age_groups.length ||
+        !optionsResult.value.medical_conditions.length) {
+        problems.push('성별·연령대·병력 선택지를 불러오지 못했어요.')
+      }
+      if (allergyResult.status === 'rejected' || !allergyResult.value.length) {
+        problems.push('알레르기 목록을 불러오지 못했어요.')
+      }
+      if (problems.length > 0) {
+        setLoadError(`${problems.join(' ')} 다시 불러온 뒤 수정할 수 있어요.`)
+        return
+      }
+      if (profileResult.status !== 'fulfilled' || optionsResult.status !== 'fulfilled' ||
+        allergyResult.status !== 'fulfilled') return
+      const profile = profileResult.value
+      setProfileOptions(optionsResult.value)
+      setConditionOptions(optionsResult.value.medical_conditions)
+      setAllergyOptions(allergyResult.value)
+      setGender(profile.gender ?? '')
+      setAgeGroup(profile.age_group ?? '')
+      // 이미 입력한 적이 있으면 그 값을 채워둔다 - 다시 처음부터 고르게 하지 않는다.
+      setAllergies(splitSelections(profile.allergy))
+      setTools(splitSelections(profile.cooking_tools))
+      setHealthGoal(profile.health_goal ?? '')
+      setPurpose(profile.purpose ?? '')
+      setCookingLevel(profile.cooking_level ?? '')
+      setNoveltyPref(profile.novelty_pref ?? '')
+      setHouseholdSize(profile.household_size ?? 1)
+      setSupplements(profile.supplements ?? '')
+      setConditions(splitSelections(profile.medical_conditions))
+      // 이미 동의한 사람에게 빈 체크박스를 보여주면 "동의한 적 없다"는 인상을 준다.
+      setHealthConsent(profile.health_data_consent ?? false)
+      setIsProfileLoaded(true)
+    })
 
     return () => controller.abort()
-  }, [userId])
+  }, [userId, loadAttempt])
+
+  useEffect(() => {
+    if (error && errorField === null) errorRef.current?.focus()
+  }, [error, errorField])
+
+  useEffect(() => {
+    if (isProfileLoaded && loadAttempt > 0) {
+      formRef.current?.querySelector<HTMLSelectElement>('#gender')?.focus()
+    }
+  }, [isProfileLoaded, loadAttempt])
 
   // 이 화면에 들어왔다는 것만 알린다. 가입만 하고 멈춘 사람이 여기까지 왔는지를 가르려고
   // 둔다(usage_log.ONBOARDING_VIEW). 기다리지 않고, 실패해도 화면에는 아무 영향이 없다.
@@ -135,17 +158,32 @@ export default function OnboardingPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (userId === null || isSaving) return
+    if (userId === null || isSaving || !isProfileLoaded) return
 
     setError(null)
+    setErrorField(null)
+    function reject(field: string, message: string) {
+      setError(message)
+      setErrorField(field)
+      formRef.current?.querySelector<HTMLElement>(`#${field}`)?.focus()
+    }
+    if (!gender || !profileOptions?.genders.includes(gender)) {
+      reject('gender', '성별을 선택해주세요.')
+      return
+    }
+    if (!ageGroup || !profileOptions?.age_groups.includes(ageGroup)) {
+      reject('age_group', '연령대를 선택해주세요.')
+      return
+    }
     if (!healthGoal || !purpose || !cookingLevel || !noveltyPref) {
-      setError('건강목표, 이용목적, 요리수준, 메뉴취향을 모두 골라주세요.')
+      const first = !healthGoal ? 'health_goal' : !purpose ? 'purpose' : !cookingLevel ? 'cooking_level' : 'novelty_pref'
+      reject(first, '건강목표, 이용목적, 요리수준, 메뉴취향을 모두 골라주세요.')
       return
     }
     // 서버도 막지만 여기서 먼저 잡는다. 콜드스타트 30초를 기다린 끝에 "동의가
     // 필요합니다"를 보는 일이 없어야 한다.
     if (hasHealthData && !healthConsent) {
-      setError('알레르기·병력 정보를 저장하려면 건강 정보 수집에 동의해주세요.')
+      reject('health-consent', '알레르기·병력 정보를 저장하려면 건강 정보 수집에 동의해주세요.')
       return
     }
 
@@ -196,11 +234,15 @@ export default function OnboardingPage() {
     return (
       <div className={styles.page}>
         <h1>식단 정보</h1>
-        {error !== null ? (
+        {loadError !== null ? (
           <>
             <p className={styles.error} role="alert">
-              {error}
+              {loadError}
             </p>
+            <button className={styles.retry} type="button" onClick={() => {
+              setLoadError(null)
+              setLoadAttempt((attempt) => attempt + 1)
+            }}>다시 불러오기</button>
             {/* 빠져나갈 길을 여기에도 둔다. 가입 직후 이 화면으로 바로 오는데,
                 콜드스타트로 조회가 실패하면 폼이 안 그려져서 아래의 건너뛰기까지
                 같이 사라진다. 가입하자마자 갇히는 자리가 된다. */}
@@ -229,7 +271,7 @@ export default function OnboardingPage() {
       </p>
 
       {error !== null && (
-        <p className={styles.error} role="alert">
+        <p id="onboarding-error" ref={errorRef} className={styles.error} role="alert" tabIndex={-1}>
           {error}
         </p>
       )}
@@ -240,7 +282,14 @@ export default function OnboardingPage() {
         </p>
       )}
 
-      <form onSubmit={handleSubmit} noValidate>
+      <form ref={formRef} onSubmit={handleSubmit} noValidate>
+        <div className={styles.basicFields}>
+          <Select id="gender" label="성별" value={gender} onChange={setGender}
+            options={profileOptions?.genders ?? []} invalid={errorField === 'gender'} />
+          <Select id="age_group" label="연령대" value={ageGroup} onChange={setAgeGroup}
+            options={profileOptions?.age_groups ?? []} invalid={errorField === 'age_group'} />
+        </div>
+        <p className={styles.hint}>성별과 연령대는 영양 기준 안내에 사용해요. 가입할 때 입력한 정보를 바꿀 수 있어요.</p>
         <fieldset className={`${styles.section} ${styles.safety}`}>
           <legend>알레르기</legend>
           <span className={styles.hint}>
@@ -288,19 +337,20 @@ export default function OnboardingPage() {
         </fieldset>
 
         <Select id="health_goal" label="건강목표" value={healthGoal} onChange={setHealthGoal}
-          options={HEALTH_GOALS} />
+          options={HEALTH_GOALS} invalid={errorField === 'health_goal'} />
         <Select id="purpose" label="이용목적" value={purpose} onChange={setPurpose}
-          options={PURPOSES} />
+          options={PURPOSES} invalid={errorField === 'purpose'} />
         <Select id="cooking_level" label="요리수준" value={cookingLevel} onChange={setCookingLevel}
-          options={COOKING_LEVELS} />
+          options={COOKING_LEVELS} invalid={errorField === 'cooking_level'} />
         <Select id="novelty_pref" label="메뉴취향" value={noveltyPref} onChange={setNoveltyPref}
-          options={NOVELTY_PREFS} />
+          options={NOVELTY_PREFS} invalid={errorField === 'novelty_pref'} />
 
         <div className={styles.field}>
           <label htmlFor="household_size">가구원 수</label>
           <select
             id="household_size"
             value={householdSize}
+            aria-describedby="household-size-hint"
             onChange={(e) => setHouseholdSize(Number(e.target.value))}
           >
             {HOUSEHOLD_SIZES.map((size) => (
@@ -309,7 +359,7 @@ export default function OnboardingPage() {
               </option>
             ))}
           </select>
-          <span className={styles.hint}>재료 수량을 이 인원에 맞춰 환산해요.</span>
+          <span className={styles.hint} id="household-size-hint">재료 수량을 이 인원에 맞춰 환산해요.</span>
         </div>
 
         <div className={styles.field}>
@@ -359,11 +409,13 @@ export default function OnboardingPage() {
                 id="health-consent"
                 type="checkbox"
                 checked={healthConsent}
+                required aria-invalid={errorField === 'health-consent'}
+                aria-describedby={errorField === 'health-consent' ? 'onboarding-error health-consent-hint' : 'health-consent-hint'}
                 onChange={(e) => setHealthConsent(e.target.checked)}
               />
               (필수) 알레르기·병력 정보 수집에 동의합니다
             </label>
-            <p className={styles.hint}>
+            <p className={styles.hint} id="health-consent-hint">
               건강에 관한 정보라 따로 여쭤봅니다. 알레르기 재료를 추천에서 빼는 것 외의
               용도로 쓰지 않아요. 동의하지 않으셔도 나머지 항목은 저장할 수 있어요.{' '}
               <Link to="/privacy" target="_blank" rel="noreferrer">
@@ -403,18 +455,22 @@ function Select({
   value,
   onChange,
   options,
+  invalid,
 }: {
   id: string
   label: string
   value: string
   onChange: (value: string) => void
   options: readonly string[]
+  invalid?: boolean
 }) {
   return (
     <div className={styles.field}>
       <label htmlFor={id}>{label}</label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}
+        required aria-invalid={invalid} aria-describedby={invalid ? 'onboarding-error' : undefined}>
         <option value="">선택하세요</option>
+        {value && !options.includes(value) && <option value={value} disabled>{value} (다시 선택해주세요)</option>}
         {options.map((option) => (
           <option key={option} value={option}>
             {option}

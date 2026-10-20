@@ -1,67 +1,56 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { Link } from 'react-router-dom'
 
 import { ApiError, TimeoutError, toHttps } from '../api/client'
 import { listPopularRecipes, type PopularRecipeItem } from '../api/likes'
 import { listPopularVideos, listVideoCategories, type PopularVideo } from '../api/videos'
 import {
-  ALL_CATEGORIES,
-  PAGE_SIZE,
-  listCategories,
-  listThemes,
-  searchRecipes,
-  type CategoryCount,
-  type RecipeSummary,
-  type RecipeTheme,
+  ALL_CATEGORIES, PAGE_SIZE, listCategories, listThemes, searchRecipes,
+  type CategoryCount, type RecipeSummary, type RecipeTheme,
 } from '../api/recipes'
 import RecipeCard from '../components/RecipeCard'
+import Icon from '../components/아이콘'
+import HomeFeed from '../components/집밥피드'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
 import styles from './HomePage.module.css'
 
-/** 입력할 때마다 요청하면 콜드스타트가 있는 서버에 과하다. 잠깐 멈추면 그때 보낸다. */
 const SEARCH_DEBOUNCE_MS = 400
+const VIEWS = [
+  { id: 'recipes', label: '추천' },
+  { id: 'videos', label: '요리 영상' },
+  { id: 'brags', label: '한 끼 자랑' },
+] as const
+type View = typeof VIEWS[number]['id']
 
 function describe(caught: unknown): string {
   if (caught instanceof ApiError || caught instanceof TimeoutError) return caught.message
   return '레시피를 불러오지 못했어요. 잠시 후 다시 시도해주세요.'
 }
 
-/**
- * 홈 = 레시피 둘러보기.
- *
- * 시안의 "인기 레시피"를 한 번 뺐다가 되살렸다(2026-08-19). 뺐던 이유는 순위 기준인
- * 추천이 DB에 4개뿐이라 카드 네 장으로 끝나기 때문이었는데, 진짜 원인은 데이터가 아니라
- * 화면에 추천 버튼이 없어서 아무도 누를 수 없었던 것이다. 버튼을 붙였으니 결과를 보여줄
- * 자리도 있어야 한다 - 내 행동이 어디에 쓰이는지 안 보이면 누를 이유가 없다.
- *
- * 대신 비어 있으면 줄째로 감춘다. 서버가 추천 0인 레시피를 아예 빼고 주므로(INNER JOIN)
- * 아무도 안 누른 동안에는 빈 배열이 오고, 그때 빈 제목만 남기면 고장으로 보인다.
- *
- * 테마 줄을 얹었다(2026-08-18). "두서 없고 어지럽다"는 피드백을 받았는데, 원인은 테마가
- * 없는 것만이 아니라 가나다순 20개가 한 덩어리로 쏟아지는 것이었다 - "가지겉절이,
- * 가지나물냉국, 가지라따뚜이…"가 줄줄이 나온다. 테마별로 끊어 가로로 넘기게 하면
- * 그 뭉침이 사라진다.
- *
- * 테마는 검색어나 분류가 걸려 있지 않을 때만 보여준다. 찾는 게 분명한 사람에게 테마는
- * 방해다.
- */
+/** 기존 검색·추천·영상·자랑 API를 탭으로 나눠 보여주는 집밥 피드. */
 export default function HomePage() {
+  const [view, setView] = useState<View>('recipes')
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState(ALL_CATEGORIES)
   const [categories, setCategories] = useState<CategoryCount[]>([])
   const [themes, setThemes] = useState<RecipeTheme[]>([])
+  // 월이 바뀌어도 홈에서 본 제철과 전체보기의 조회 조건을 같게 유지한다.
+  const [themeMonth] = useState(() => new Date().getMonth() + 1)
   const [popular, setPopular] = useState<PopularRecipeItem[]>([])
   const [videos, setVideos] = useState<PopularVideo[]>([])
   const [videoCategory, setVideoCategory] = useState<string | null>(null)
   const [videoCategories, setVideoCategories] = useState<string[]>([])
+  const [videoLoading, setVideoLoading] = useState(true)
+  const [videoError, setVideoError] = useState<string | null>(null)
   const [recipes, setRecipes] = useState<RecipeSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const isSlow = useSlowRequestHint(isLoading)
-
-  // 검색어를 바꾸는 동안 이전 요청이 늦게 도착해 새 결과를 덮어쓰는 것을 막는다.
+  const [retryAttempt, setRetryAttempt] = useState(0)
+  const isSlow = useSlowRequestHint(view === 'videos' ? videoLoading : isLoading)
   const requestRef = useRef(0)
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   const load = useCallback(async (nextKeyword: string, nextCategory: string) => {
     const requestId = ++requestRef.current
@@ -82,49 +71,49 @@ export default function HomePage() {
     }
   }, [])
 
-  // 분류 칩과 테마는 한 번만 받아오면 된다.
   useEffect(() => {
     const controller = new AbortController()
-    listCategories(controller.signal)
-      .then(setCategories)
-      // 칩을 못 받아도 목록은 볼 수 있어야 한다. 조용히 넘어간다.
-      .catch(() => {})
-    listThemes(controller.signal)
-      // 모양이 어긋난 항목은 버린다. 렌더링 중에 터지면 화면 전체가 비는데, 테마는
-      // 덤이라 그럴 값이 없다. 실제로 테스트에서 그렇게 빈 화면이 나왔다.
+    listCategories(controller.signal).then(setCategories).catch(() => {})
+    listThemes(controller.signal, themeMonth)
       .then((rows) => setThemes(rows.filter((row) => Array.isArray(row?.recipes))))
-      // 못 받아도 아래 목록으로 둘러볼 수 있다.
       .catch(() => {})
-    listPopularRecipes(10, controller.signal)
-      .then(setPopular)
-      // 덤이다. 못 받으면 그 줄만 없다.
-      .catch(() => {})
+    listPopularRecipes(10, controller.signal).then(setPopular).catch(() => {})
     listVideoCategories(controller.signal)
       .then((rows) => {
-        // 문자열이 아닌 것은 버린다. 렌더링 중에 터지면 홈 전체가 비는데, 영상 줄은
-        // 덤이라 그럴 값이 없다. 테마 줄에서 실제로 그렇게 빈 화면이 나온 적이 있다.
+        if (controller.signal.aborted) return
         const names = Array.isArray(rows) ? rows.filter((row) => typeof row === 'string') : []
         setVideoCategories(names)
-        // 첫 분류를 기본으로 연다. 어느 것이 기본이어야 하는지 정할 근거가 아직 없다 -
-        // 지인 테스트에서 무엇을 누르는지 보고 정한다.
-        if (names.length > 0) setVideoCategory(names[0])
+        if (names.length > 0) {
+          setVideoCategory((current) => current !== null && names.includes(current) ? current : names[0])
+        }
+        else setVideoLoading(false)
       })
-      .catch(() => {})
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setVideoError('요리 영상을 불러오지 못했어요. 잠시 후 다시 방문해주세요.')
+        setVideoLoading(false)
+      })
     return () => controller.abort()
-  }, [])
+  }, [retryAttempt, themeMonth])
 
   useEffect(() => {
     if (videoCategory === null) return
     const controller = new AbortController()
+    setVideoLoading(true)
+    setVideoError(null)
+    setVideos([])
     listPopularVideos(videoCategory, 10, controller.signal)
-      .then((rows) =>
-        setVideos(
-          Array.isArray(rows) ? rows.filter((row) => typeof row?.video_id === 'string') : [],
-        ),
-      )
-      .catch(() => setVideos([]))
+      .then((rows) => {
+        if (!controller.signal.aborted) {
+          setVideos(Array.isArray(rows) ? rows.filter((row) => typeof row?.video_id === 'string') : [])
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setVideoError('요리 영상을 불러오지 못했어요. 다른 분류를 선택해주세요.')
+      })
+      .finally(() => { if (!controller.signal.aborted) setVideoLoading(false) })
     return () => controller.abort()
-  }, [videoCategory])
+  }, [videoCategory, retryAttempt])
 
   useEffect(() => {
     const timer = setTimeout(() => void load(keyword, category), SEARCH_DEBOUNCE_MS)
@@ -132,192 +121,117 @@ export default function HomePage() {
   }, [keyword, category, load])
 
   async function loadMore() {
+    const requestId = requestRef.current
     setIsLoadingMore(true)
     try {
       const items = await searchRecipes({ keyword, category, offset: recipes.length })
+      if (requestId !== requestRef.current) return
       setRecipes((prev) => [...prev, ...items])
       setHasMore(items.length === PAGE_SIZE)
     } catch (caught) {
-      setError(describe(caught))
+      if (requestId === requestRef.current) setError(describe(caught))
     } finally {
       setIsLoadingMore(false)
     }
   }
 
-  // 검색어도 분류도 안 걸린 상태 = 둘러보는 중이다.
+  function changeKeyword(value: string) {
+    ++requestRef.current
+    setKeyword(value)
+    setView('recipes')
+  }
+
+  function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const next = event.key === 'ArrowRight' ? (index + 1) % VIEWS.length
+      : event.key === 'ArrowLeft' ? (index + VIEWS.length - 1) % VIEWS.length
+      : event.key === 'Home' ? 0 : event.key === 'End' ? VIEWS.length - 1 : null
+    if (next === null) return
+    event.preventDefault()
+    setView(VIEWS[next].id)
+    tabRefs.current[next]?.focus()
+  }
+
   const isBrowsing = keyword.trim() === '' && category === ALL_CATEGORIES
 
   return (
-    <>
+    <div className={styles.page}>
       <header className={styles.appbar}>
-        <h1>오늘 뭐 먹지?</h1>
+        <h1>냉장고 한끼<span className={styles.brandDot} aria-hidden="true">.</span></h1>
+        <div className={styles.headerActions}>
+          <Link to="/brags/new" className={styles.iconButton} aria-label="집밥 올리기"><Icon name="plus" /></Link>
+        </div>
       </header>
 
       <div className={styles.search}>
-        <span aria-hidden="true">🔍</span>
-        <label className="sr-only" htmlFor="home-search">
-          레시피 검색
-        </label>
-        <input
-          id="home-search"
-          type="search"
-          placeholder="레시피 이름으로 찾기"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-        />
+        <Icon name="search" size={21} />
+        <label className="sr-only" htmlFor="home-search">레시피 검색</label>
+        <input id="home-search" type="search" placeholder="오늘은 어떤 요리를 찾으세요?" value={keyword} onChange={(event) => changeKeyword(event.target.value)} />
       </div>
 
-      {/* 유튜브 인기 영상을 최상단에 둔다. "오늘 뭐 먹지"에 가장 빨리 답하는 것이
-          남이 이미 검증한 영상이기 때문이다. 우리 레시피와 연결이 없어서 카드가 아니라
-          유튜브로 나가는 외부 링크다. */}
-      {isBrowsing && videos.length > 0 && (
-        <section className={styles.theme} aria-labelledby="theme-videos">
-          <div className={styles.themeHead}>
-            <h2 id="theme-videos">인기 요리 영상</h2>
-            <span className={styles.themeCount}>{videos.length}개</span>
-          </div>
+      <div className={styles.tabs} role="tablist" aria-label="둘러보기">
+        {VIEWS.map((item, index) => (
+          <button key={item.id} type="button" role="tab" id={`home-tab-${item.id}`} aria-controls={`home-panel-${item.id}`} aria-selected={view === item.id} tabIndex={view === item.id ? 0 : -1} ref={(node) => { tabRefs.current[index] = node }} className={view === item.id ? styles.selectedTab : styles.tab} onClick={() => setView(item.id)} onKeyDown={(event) => navigateTabs(event, index)}>{item.label}</button>
+        ))}
+      </div>
+
+      {view === 'brags' && <section role="tabpanel" id="home-panel-brags" aria-labelledby="home-tab-brags" className={styles.feedPanel}><HomeFeed /></section>}
+
+      {view === 'videos' && (
+        <section role="tabpanel" id="home-panel-videos" aria-labelledby="home-tab-videos" className={styles.panel}>
+          <div className={styles.sectionHead}><div><p className={styles.eyebrow}>보고 따라 만드는 한 끼</p><h2>인기 요리 영상</h2></div><Icon name="play" size={24} /></div>
           <ul className={styles.chips}>
-            {videoCategories.map((category) => (
-              <li key={category}>
-                <button
-                  type="button"
-                  className={
-                    category === videoCategory ? `${styles.chip} ${styles.chipSelected}` : styles.chip
-                  }
-                  aria-pressed={category === videoCategory}
-                  onClick={() => setVideoCategory(category)}
-                >
-                  {category}
-                </button>
-              </li>
-            ))}
+            {videoCategories.map((item) => <li key={item}><button type="button" className={videoCategory === item ? `${styles.chip} ${styles.chipSelected}` : styles.chip} aria-pressed={videoCategory === item} onClick={() => setVideoCategory(item)}>{item}</button></li>)}
           </ul>
-          <ul className={styles.themeRow}>
-            {videos.map((video) => (
-              <li key={video.video_id}>
-                <a
-                  className={styles.video}
-                  href={toHttps(video.video_url) ?? video.video_url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  <img
-                    src={toHttps(video.thumbnail_url) ?? ''}
-                    alt=""
-                    loading="lazy"
-                  />
-                  <p className={styles.videoTitle}>{video.video_title}</p>
-                  <p className={styles.videoMeta}>{video.channel_title}</p>
-                </a>
-              </li>
-            ))}
-          </ul>
+          {videoError && <div className={styles.error} role="alert"><p>{videoError}</p><button className={styles.retry} type="button" onClick={() => setRetryAttempt((value) => value + 1)}>다시 불러오기</button></div>}
+          {isSlow && <p className={styles.notice} role="status">서버를 깨우는 중이에요. 첫 요청은 30초쯤 걸릴 수 있어요.</p>}
+          {videoLoading ? <p className={styles.empty} role="status">요리 영상을 불러오고 있어요.</p>
+            : videos.length === 0 && !videoError ? <p className={styles.empty}>아직 준비된 영상이 없어요.<br />추천 탭에서 오늘의 메뉴를 찾아보세요.</p>
+            : <ul className={styles.videoGrid}>{videos.map((video) => (
+              <li key={video.video_id}><a className={styles.video} href={toHttps(video.video_url) ?? video.video_url} target="_blank" rel="noreferrer noopener"><img src={toHttps(video.thumbnail_url) ?? ''} alt="" loading="lazy" /><p className={styles.videoTitle}>{video.video_title}</p><p className={styles.videoMeta}>{video.channel_title}</p></a></li>
+            ))}</ul>}
         </section>
       )}
 
-      {/* 추천이 하나도 없으면 줄째로 감춘다. 다른 사람이 실제로 눌렀을 때만 의미가 있다. */}
-      {isBrowsing && popular.length > 0 && (
-        <section className={styles.theme} aria-labelledby="theme-popular">
-          <div className={styles.themeHead}>
-            <h2 id="theme-popular">많이 추천한 메뉴</h2>
-            <span className={styles.themeCount}>{popular.length}개</span>
-          </div>
-          <p className={styles.themeSubtitle}>다른 사람들이 추천한 레시피예요</p>
-          <ul className={styles.themeRow}>
-            {popular.map((recipe) => (
-              <li key={recipe.id}>
-                <RecipeCard recipe={recipe} note={`${recipe.like_count}명이 추천`} />
-              </li>
-            ))}
+      {view === 'recipes' && (
+        <section role="tabpanel" id="home-panel-recipes" aria-labelledby="home-tab-recipes" className={styles.panel}>
+          <ul className={styles.chips}>
+            {[{ category: ALL_CATEGORIES, count: 0 }, ...categories].map((item) => <li key={item.category}><button type="button" className={item.category === category ? `${styles.chip} ${styles.chipSelected}` : styles.chip} aria-pressed={item.category === category} onClick={() => { if (item.category !== category) { ++requestRef.current; setCategory(item.category) } }}>{item.category}</button></li>)}
           </ul>
-        </section>
-      )}
-
-      {/* 찾는 게 분명한 사람(검색어·분류를 건 사람)에게 테마는 방해다. */}
-      {isBrowsing &&
-        themes.map((theme) => (
-          <section className={styles.theme} key={theme.key} aria-labelledby={`theme-${theme.key}`}>
-            <div className={styles.themeHead}>
-              <h2 id={`theme-${theme.key}`}>{theme.title}</h2>
-              {/* 열 개만 보여주므로 전체가 몇 개인지 함께 알려준다. */}
-              <span className={styles.themeCount}>{theme.total}개</span>
+          <div className={styles.sectionHead}>
+            <div className={styles.sectionTitle}>
+              <h2>{keyword.trim() ? `'${keyword.trim()}' 검색 결과` : '오늘 뭐 먹지?'}</h2>
+              <p className={styles.resultCount}>{!isLoading && recipes.length > 0 ? `${recipes.length}개 보는 중` : '레시피 둘러보기'}</p>
             </div>
-            {theme.subtitle && <p className={styles.themeSubtitle}>{theme.subtitle}</p>}
-            <ul className={styles.themeRow}>
-              {theme.recipes.map((recipe) => (
-                <li key={recipe.id}>
-                  <RecipeCard recipe={recipe} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+            <Link to="/recommend" className={styles.pantryLink} aria-label="내 재료로 만들 수 있는 요리">
+              <Icon name="fridge" size={20} /><span>내 재료로 찾기</span><Icon name="chevron-right" size={16} />
+            </Link>
+          </div>
+          {isSlow && <p className={styles.notice} role="status">서버를 깨우는 중이에요<small>무료 서버라 첫 요청은 30초쯤 걸려요. 조금만 기다려주세요.</small></p>}
+          <p role="status" className="sr-only">{isLoading ? '레시피를 검색하고 있어요.' : !error ? `레시피 ${recipes.length}개를 불러왔어요.` : ''}</p>
+          {error && <div className={styles.error} role="alert"><p>{error}</p><button className={styles.retry} type="button" onClick={() => void load(keyword, category)}>다시 불러오기</button></div>}
+          {isLoading ? <ul className={styles.grid} aria-hidden="true">{Array.from({ length: 6 }, (_, index) => <li key={index} className={styles.skeleton} />)}</ul>
+            : recipes.length === 0 && !error ? <p className={styles.empty}>조건에 맞는 레시피가 없어요.<br />검색어나 분류를 바꿔보세요.</p>
+            : <ul className={styles.grid}>{recipes.map((recipe) => <li key={recipe.id}><RecipeCard recipe={recipe} /></li>)}</ul>}
+          {hasMore && !isLoading && <button className={styles.more} type="button" onClick={() => void loadMore()} disabled={isLoadingMore}>{isLoadingMore ? '불러오는 중…' : '더 보기'}<Icon name="plus" size={16} /></button>}
 
-      <ul className={styles.chips}>
-        {[{ category: ALL_CATEGORIES, count: 0 }, ...categories].map((item) => (
-          <li key={item.category}>
-            <button
-              type="button"
-              className={
-                item.category === category ? `${styles.chip} ${styles.chipSelected}` : styles.chip
-              }
-              aria-pressed={item.category === category}
-              onClick={() => setCategory(item.category)}
-            >
-              {item.category}
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      {isSlow && (
-        <p className={styles.notice} role="status">
-          <span aria-hidden="true">☕</span>
-          <span>
-            서버를 깨우는 중이에요
-            <small>무료 서버라 첫 요청은 30초쯤 걸려요. 조금만 기다려주세요.</small>
-          </span>
-        </p>
-      )}
-
-      {error !== null && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
-
-      <div className={styles.sectionHead}>
-        <h2>레시피 둘러보기</h2>
-        {!isLoading && recipes.length > 0 && <span>{recipes.length}개 보는 중</span>}
-      </div>
-
-      {isLoading ? (
-        <ul className={styles.grid} aria-hidden="true">
-          {Array.from({ length: 4 }, (_, index) => (
-            <li key={index} className={styles.skeleton} />
+          {isBrowsing && popular.length > 0 && <section className={styles.theme} aria-labelledby="theme-popular"><div className={styles.themeHead}><h2 id="theme-popular">많이 추천한 메뉴</h2><span>{popular.length}개</span></div><p className={styles.themeSubtitle}>다른 사람들이 추천한 레시피예요</p><ul className={styles.themeRow}>{popular.map((recipe) => <li key={recipe.id}><RecipeCard recipe={recipe} note={`${recipe.like_count}명이 추천`} /></li>)}</ul></section>}
+          {isBrowsing && themes.map((theme) => (
+            <section className={styles.theme} key={theme.key} aria-labelledby={`theme-${theme.key}`}>
+              <div className={styles.themeHead}>
+                <h2 id={`theme-${theme.key}`}>{theme.title}</h2>
+                <div className={styles.themeActions}>
+                  <span>{theme.total}개</span>
+                  <Link className={styles.themeAll} to={`/themes/${theme.key}?month=${themeMonth}`} aria-label={`${theme.title} 레시피 전체보기`}>
+                    전체보기<Icon name="chevron-right" size={16} />
+                  </Link>
+                </div>
+              </div>
+              {theme.subtitle && <p className={styles.themeSubtitle}>{theme.subtitle}</p>}
+              <ul className={styles.themeRow}>{theme.recipes.map((recipe) => <li key={recipe.id}><RecipeCard recipe={recipe} /></li>)}</ul>
+            </section>
           ))}
-        </ul>
-      ) : recipes.length === 0 && error === null ? (
-        <p className={styles.empty}>
-          조건에 맞는 레시피가 없어요.
-          <br />
-          검색어나 분류를 바꿔보세요.
-        </p>
-      ) : (
-        <ul className={styles.grid}>
-          {recipes.map((recipe) => (
-            <li key={recipe.id}>
-              <RecipeCard recipe={recipe} />
-            </li>
-          ))}
-        </ul>
+        </section>
       )}
-
-      {hasMore && !isLoading && (
-        <button className={styles.more} type="button" onClick={loadMore} disabled={isLoadingMore}>
-          {isLoadingMore ? '불러오는 중…' : '더 보기'}
-        </button>
-      )}
-    </>
+    </div>
   )
 }

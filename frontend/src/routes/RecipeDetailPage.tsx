@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, TimeoutError, toHttps } from '../api/client'
@@ -36,6 +36,10 @@ export default function RecipeDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const restoreRetryFocus = useRef(false)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const retryButtonRef = useRef<HTMLButtonElement>(null)
   const isSlow = useSlowRequestHint(isLoading)
 
   const parsedId = Number(recipeId)
@@ -69,12 +73,38 @@ export default function RecipeDetailPage() {
       })
 
     return () => controller.abort()
-  }, [parsedId])
+  }, [parsedId, attempt])
+
+  useEffect(() => {
+    // 재시도 버튼이 로딩 화면으로 바뀌어 사라진 경우에만 초점을 복구한다.
+    // 기다리는 동안 사용자가 다른 곳으로 이동하면 그 선택을 유지한다.
+    const cancel = () => { restoreRetryFocus.current = false }
+    const cancelOnFocus = (event: FocusEvent) => {
+      if (event.target !== document.body) cancel()
+    }
+    document.addEventListener('focusin', cancelOnFocus)
+    document.addEventListener('pointerdown', cancel)
+    document.addEventListener('keydown', cancel)
+    document.addEventListener('wheel', cancel, { passive: true })
+    return () => {
+      document.removeEventListener('focusin', cancelOnFocus)
+      document.removeEventListener('pointerdown', cancel)
+      document.removeEventListener('keydown', cancel)
+      document.removeEventListener('wheel', cancel)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isLoading || !restoreRetryFocus.current) return
+    restoreRetryFocus.current = false
+    const target = headingRef.current ?? retryButtonRef.current
+    target?.focus({ preventScroll: true })
+  }, [isLoading, recipe, error, notFound])
 
   if (notFound) {
     return (
       <div className={styles.missing}>
-        <h1>레시피를 찾을 수 없어요</h1>
+        <h1 ref={headingRef} tabIndex={-1}>레시피를 찾을 수 없어요</h1>
         <p>주소가 잘못됐거나 삭제된 레시피예요.</p>
       </div>
     )
@@ -83,6 +113,7 @@ export default function RecipeDetailPage() {
   if (isLoading) {
     return (
       <>
+        <p className="sr-only" role="status">레시피를 불러오는 중이에요.</p>
         <div className={styles.skeletonHero} aria-hidden="true" />
         <div className={styles.skeletonLine} aria-hidden="true" />
         <div className={styles.skeletonLine} aria-hidden="true" />
@@ -101,9 +132,13 @@ export default function RecipeDetailPage() {
 
   if (error !== null || recipe === null) {
     return (
-      <p className={styles.error} role="alert">
-        {error ?? '레시피를 불러오지 못했어요.'}
-      </p>
+      <div className={styles.error} role="alert">
+        <p>{error ?? '레시피를 불러오지 못했어요.'}</p>
+        <button ref={retryButtonRef} type="button" className={styles.linkButton} onClick={() => {
+          restoreRetryFocus.current = true
+          setAttempt((value) => value + 1)
+        }}>다시 불러오기</button>
+      </div>
     )
   }
 
@@ -114,7 +149,8 @@ export default function RecipeDetailPage() {
   const youtubeUrl = toHttps(recipe.youtube_url)
 
   return (
-    <>
+    <article className={styles.page}>
+      <div className={styles.summary}>
       <div className={styles.hero}>
         {imageUrl === null ? (
           <div className={styles.placeholder} aria-hidden="true">
@@ -128,8 +164,9 @@ export default function RecipeDetailPage() {
         </button>
       </div>
 
+      <div className={styles.overview}>
       <div className={styles.head}>
-        <h1>{recipe.menu_name}</h1>
+        <h1 ref={headingRef} tabIndex={-1}>{recipe.menu_name}</h1>
         <div className={styles.badges}>
           {recipe.category && <span className={styles.badge}>{recipe.category}</span>}
           {recipe.cook_method && <span className={styles.badge}>{recipe.cook_method}</span>}
@@ -145,9 +182,28 @@ export default function RecipeDetailPage() {
         <RecommendButton recipeId={recipe.id} />
         <FavoriteButton recipeId={recipe.id} />
       </div>
+      <nav className={styles.jumpLinks} aria-label="레시피 바로가기">
+        {[['ingredients', '재료'], ['steps', '조리 순서'], ['nutrition', '영양'], ['reviews', '후기']].map(([id, label]) => (
+          <a key={id} href={`#recipe-${id}`} onClick={(event) => {
+            event.preventDefault()
+            const target = document.getElementById(`recipe-${id}`)
+            target?.focus({ preventScroll: true })
+            target?.scrollIntoView({ block: 'start', behavior: 'instant' })
+          }}>{label}</a>
+        ))}
+      </nav>
+      <a className={styles.startCooking} href="#recipe-steps" onClick={(event) => {
+        event.preventDefault()
+        const target = document.getElementById('recipe-steps')
+        target?.focus({ preventScroll: true })
+        target?.scrollIntoView({ block: 'start', behavior: 'instant' })
+      }}>조리 시작하기 <span aria-hidden="true">↓</span></a>
+      </div>
+      </div>
 
       {/* 이름을 주면 화면 낭독기가 "영양 정보 목록"으로 읽어준다. 화면에는 제목이
           없어서 이 목록이 무엇인지 소리로는 알 수 없다. */}
+      <h2 className={styles.nutritionHeading} id="recipe-nutrition" tabIndex={-1}>영양 정보</h2>
       <ul className={styles.nutrients} aria-label="영양 정보">
         <NutrientTile label="열량" value={nutrients.energy_kcal ?? recipe.calorie} unit="kcal" />
         <NutrientTile label="탄수화물" value={nutrients.carbs_g} unit="g" />
@@ -167,7 +223,7 @@ export default function RecipeDetailPage() {
       <RecipeCostCard recipeId={recipe.id} />
 
       <div className={styles.sectionHead}>
-        <h2>재료</h2>
+        <h2 id="recipe-ingredients" tabIndex={-1}>재료</h2>
         {recipe.base_servings ? <span>{recipe.base_servings}인분 기준</span> : null}
       </div>
 
@@ -192,7 +248,7 @@ export default function RecipeDetailPage() {
       )}
 
       <div className={styles.sectionHead}>
-        <h2>조리 순서</h2>
+        <h2 id="recipe-steps" tabIndex={-1}>조리 순서</h2>
         {steps.length > 0 && <span>{steps.length}단계</span>}
       </div>
 
@@ -227,7 +283,7 @@ export default function RecipeDetailPage() {
 
       {/* 조리 순서 다음에 둔다. "만들었다"가 후기의 전제라 순서를 다 본 뒤가 자연스럽고,
           아직 안 만든 사람에게는 다른 사람이 해본 결과가 마지막 판단 재료가 된다. */}
-      <ReviewSection recipeId={recipe.id} />
+      <div id="recipe-reviews" tabIndex={-1} role="region" aria-label="후기"><ReviewSection recipeId={recipe.id} /></div>
 
       {youtubeUrl && (
         <div className={styles.actions}>
@@ -241,7 +297,7 @@ export default function RecipeDetailPage() {
           </a>
         </div>
       )}
-    </>
+    </article>
   )
 }
 

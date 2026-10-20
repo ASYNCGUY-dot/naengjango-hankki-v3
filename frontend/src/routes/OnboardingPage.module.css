@@ -1,11 +1,13 @@
 .page {
-  padding: var(--space-4) var(--space-4) var(--space-10);
-  max-width: var(--content-max-width);
+  padding: var(--space-6) var(--feed-page-padding) var(--space-10);
+  width: 100%;
+  max-width: 42rem;
   margin: 0 auto;
+  overflow-wrap: anywhere;
 }
 
 .page h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--feed-title-size);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
 }
@@ -17,6 +19,7 @@
 }
 
 .section {
+  min-width: 0;
   margin-bottom: var(--space-6);
   border: none;
   padding: 0;
@@ -58,18 +61,20 @@
 }
 
 .chip {
+  max-width: 100%;
   min-height: var(--touch-target-min);
   display: inline-flex;
   align-items: center;
-  padding: 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .chipSelected {
@@ -80,6 +85,7 @@
 }
 
 .field {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -93,11 +99,36 @@
 
 .field select,
 .field input {
+  width: 100%;
+  min-width: 0;
   min-height: var(--touch-target-min);
-  padding: 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.field [aria-invalid='true'] {
+  border-color: var(--color-danger-text);
+}
+
+.basicFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 0 1rem;
+}
+
+.retry {
+  min-height: var(--touch-target-min);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  cursor: pointer;
 }
 
 /* 건강 정보 동의. 알레르기 칩과 같은 강조를 줘서 안전 관련 묶음으로 읽히게 한다. */
@@ -110,6 +141,7 @@
 }
 
 .consentLabel {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -121,6 +153,7 @@
 }
 
 .consentLabel input {
+  flex-shrink: 0;
   width: 1.25rem;
   height: 1.25rem;
   accent-color: var(--color-accent);
@@ -134,7 +167,7 @@
   min-height: var(--touch-target-min);
   padding: var(--space-3);
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-accent);
   color: var(--color-text-on-accent);
   font-weight: var(--font-weight-bold);
