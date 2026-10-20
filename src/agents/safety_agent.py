@@ -14,19 +14,22 @@ from dotenv import load_dotenv
 load_dotenv()
 API_KEY = os.getenv("FOODSAFETY_API_KEY")
 DB_PATH = "data/app.db"
+# 키가 주소 경로에 들어가므로 반드시 https로 부른다(2026-10-20). http로 부르면 매 요청마다 키가
+# 암호화되지 않은 채 나간다. https로도 같은 응답이 오는 것을 확인했다.
+BASE_URL = "https://openapi.foodsafetykorea.go.kr/api"
 
 
 def get_all_recalls() -> list[dict]:
     """회수·판매중지 정보(I0490) 전체를 가져온다. (건수는 매일 바뀔 수 있어 매번 확인 후 가져온다)"""
     # 먼저 1건만 요청해서 total_count를 확인
-    probe_url = f"http://openapi.foodsafetykorea.go.kr/api/{API_KEY}/I0490/json/1/1"
+    probe_url = f"{BASE_URL}/{API_KEY}/I0490/json/1/1"
     probe = requests.get(probe_url, timeout=10).json()
     total = int(probe["I0490"]["total_count"])
 
     if total == 0:
         return []  # 현재 회수 이력이 0건이면 추가 요청 없이 빈 리스트 반환
 
-    url = f"http://openapi.foodsafetykorea.go.kr/api/{API_KEY}/I0490/json/1/{total}"
+    url = f"{BASE_URL}/{API_KEY}/I0490/json/1/{total}"
     response = requests.get(url, timeout=10)
     data = response.json()
     return data["I0490"]["row"]
