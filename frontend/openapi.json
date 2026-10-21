@@ -6576,6 +6576,49 @@
         ]
       }
     },
+    "/recommendation/recipes/{recipe_id}/price/public": {
+      "get": {
+        "description": "로그인 없이 이 레시피의 1인분 재료비를 본다 (2026-10-21).\n\n재료비가 로그인 뒤에만 있어서, 레시피 링크를 받은 사람(공모전 심사자 포함)은 이 서비스의\n핵심인 KAMIS 재료비를 볼 수 없었다. 레시피 상세(/recommendation/recipes/{id})가 이미\n로그인 없이 열려 있으니 그와 같은 범위로 연다.\n\n개인화는 하지 않는다. 가구원 수는 프로필에 있어서 **항상 1인분**으로 계산한다. 공개\n경로라 사용자 데이터는 읽지도 쓰지도 않는다. KAMIS 호출은 로그인 경로와 같은 캐시(10분)를\n거쳐서, 이 경로가 많이 불려도 KAMIS 호출 수는 늘지 않는다.",
+        "operationId": "get_recipe_price_public_recommendation_recipes__recipe_id__price_public_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "title": "Recipe Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Recipe Price Public",
+        "tags": [
+          "price"
+        ]
+      }
+    },
     "/recommendation/recipes/{recipe_id}/shopping-links": {
       "get": {
         "operationId": "get_shopping_links_for_missing_recommendation_recipes__recipe_id__shopping_links_get",

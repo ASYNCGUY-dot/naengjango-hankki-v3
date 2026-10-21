@@ -23,3 +23,11 @@ export async function getRecipePrice(
     signal,
   })
 }
+
+/**
+ * 로그인 없이 보는 1인분 재료비 (2026-10-21). 레시피 링크를 받은 사람도 KAMIS 재료비를 볼 수
+ * 있게 서버가 공개로 연 경로다. 가구원 수는 프로필에 있어서 항상 1인분이다.
+ */
+export async function getPublicRecipePrice(recipeId: number, signal?: AbortSignal): Promise<RecipePrice> {
+  return apiFetch<RecipePrice>(`/recommendation/recipes/${recipeId}/price/public`, { signal })
+}

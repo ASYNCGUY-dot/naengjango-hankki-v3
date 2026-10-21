@@ -108,14 +108,34 @@ def get_recipe_price(
     if profile is None:
         raise HTTPException(status_code=404, detail="존재하지 않는 user_id입니다.")
 
-    cur.execute("SELECT id FROM recipes WHERE id = ?", (recipe_id,))
-    if cur.fetchone() is None:
-        raise HTTPException(status_code=404, detail="존재하지 않는 recipe_id입니다.")
-
     try:
         household_size = int(profile.get("household_size") or 1)
     except (TypeError, ValueError):
         household_size = 1
+
+    return _price_response(cur, recipe_id, household_size)
+
+
+# "/{recipe_id}/price/public"은 위 경로와 겹치지 않는다(뒤에 "/public"이 더 붙는다).
+@router.get("/{recipe_id}/price/public", response_model=PriceResponse)
+def get_recipe_price_public(recipe_id: int, cur: sqlite3.Cursor = Depends(get_db)):
+    """로그인 없이 이 레시피의 1인분 재료비를 본다 (2026-10-21).
+
+    재료비가 로그인 뒤에만 있어서, 레시피 링크를 받은 사람(공모전 심사자 포함)은 이 서비스의
+    핵심인 KAMIS 재료비를 볼 수 없었다. 레시피 상세(/recommendation/recipes/{id})가 이미
+    로그인 없이 열려 있으니 그와 같은 범위로 연다.
+
+    개인화는 하지 않는다. 가구원 수는 프로필에 있어서 **항상 1인분**으로 계산한다. 공개
+    경로라 사용자 데이터는 읽지도 쓰지도 않는다. KAMIS 호출은 로그인 경로와 같은 캐시(10분)를
+    거쳐서, 이 경로가 많이 불려도 KAMIS 호출 수는 늘지 않는다.
+    """
+    return _price_response(cur, recipe_id, household_size=1)
+
+
+def _price_response(cur: sqlite3.Cursor, recipe_id: int, household_size: int) -> PriceResponse:
+    cur.execute("SELECT id FROM recipes WHERE id = ?", (recipe_id,))
+    if cur.fetchone() is None:
+        raise HTTPException(status_code=404, detail="존재하지 않는 recipe_id입니다.")
 
     base_servings, items = portion_agent.get_recipe_ingredients(cur, recipe_id)
     # 구획 제목("주재료")과 안내 문구("1인분 기준")는 재료가 아니다. 거르지 않으면 재료비 카드의
