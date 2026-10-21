@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { listFavorites, toggleFavorite } from '../api/favorites'
 import { useAuth } from '../auth/context'
@@ -28,49 +28,84 @@ export default function FavoriteButton({ recipeId }: { recipeId: number }) {
   const [isFavorited, setIsFavorited] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const [isBusy, setIsBusy] = useState(false)
+  const pending = useRef(false)
+  const generation = useRef(0)
 
   useEffect(() => {
+    generation.current += 1
+    pending.current = false
+    setIsBusy(false)
+    setIsReady(false)
+    setLoadError(false)
+    setError(null)
     if (userId === null) return
     const controller = new AbortController()
     listFavorites(userId, controller.signal)
       .then((items) => {
+        if (controller.signal.aborted) return
         setIsFavorited(items.some((item) => item.id === recipeId))
         setIsReady(true)
       })
-      // 목록을 못 받으면 지금 상태를 모른다. 하트를 안 보여주는 편이 낫다 -
-      // 빈 하트를 보여주면 "저장 안 됨"이라는 틀린 정보를 준다.
-      .catch(() => {})
+      .catch(() => {
+        if (!controller.signal.aborted) setLoadError(true)
+      })
     return () => controller.abort()
-  }, [recipeId, userId])
+  }, [recipeId, userId, retry])
 
-  if (!isAuthenticated || !isReady) return null
+  if (!isAuthenticated) return null
+  const isLoading = !isReady && !loadError
 
   async function handleToggle() {
-    if (userId === null) return
+    if (userId === null || !isReady || pending.current) return
+    pending.current = true
+    setIsBusy(true)
+    const requestGeneration = generation.current
     const next = !isFavorited
     setIsFavorited(next)
     setError(null)
     try {
       const saved = await toggleFavorite(userId, recipeId)
+      if (requestGeneration !== generation.current) return
       // 서버가 말하는 상태를 최종으로 삼는다. 다른 기기에서 이미 바꿨을 수 있다.
       setIsFavorited(saved)
     } catch {
+      if (requestGeneration !== generation.current) return
       setIsFavorited(!next)
       setError('즐겨찾기에 담지 못했어요. 잠시 후 다시 시도해주세요.')
+    } finally {
+      if (requestGeneration === generation.current) {
+        pending.current = false
+        setIsBusy(false)
+      }
     }
   }
 
   return (
     <>
       <button
-        className={isFavorited ? `${styles.button} ${styles.on}` : styles.button}
+        className={isReady && isFavorited ? `${styles.button} ${styles.on}` : styles.button}
         type="button"
-        aria-pressed={isFavorited}
-        onClick={() => void handleToggle()}
+        aria-pressed={isReady ? isFavorited : undefined}
+        aria-busy={isBusy || isLoading}
+        aria-disabled={isLoading || isBusy}
+        disabled={isBusy}
+        onClick={() => {
+          if (loadError) {
+            setLoadError(false)
+            setRetry((value) => value + 1)
+          } else void handleToggle()
+        }}
       >
-        <span aria-hidden="true">{isFavorited ? '★' : '☆'}</span>
-        {isFavorited ? '즐겨찾기됨' : '즐겨찾기'}
+        {isReady ? <>
+          <span aria-hidden="true">{isFavorited ? '★' : '☆'}</span>
+          {isFavorited ? '즐겨찾기됨' : '즐겨찾기'}
+        </> : loadError ? '즐겨찾기 다시 불러오기' : '즐겨찾기 불러오는 중…'}
       </button>
+      {isLoading && <p className="sr-only" role="status">즐겨찾기 상태를 불러오는 중…</p>}
+      {loadError && <p className={styles.error} role="alert">즐겨찾기 상태를 불러오지 못했어요.</p>}
       {error !== null && (
         <p className={styles.error} role="alert">
           {error}

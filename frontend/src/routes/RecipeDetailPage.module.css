@@ -1,6 +1,8 @@
+.page { max-width: 52rem; margin-inline: auto; }
+.overview { min-width: 0; }
 .hero {
   position: relative;
-  aspect-ratio: var(--recipe-card-aspect);
+  aspect-ratio: 16 / 10;
   background: var(--color-surface-sunken);
 }
 
@@ -43,7 +45,7 @@
 }
 
 .head h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--feed-title-size);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
 }
@@ -59,22 +61,24 @@
   display: inline-flex;
   align-items: center;
   padding: 0.15em var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
 }
 
 .nutrients {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
   list-style: none;
 }
 
 .nutrients li {
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
@@ -94,6 +98,7 @@
 
 .sectionHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-4) var(--space-2);
@@ -130,8 +135,9 @@
 
 .ingredients li {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   padding: var(--space-1) 0;
 }
 
@@ -170,10 +176,11 @@
 
 .stepBody {
   flex: 1;
+  min-width: 0;
 }
 
 .stepBody p {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   line-height: var(--line-height-loose);
 }
 
@@ -205,7 +212,7 @@
   min-height: var(--touch-target-min);
   padding: var(--space-3);
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: none;
   color: var(--color-accent-text);
   font-weight: var(--font-weight-bold);
@@ -225,8 +232,8 @@
 }
 
 .notice {
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
@@ -252,7 +259,7 @@
 }
 
 .skeletonHero {
-  aspect-ratio: var(--recipe-card-aspect);
+  aspect-ratio: 16 / 10;
   background: var(--color-surface-sunken);
 }
 
@@ -261,4 +268,14 @@
   margin: var(--space-3) var(--space-4);
   border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
+}
+
+.jumpLinks { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4); }
+.jumpLinks a { display: inline-flex; align-items: center; min-height: var(--touch-target-min); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); color: var(--color-text-primary); font-size: var(--font-size-sm); text-decoration: none; }
+.jumpLinks a:hover { background: var(--color-surface-sunken); }
+.startCooking { display: flex; justify-content: space-between; align-items: center; min-height: var(--touch-target-min); margin: var(--space-4); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--color-accent); color: var(--color-text-on-accent); font-weight: var(--font-weight-bold); text-decoration: none; }
+.nutritionHeading { font-size: var(--font-size-lg); margin: var(--space-6) var(--space-4) var(--space-2); }
+@container (min-width: 40rem) {
+  .summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-4); padding: var(--space-5); }
+  .hero { aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; }
 }

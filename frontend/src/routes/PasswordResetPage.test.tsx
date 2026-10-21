@@ -66,6 +66,9 @@ describe('새 비밀번호 설정', () => {
     await user.click(screen.getByRole('button', { name: '비밀번호 변경' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('두 비밀번호가 다릅니다')
+    expect(screen.getByLabelText('새 비밀번호 확인')).toHaveFocus()
+    expect(screen.getByLabelText('새 비밀번호 확인')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('새 비밀번호 확인')).toHaveAccessibleDescription('두 비밀번호가 다릅니다.')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -79,6 +82,8 @@ describe('새 비밀번호 설정', () => {
     await user.click(screen.getByRole('button', { name: '비밀번호 변경' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('8자 이상')
+    expect(screen.getByLabelText('새 비밀번호')).toHaveFocus()
+    expect(screen.getByLabelText('새 비밀번호')).toHaveAttribute('aria-invalid', 'true')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -97,6 +102,7 @@ describe('새 비밀번호 설정', () => {
 
     const status = await screen.findByRole('status')
     expect(status).toHaveTextContent('비밀번호가 바뀌었어요')
+    expect(status).toHaveFocus()
     expect(status).toHaveTextContent('다른 기기에 남아 있던 로그인도 함께 해제')
 
     const sent = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)

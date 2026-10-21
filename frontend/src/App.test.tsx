@@ -23,7 +23,10 @@ function mockEmptyApi() {
 }
 
 describe('라우팅', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  })
   afterEach(() => vi.restoreAllMocks())
 
   // V2는 화면 전체가 라우트 하나(/demo)였고 탭 전환을 State로만 처리했다.
@@ -31,7 +34,7 @@ describe('라우팅', () => {
   // 고쳐졌는지 확인한다.
 
   it.each([
-    ['/', '오늘 뭐 먹지?'],
+    ['/', '냉장고 한끼'],
     ['/pantry', '내 냉장고'],
     ['/recommend', '나를 위한 레시피 추천'],
     ['/brags', '자랑하기'],
@@ -104,7 +107,7 @@ describe('라우팅', () => {
     signIn()
     mockEmptyApi()
     renderAt('/이런주소는없다')
-    expect(screen.getByRole('heading', { level: 1, name: '오늘 뭐 먹지?' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: '냉장고 한끼' })).toBeInTheDocument()
   })
 
   it('로그인 화면에는 하단 탭바를 두지 않는다', () => {
@@ -123,6 +126,17 @@ describe('라우팅', () => {
     expect(screen.getByRole('heading', { level: 1, name: '자랑하기' })).toBeInTheDocument()
     // aria-current는 보조기기가 "지금 여기"를 읽어주는 근거다.
     expect(screen.getByRole('link', { name: '자랑하기' })).toHaveAttribute('aria-current', 'page')
+    expect(document.title).toBe('집밥 자랑 | 냉장고 한끼')
+    expect(screen.getByRole('heading', { level: 1, name: '자랑하기' })).toHaveFocus()
+  })
+
+  it('본문 바로가기로 반복 메뉴를 건너뛴다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockEmptyApi()
+    renderAt('/')
+    await user.click(screen.getByRole('link', { name: '본문 바로가기' }))
+    expect(screen.getByRole('heading', { level: 1, name: '냉장고 한끼' })).toHaveFocus()
   })
 
   it('냉장고는 탭이 아니라 마이 안에서 들어간다', async () => {

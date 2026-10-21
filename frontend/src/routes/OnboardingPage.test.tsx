@@ -129,8 +129,7 @@ describe('식단 정보 입력', () => {
   })
 
   it('가입 때 받은 성별·연령대를 그대로 실어 보낸다', async () => {
-    // PUT은 프로필 전체를 덮어쓴다. 화면이 안 묻는다고 빼고 보내면 가입 때 받은 값이
-    // 빈 문자열로 날아간다.
+    // PUT은 프로필 전체를 덮어쓴다. 수정하지 않은 성별·연령대도 보존한다.
     const user = userEvent.setup()
     signIn()
     const fetchMock = mockApi({})
@@ -147,6 +146,24 @@ describe('식단 정보 입력', () => {
     })
   })
 
+  it('성별·연령대를 수정하면 기존 API 필드로 저장하고 다른 선택은 보존한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi({ profile: profile({ allergy: '우유', health_data_consent: true }) })
+    renderWithProviders(<OnboardingPage />)
+
+    expect(await screen.findByLabelText('성별')).toHaveValue('여성')
+    expect(screen.getByLabelText('연령대')).toHaveValue('20대')
+    await user.selectOptions(screen.getByLabelText('성별'), '선택 안 함')
+    await user.selectOptions(screen.getByLabelText('연령대'), '30대')
+    await fillRequired(user)
+    await user.click(screen.getByRole('button', { name: '저장하기' }))
+
+    await waitFor(() => expect(putBody(fetchMock)).toMatchObject({
+      gender: '선택 안 함', age_group: '30대', allergy: '우유', health_data_consent: true,
+    }))
+  })
+
   it('필수 항목을 안 고르면 저장 요청을 보내지 않는다', async () => {
     const user = userEvent.setup()
     signIn()
@@ -157,6 +174,9 @@ describe('식단 정보 입력', () => {
     await user.click(screen.getByRole('button', { name: '저장하기' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('건강목표')
+    expect(screen.getByLabelText('건강목표')).toHaveFocus()
+    expect(screen.getByLabelText('건강목표')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('건강목표')).toHaveAttribute('aria-describedby', 'onboarding-error')
     expect(
       fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'PUT'),
     ).toBe(false)
@@ -214,6 +234,7 @@ describe('식단 정보 입력', () => {
     await user.click(screen.getByRole('button', { name: '저장하기' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('동의')
+    expect(screen.getByLabelText(/알레르기·병력 정보 수집에 동의/)).toHaveFocus()
     expect(
       fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'PUT'),
     ).toBe(false)
@@ -268,6 +289,32 @@ describe('식단 정보 입력', () => {
 
     await screen.findByRole('alert')
     expect(screen.queryByRole('button', { name: '저장하기' })).not.toBeInTheDocument()
+  })
+
+  it('병력·성별 선택지 실패 시 저장을 막고 재시도로 다시 수정할 수 있다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi({})
+    const original = fetchMock.getMockImplementation()!
+    let optionsFailed = false
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input).includes('/profile/options') && !optionsFailed) {
+        optionsFailed = true
+        return json({ detail: '일시 오류' }, 500)
+      }
+      return original(input, init)
+    })
+    renderWithProviders(<OnboardingPage />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('성별·연령대·병력 선택지를 불러오지 못했어요')
+    expect(screen.queryByRole('button', { name: '저장하기' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '다시 불러오기' }))
+
+    expect(await screen.findByRole('button', { name: '고혈압' })).toBeInTheDocument()
+    expect(screen.getByLabelText('성별')).toHaveValue('여성')
+    expect(screen.getByLabelText('성별')).toHaveFocus()
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false)
   })
 
   it('프로필이 오기 전에는 폼을 내주지 않는다', async () => {

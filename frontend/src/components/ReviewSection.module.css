@@ -1,9 +1,12 @@
 .section {
-  margin: var(--space-6) var(--space-4);
+  min-width: 0;
+  margin: var(--space-6) var(--feed-page-padding);
+  overflow-wrap: anywhere;
 }
 
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
@@ -20,12 +23,13 @@
 }
 
 .form {
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-3);
-  padding: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
@@ -33,8 +37,9 @@
 
 .ratingLabel,
 .textLabel {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
 }
 
 /* 별점 라벨과 선택은 한 줄, 후기 라벨부터는 줄을 바꾼다. */
@@ -43,34 +48,39 @@
 }
 
 .rating {
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--touch-target-min);
-  padding: 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface-base);
   color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
 }
 
 .text {
   flex-basis: 100%;
-  padding: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface-base);
   color: var(--color-text-primary);
   font-family: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   line-height: var(--line-height-loose);
   resize: vertical;
 }
 
 .submit {
+  max-width: 100%;
   min-height: var(--touch-target-min);
-  padding: 0 var(--space-4);
+  padding: var(--space-2) var(--space-4);
   margin-left: auto;
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-accent);
   color: var(--color-text-on-accent);
   font-size: var(--font-size-sm);
@@ -114,6 +124,7 @@
 
 .itemHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
 }
@@ -139,4 +150,7 @@
   font-size: var(--font-size-sm);
   line-height: var(--line-height-loose);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
+.loadState { margin-top: var(--space-4); font-size: var(--font-size-sm); color: var(--color-danger-text); }
+.retry { min-height: var(--touch-target-min); padding: var(--space-2) var(--space-3); margin-top: var(--space-2); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface-raised); color: var(--color-text-primary); cursor: pointer; }

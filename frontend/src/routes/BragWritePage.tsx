@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { ApiError, TimeoutError } from '../api/client'
@@ -35,6 +35,17 @@ export default function BragWritePage() {
   const [recipe, setRecipe] = useState<{ id: number; menu_name: string } | null>(null)
   const [keyword, setKeyword] = useState('')
   const [results, setResults] = useState<RecipeSummary[]>([])
+  const [searchState, setSearchState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [searchError, setSearchError] = useState('')
+  const [retrySearch, setRetrySearch] = useState(0)
+  const searchRequest = useRef(0)
+  const selectionVersion = useRef(0)
+  const searchInput = useRef<HTMLInputElement>(null)
+  const bodyInput = useRef<HTMLTextAreaElement>(null)
+  const photoInput = useRef<HTMLInputElement>(null)
+  const errorNotice = useRef<HTMLParagraphElement>(null)
+  const focusSearch = useRef(false)
+  const [fieldErrors, setFieldErrors] = useState<{ recipe?: string; body?: string; photo?: string }>({})
 
   const [body, setBody] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
@@ -48,25 +59,55 @@ export default function BragWritePage() {
   useEffect(() => {
     if (!Number.isInteger(preselected) || preselected <= 0) return
     const controller = new AbortController()
+    const selection = selectionVersion.current
     getRecipe(preselected, controller.signal)
-      .then((detail) => setRecipe({ id: detail.id, menu_name: detail.menu_name }))
+      .then((detail) => {
+        if (!controller.signal.aborted && selectionVersion.current === selection) {
+          setRecipe({ id: detail.id, menu_name: detail.menu_name })
+        }
+      })
       // 못 읽으면 그냥 검색으로 고르게 둔다.
       .catch(() => {})
     return () => controller.abort()
   }, [preselected])
 
   useEffect(() => {
+    const request = ++searchRequest.current
+    setResults([])
+    setSearchError('')
     if (recipe !== null || keyword.trim() === '') {
-      setResults([])
+      setSearchState('idle')
       return
     }
+    const controller = new AbortController()
+    setSearchState('loading')
     const timer = setTimeout(() => {
-      searchRecipes({ keyword })
-        .then((rows) => setResults(rows.slice(0, 8)))
-        .catch(() => setResults([]))
+      searchRecipes({ keyword: keyword.trim(), signal: controller.signal })
+        .then((rows) => {
+          if (controller.signal.aborted || searchRequest.current !== request) return
+          setResults(rows.slice(0, 8))
+          setSearchState('success')
+        })
+        .catch((caught) => {
+          if (controller.signal.aborted || searchRequest.current !== request) return
+          setSearchError(caught instanceof ApiError || caught instanceof TimeoutError
+            ? caught.message : '레시피를 찾지 못했어요. 다시 시도해주세요.')
+          setSearchState('error')
+        })
     }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [keyword, recipe])
+    return () => { clearTimeout(timer); controller.abort() }
+  }, [keyword, recipe, retrySearch])
+
+  useEffect(() => {
+    if (recipe === null && focusSearch.current) {
+      searchInput.current?.focus()
+      focusSearch.current = false
+    }
+  }, [recipe])
+
+  useEffect(() => {
+    if (error !== null) errorNotice.current?.focus()
+  }, [error])
 
   // 미리보기 주소는 다 쓰면 풀어준다. 안 그러면 페이지를 떠도 메모리에 남는다.
   useEffect(() => {
@@ -81,10 +122,12 @@ export default function BragWritePage() {
 
   function handlePick(file: File | undefined) {
     setError(null)
+    setFieldErrors((current) => ({ ...current, photo: undefined }))
     if (file === undefined) return
     // 브라우저에서 줄여 보내지만, 원본이 터무니없이 크면 줄이는 것부터가 느리다.
     if (file.size > MAX_PHOTO_BYTES * 10) {
-      setError('사진이 너무 커요. 다른 사진을 골라주세요.')
+      setFieldErrors((current) => ({ ...current, photo: '사진이 너무 커요. 다른 사진을 골라주세요.' }))
+      photoInput.current?.focus()
       return
     }
     setPhoto(file)
@@ -92,7 +135,16 @@ export default function BragWritePage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    if (userId === null || recipe === null || body.trim() === '') return
+    if (userId === null || isSaving) return
+    const errors = {
+      recipe: recipe === null ? '만든 레시피를 검색 결과에서 선택해주세요.' : undefined,
+      body: body.trim() === '' ? '집밥 이야기를 입력해주세요.' : undefined,
+      photo: fieldErrors.photo,
+    }
+    setFieldErrors(errors)
+    if (recipe === null) { searchInput.current?.focus(); return }
+    if (body.trim() === '') { bodyInput.current?.focus(); return }
+    if (errors.photo) { photoInput.current?.focus(); return }
 
     setIsSaving(true)
     setError(null)
@@ -115,13 +167,13 @@ export default function BragWritePage() {
       <h1>자랑하기</h1>
 
       {error !== null && (
-        <p className={styles.error} role="alert">
+        <p className={styles.error} role="alert" tabIndex={-1} ref={errorNotice} id="brag-submit-error">
           {error}
         </p>
       )}
 
-      <form className={styles.form} onSubmit={(event) => void handleSubmit(event)}>
-        <span className={styles.label}>무엇을 만들었나요?</span>
+      <form className={styles.form} onSubmit={(event) => void handleSubmit(event)} aria-busy={isSaving} aria-describedby={error ? 'brag-submit-error' : undefined}>
+        <span className={styles.label}>무엇을 만들었나요? (필수)</span>
         {recipe === null ? (
           <>
             <label className="sr-only" htmlFor="brag-recipe-search">
@@ -129,22 +181,42 @@ export default function BragWritePage() {
             </label>
             <input
               id="brag-recipe-search"
+              ref={searchInput}
               type="search"
               className={styles.input}
               placeholder="레시피 이름으로 찾기"
               value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
+              aria-controls="brag-search-results"
+              aria-invalid={Boolean(fieldErrors.recipe)}
+              aria-describedby={`brag-recipe-hint${fieldErrors.recipe ? ' brag-recipe-error' : ''}`}
+              onChange={(event) => {
+                selectionVersion.current += 1
+                setKeyword(event.target.value)
+                setFieldErrors((current) => ({ ...current, recipe: undefined }))
+              }}
             />
-            {results.length > 0 && (
-              <ul className={styles.results}>
+            <p id="brag-recipe-hint" className={styles.hint}>검색 결과에서 만든 레시피를 하나 선택해주세요.</p>
+            {fieldErrors.recipe && <p id="brag-recipe-error" className={styles.fieldError} role="alert">{fieldErrors.recipe}</p>}
+            <p className={styles.hint} role="status">
+              {searchState === 'loading' ? '레시피를 검색하는 중이에요.'
+                : searchState === 'success' ? results.length > 0 ? `검색 결과 ${results.length}개. 레시피를 선택해주세요.` : '검색 결과가 없어요. 다른 이름으로 검색해보세요.' : ''}
+            </p>
+            {searchState === 'error' && <div className={styles.searchError}>
+              <p role="alert">{searchError}</p>
+              <button type="button" className={styles.change} onClick={() => setRetrySearch((value) => value + 1)}>검색 다시 시도</button>
+            </div>}
+              <ul id="brag-search-results" className={styles.results} aria-label="레시피 검색 결과" aria-busy={searchState === 'loading'} hidden={results.length === 0}>
                 {results.map((item) => (
                   <li key={item.id}>
                     <button
                       type="button"
                       className={styles.result}
                       onClick={() => {
+                        selectionVersion.current += 1
                         setRecipe({ id: item.id, menu_name: item.menu_name })
                         setKeyword('')
+                        setFieldErrors((current) => ({ ...current, recipe: undefined }))
+                        bodyInput.current?.focus()
                       }}
                     >
                       {item.menu_name}
@@ -152,12 +224,11 @@ export default function BragWritePage() {
                   </li>
                 ))}
               </ul>
-            )}
           </>
         ) : (
           <div className={styles.picked}>
             <span>{recipe.menu_name}</span>
-            <button type="button" className={styles.change} onClick={() => setRecipe(null)}>
+            <button type="button" className={styles.change} onClick={() => { focusSearch.current = true; setRecipe(null) }}>
               바꾸기
             </button>
           </div>
@@ -169,11 +240,15 @@ export default function BragWritePage() {
         {/* capture를 안 붙인다. 붙이면 카메라만 열려서 이미 찍어둔 사진을 못 고른다. */}
         <input
           id="brag-photo"
+          ref={photoInput}
           type="file"
           className={styles.input}
           accept="image/jpeg,image/png,image/webp"
+          aria-invalid={Boolean(fieldErrors.photo)}
+          aria-describedby={fieldErrors.photo ? 'brag-photo-error' : undefined}
           onChange={(event) => handlePick(event.target.files?.[0])}
         />
+        {fieldErrors.photo && <p id="brag-photo-error" className={styles.fieldError} role="alert">{fieldErrors.photo}</p>}
         {/* 미리보기는 blob: 주소라 toHttps를 거치지 않는다(거쳐도 그대로 통과하지만,
             바깥에서 온 주소처럼 보이면 읽는 사람이 헷갈린다). */}
         {preview !== null && (
@@ -185,19 +260,25 @@ export default function BragWritePage() {
         </label>
         <textarea
           id="brag-body"
+          ref={bodyInput}
           className={styles.textarea}
           rows={5}
           maxLength={1000}
           value={body}
+          aria-required="true"
+          aria-invalid={Boolean(fieldErrors.body)}
+          aria-describedby={`brag-body-hint${fieldErrors.body ? ' brag-body-error' : ''}`}
           placeholder="만들면서 바꾼 것, 다음에 해볼 것을 적어주세요."
-          onChange={(event) => setBody(event.target.value)}
+          onChange={(event) => { setBody(event.target.value); setFieldErrors((current) => ({ ...current, body: undefined })) }}
         />
+        <p id="brag-body-hint" className={styles.hint}>필수 입력 · 최대 1,000자</p>
+        {fieldErrors.body && <p id="brag-body-error" className={styles.fieldError} role="alert">{fieldErrors.body}</p>}
 
         <div className={styles.actions}>
           <button
             className={styles.primary}
             type="submit"
-            disabled={isSaving || recipe === null || body.trim() === ''}
+            disabled={isSaving}
           >
             {isSaving ? '올리는 중…' : '올리기'}
           </button>

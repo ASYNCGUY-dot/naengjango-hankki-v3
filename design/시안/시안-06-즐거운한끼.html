@@ -1,0 +1,73 @@
+<style>
+#hk-studio .c6{--ink:#30362b;--yellow:#f9d966;--coral:#f68167;--blue:#bddbea;min-height:770px;display:flex;flex-direction:column;background:#fffbef;color:var(--ink);padding:23px 20px 0;box-sizing:border-box;font-family:"Pretendard","Noto Sans KR",sans-serif}
+#hk-studio .c6 *{box-sizing:border-box}
+#hk-studio .c6 .hk-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#hk-studio .c6 .hk-brand{font-size:17px;font-weight:900;letter-spacing:-.8px;display:flex;align-items:center;gap:6px}
+#hk-studio .c6 .c6-brand-icon{display:grid;place-items:center;width:29px;height:29px;background:var(--yellow);border:1.7px solid var(--ink);border-radius:9px;transform:rotate(-6deg)}
+#hk-studio .c6 .c6-brand-icon svg{width:18px;height:18px;stroke-width:2.2}
+#hk-studio .c6 .c6-search{height:32px;width:32px;display:grid;place-items:center;padding:0;border:1.6px solid var(--ink);background:#fffef7;border-radius:50%;color:var(--ink)}
+#hk-studio .c6 .c6-search svg{height:16px;width:16px}
+#hk-studio .c6 .c6-intro{padding-top:25px;position:relative}
+#hk-studio .c6 .c6-eyebrow{font-size:11px;font-weight:750;color:#727462;margin:0 0 9px}
+#hk-studio .c6 h2{font-size:30px;line-height:1.3;letter-spacing:-1.8px;margin:0;font-weight:900}
+#hk-studio .c6 h2 span{position:relative;z-index:0;white-space:nowrap}
+#hk-studio .c6 h2 span:after{content:"";height:11px;position:absolute;left:-2px;right:-3px;bottom:0;background:var(--yellow);z-index:-1;transform:rotate(-2deg)}
+#hk-studio .c6 .c6-spark{position:absolute;right:1px;top:45px;transform:rotate(8deg);color:var(--ink)}
+#hk-studio .c6 .c6-spark svg{width:41px;height:41px;stroke-width:1.8;fill:var(--yellow)}
+#hk-studio .c6 .c6-fridge{margin-top:23px;border:1.7px solid var(--ink);border-radius:15px;background:var(--blue);padding:17px 15px 15px;box-shadow:3px 4px 0 var(--ink);position:relative}
+#hk-studio .c6 .c6-fridge-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;gap:8px}
+#hk-studio .c6 .c6-fridge-head h3{font-size:13px;letter-spacing:-.4px;margin:0;font-weight:850;display:flex;align-items:center;gap:6px}
+#hk-studio .c6 .c6-fridge-head svg{width:16px;height:16px}
+#hk-studio .c6 .c6-fridge-head button{background:#fffbef;border:1.4px solid var(--ink);border-radius:50%;height:23px;width:23px;padding:0;display:grid;place-items:center;color:var(--ink)}
+#hk-studio .c6 .c6-fridge-head button svg{width:13px;height:13px}
+#hk-studio .c6 .c6-ingredients{display:flex;flex-wrap:wrap;gap:7px}
+#hk-studio .c6 .c6-ingredients span{border:1.3px solid var(--ink);background:#fffdf4;padding:8px 12px;border-radius:20px;font-size:11px;font-weight:650;line-height:1}
+#hk-studio .c6 .c6-ingredients span:first-child{background:var(--yellow);transform:rotate(-3deg)}
+#hk-studio .c6 .c6-fridge p{font-size:11px;letter-spacing:-.2px;margin:12px 0 0;display:flex;align-items:center;gap:5px}
+#hk-studio .c6 .c6-fridge p svg{width:12px;height:12px}
+#hk-studio .c6 .c6-primary{margin-top:17px;display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 15px;border:1.7px solid var(--ink);border-radius:11px;background:var(--coral);box-shadow:3px 3px 0 var(--ink);color:var(--ink);font-size:13px;font-weight:850;letter-spacing:-.3px}
+#hk-studio .c6 .c6-primary svg{width:19px;height:19px;stroke-width:2.5}
+#hk-studio .c6 .c6-menu-head{display:flex;align-items:center;justify-content:space-between;margin-top:29px;margin-bottom:13px;gap:8px}
+#hk-studio .c6 .c6-menu-head h3{font-size:17px;margin:0;font-weight:850;letter-spacing:-.7px}
+#hk-studio .c6 .c6-menu-head span{font-size:11px;border:1.3px solid var(--ink);background:var(--yellow);padding:5px 7px;border-radius:5px;transform:rotate(4deg);font-weight:700}
+#hk-studio .c6 .c6-recipes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#hk-studio .c6 .c6-recipe{display:block;padding:0;border:1.6px solid var(--ink);border-radius:13px;overflow:hidden;color:var(--ink);text-align:left;background:#fffef8;box-shadow:2px 2px 0 var(--ink);min-width:0}
+#hk-studio .c6 .c6-photo{height:105px;display:block;width:100%;border-bottom:1.5px solid var(--ink);background-image:var(--food-atlas);background-size:200% auto}
+#hk-studio .c6 .c6-photo.food-4{background-position:100% 100%}
+#hk-studio .c6 .c6-photo.food-2{background-position:100% 0}
+#hk-studio .c6 .c6-recipe-copy{padding:11px 9px 12px;display:block}
+#hk-studio .c6 .c6-recipe-copy small{font-size:11px;font-weight:700;color:#8a654b;display:block;margin-bottom:6px}
+#hk-studio .c6 .c6-recipe-copy strong{display:block;font-size:13px;letter-spacing:-.7px;line-height:1.4;white-space:nowrap}
+#hk-studio .c6 .c6-recipe-copy em{font-style:normal;display:block;font-size:11px;color:#737763;margin-top:6px}
+#hk-studio .c6 .c6-bottom-space{height:22px;flex-shrink:0}
+#hk-studio .c6 .hk-nav{margin-top:auto;display:grid;grid-template-columns:repeat(4,1fr);min-height:74px;border-top:1.6px solid var(--ink);padding:12px 0 10px;gap:2px;align-items:center}
+#hk-studio .c6 .hk-nav button{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:none;padding:3px 0;font-size:11px;font-weight:650;color:#7d8073}
+#hk-studio .c6 .hk-nav svg{width:19px;height:19px;stroke-width:1.9}
+#hk-studio .c6 .hk-nav button:first-child{color:var(--ink)}
+#hk-studio .c6 .hk-nav button:first-child svg{fill:var(--yellow);stroke-width:2.2}
+@media(max-width:360px){#hk-studio .c6{padding-left:17px;padding-right:17px}#hk-studio .c6 h2{font-size:28px}#hk-studio .c6 .c6-spark{right:0}#hk-studio .c6 .c6-ingredients{gap:6px}#hk-studio .c6 .c6-ingredients span{padding:8px 10px}#hk-studio .c6 .c6-recipe-copy strong{font-size:12px}}
+</style>
+<template id="concept-6">
+  <section class="hk-screen c6" aria-label="즐거운 한끼 홈 시안">
+    <header class="hk-top"><div class="hk-brand"><span class="c6-brand-icon"><i data-lucide="utensils" aria-hidden="true"></i></span>냉장고 한끼</div><button type="button" class="c6-search hk-action" data-view="search" aria-label="레시피 검색"><i data-lucide="search" aria-hidden="true"></i></button></header>
+    <div class="c6-intro"><p class="c6-eyebrow">오늘도 잘 챙겨 먹는 나!</p><h2>냉장고 속 재료로<br><span>맛있는 반전!</span></h2><span class="c6-spark"><i data-lucide="sparkles" aria-hidden="true"></i></span></div>
+    <section class="c6-fridge" aria-label="냉장고 재료">
+      <div class="c6-fridge-head"><h3><i data-lucide="refrigerator" aria-hidden="true"></i>오늘의 냉장고 출석부</h3><button type="button" class="hk-action" data-view="pantry" aria-label="내 냉장고 열기"><i data-lucide="arrow-up-right" aria-hidden="true"></i></button></div>
+      <div class="c6-ingredients"><span>두부</span><span>달걀</span><span>김치</span><span>애호박</span></div>
+      <p><i data-lucide="info" aria-hidden="true"></i>두부부터 먹으면 좋겠어요.</p>
+    </section>
+    <button type="button" class="c6-primary hk-action" data-view="recommend">이 재료로 뭐 해 먹지?<i data-lucide="arrow-right" aria-hidden="true"></i></button>
+    <div class="c6-menu-head"><h3>이런 한 끼, 어때요?</h3><span>냉장고 재료 활용</span></div>
+    <div class="c6-recipes">
+      <button type="button" class="c6-recipe hk-action" data-view="detail" aria-label="김치 달걀 볶음밥 레시피 보기"><span class="hk-food food-4 c6-photo" role="img" aria-label="달걀을 올린 김치볶음밥"></span><span class="c6-recipe-copy"><small>든든하게 한 그릇</small><strong>김치 달걀 볶음밥</strong><em>내 재료 3개 활용</em></span></button>
+      <button type="button" class="c6-recipe hk-action" data-view="detail" aria-label="두부 애호박 된장국 레시피 보기"><span class="hk-food food-2 c6-photo" role="img" aria-label="두부와 애호박이 들어간 된장국"></span><span class="c6-recipe-copy"><small>따뜻하게 속 채우기</small><strong>두부 애호박 된장국</strong><em>내 재료 2개 활용</em></span></button>
+    </div>
+    <div class="c6-bottom-space"></div>
+    <nav class="hk-nav" aria-label="메인 메뉴">
+      <button type="button" data-view="home" aria-current="page"><i data-lucide="house" aria-hidden="true"></i><span>홈</span></button>
+      <button type="button" data-view="recommend"><i data-lucide="sparkles" aria-hidden="true"></i><span>맞춤추천</span></button>
+      <button type="button" data-view="brag"><i data-lucide="camera" aria-hidden="true"></i><span>자랑하기</span></button>
+      <button type="button" data-view="my"><i data-lucide="user-round" aria-hidden="true"></i><span>마이</span></button>
+    </nav>
+  </section>
+</template>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ApiError, TimeoutError } from '../api/client'
@@ -63,20 +63,41 @@ export default function IngredientSubmissionPage() {
   const [editing, setEditing] = useState<number | 'new' | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [isSaving, setIsSaving] = useState(false)
+  const [listError, setListError] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const firstInput = useRef<HTMLInputElement>(null)
+  const newButton = useRef<HTMLButtonElement>(null)
+  const returnFocus = useRef<HTMLButtonElement | null>(null)
+  const saving = useRef(false)
+
+  useEffect(() => {
+    if (editing !== null) firstInput.current?.focus()
+    else if (returnFocus.current !== null) {
+      if (returnFocus.current.isConnected) returnFocus.current.focus()
+      else newButton.current?.focus()
+      returnFocus.current = null
+    }
+  }, [editing])
 
   useEffect(() => {
     if (userId === null) return
+    setIsLoading(true)
+    setListError(false)
+    setError(null)
     const controller = new AbortController()
     listMySubmissions(userId, controller.signal)
       .then(setSubmissions)
       .catch((caught: unknown) => {
-        if (!controller.signal.aborted) setError(describe(caught))
+        if (!controller.signal.aborted) {
+          setError(describe(caught))
+          setListError(true)
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setIsLoading(false)
       })
     return () => controller.abort()
-  }, [userId])
+  }, [userId, retry])
 
   if (!isAuthenticated) {
     return (
@@ -113,7 +134,8 @@ export default function IngredientSubmissionPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    if (userId === null || editing === null) return
+    if (userId === null || editing === null || saving.current) return
+    saving.current = true
     setIsSaving(true)
     setError(null)
     setNotice(null)
@@ -142,6 +164,7 @@ export default function IngredientSubmissionPage() {
     } catch (caught) {
       setError(describe(caught))
     } finally {
+      saving.current = false
       setIsSaving(false)
     }
   }
@@ -168,9 +191,11 @@ export default function IngredientSubmissionPage() {
 
       {editing === null ? (
         <button
+          ref={newButton}
           className={styles.primary}
           type="button"
-          onClick={() => {
+          onClick={(event) => {
+            returnFocus.current = event.currentTarget
             setForm(EMPTY_FORM)
             setEditing('new')
           }}
@@ -181,6 +206,7 @@ export default function IngredientSubmissionPage() {
         <form className={styles.form} onSubmit={(event) => void handleSubmit(event)}>
           <label htmlFor="ingredient-name">재료 이름</label>
           <input
+            ref={firstInput}
             id="ingredient-name"
             value={form.ingredient_name}
             required
@@ -206,7 +232,7 @@ export default function IngredientSubmissionPage() {
             <button className={styles.primary} type="submit" disabled={isSaving}>
               {isSaving ? '저장 중…' : editing === 'new' ? '등록하기' : '수정하기'}
             </button>
-            <button className={styles.ghost} type="button" onClick={() => setEditing(null)}>
+            <button className={styles.ghost} type="button" disabled={isSaving} onClick={() => setEditing(null)}>
               취소
             </button>
           </div>
@@ -214,7 +240,9 @@ export default function IngredientSubmissionPage() {
       )}
 
       {isLoading ? (
-        <p className={styles.empty}>불러오는 중…</p>
+        <p className={styles.empty} role="status">불러오는 중…</p>
+      ) : listError ? (
+        <button className={styles.ghost} type="button" onClick={() => setRetry((value) => value + 1)}>등록한 재료 다시 불러오기</button>
       ) : submissions.length === 0 ? (
         <p className={styles.empty}>아직 등록한 재료가 없어요.</p>
       ) : (
@@ -240,7 +268,11 @@ export default function IngredientSubmissionPage() {
                 <button
                   className={styles.ghost}
                   type="button"
-                  onClick={() => void startEdit(item.id)}
+                  aria-label={`${item.ingredient_name} 수정`}
+                  onClick={(event) => {
+                    returnFocus.current = event.currentTarget
+                    void startEdit(item.id)
+                  }}
                 >
                   수정
                 </button>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ApiError, TimeoutError } from '../api/client'
@@ -52,14 +52,35 @@ export default function MyRecipesPage() {
   const [editing, setEditing] = useState<number | 'new' | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [isSaving, setIsSaving] = useState(false)
+  const [listError, setListError] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const firstInput = useRef<HTMLInputElement>(null)
+  const newButton = useRef<HTMLButtonElement>(null)
+  const returnFocus = useRef<HTMLButtonElement | null>(null)
+  const saving = useRef(false)
+
+  useEffect(() => {
+    if (editing !== null) firstInput.current?.focus()
+    else if (returnFocus.current !== null) {
+      if (returnFocus.current.isConnected) returnFocus.current.focus()
+      else newButton.current?.focus()
+      returnFocus.current = null
+    }
+  }, [editing])
 
   useEffect(() => {
     if (userId === null) return
+    setIsLoading(true)
+    setListError(false)
+    setError(null)
     const controller = new AbortController()
     listMyRecipes(userId, controller.signal)
       .then(setRecipes)
       .catch((caught: unknown) => {
-        if (!controller.signal.aborted) setError(describe(caught))
+        if (!controller.signal.aborted) {
+          setError(describe(caught))
+          setListError(true)
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setIsLoading(false)
@@ -70,7 +91,7 @@ export default function MyRecipesPage() {
       // 중요하지 않아서 실패해도 화면을 세우지 않는다.
       .catch(() => {})
     return () => controller.abort()
-  }, [userId])
+  }, [userId, retry])
 
   if (!isAuthenticated) {
     return (
@@ -110,7 +131,8 @@ export default function MyRecipesPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    if (userId === null || editing === null) return
+    if (userId === null || editing === null || saving.current) return
+    saving.current = true
     setIsSaving(true)
     setError(null)
     setNotice(null)
@@ -138,6 +160,7 @@ export default function MyRecipesPage() {
     } catch (caught) {
       setError(describe(caught))
     } finally {
+      saving.current = false
       setIsSaving(false)
     }
   }
@@ -171,9 +194,11 @@ export default function MyRecipesPage() {
 
       {editing === null ? (
         <button
+          ref={newButton}
           className={styles.primary}
           type="button"
-          onClick={() => {
+          onClick={(event) => {
+            returnFocus.current = event.currentTarget
             setForm(EMPTY_FORM)
             setEditing('new')
           }}
@@ -184,6 +209,7 @@ export default function MyRecipesPage() {
         <form className={styles.form} onSubmit={(event) => void handleSubmit(event)}>
           <label htmlFor="recipe-name">메뉴 이름</label>
           <input
+            ref={firstInput}
             id="recipe-name"
             value={form.menu_name}
             required
@@ -243,7 +269,7 @@ export default function MyRecipesPage() {
             <button className={styles.primary} type="submit" disabled={isSaving}>
               {isSaving ? '저장 중…' : editing === 'new' ? '등록하기' : '수정하기'}
             </button>
-            <button className={styles.ghost} type="button" onClick={() => setEditing(null)}>
+            <button className={styles.ghost} type="button" disabled={isSaving} onClick={() => setEditing(null)}>
               취소
             </button>
           </div>
@@ -251,7 +277,9 @@ export default function MyRecipesPage() {
       )}
 
       {isLoading ? (
-        <p className={styles.empty}>불러오는 중…</p>
+        <p className={styles.empty} role="status">불러오는 중…</p>
+      ) : listError ? (
+        <button className={styles.ghost} type="button" onClick={() => setRetry((value) => value + 1)}>내 레시피 다시 불러오기</button>
       ) : recipes.length === 0 ? (
         <p className={styles.empty}>아직 올린 레시피가 없어요.</p>
       ) : (
@@ -282,7 +310,11 @@ export default function MyRecipesPage() {
                 <button
                   className={styles.ghost}
                   type="button"
-                  onClick={() => void startEdit(recipe.id)}
+                  aria-label={`${recipe.menu_name} 수정`}
+                  onClick={(event) => {
+                    returnFocus.current = event.currentTarget
+                    void startEdit(recipe.id)
+                  }}
                 >
                   수정
                 </button>
@@ -291,6 +323,7 @@ export default function MyRecipesPage() {
                 <button
                   className={styles.danger}
                   type="button"
+                  aria-label={`${recipe.menu_name} 삭제`}
                   onClick={() => {
                     if (window.confirm(`"${recipe.menu_name}"을 삭제할까요? 되돌릴 수 없어요.`)) {
                       void handleDelete(recipe.id)

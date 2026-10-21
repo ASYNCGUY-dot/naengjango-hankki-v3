@@ -1,0 +1,33 @@
+<style>
+#hk-studio .c2{--ink:#4b3025;--accent:#a64c30;--paper:#fff8ee;--soft:#f2e4d4;background:var(--paper);color:var(--ink);padding:23px 22px 0}
+#hk-studio .c2 .hk-brand{font-family:'Noto Serif KR',Georgia,serif;font-size:19px;font-weight:800;letter-spacing:-1px}
+#hk-studio .c2 .hk-top{border-bottom:1px solid #e5d4c1;padding-bottom:16px}
+#hk-studio .c2 .intro{padding:26px 0 20px;text-align:center}
+#hk-studio .c2 .intro p{font-size:11px;font-weight:600;letter-spacing:2px;color:#a15b41;margin:0 0 10px}
+#hk-studio .c2 .intro h2{font-family:'Noto Serif KR',Georgia,serif;font-size:29px;font-weight:600;letter-spacing:-1.2px;line-height:1.5;margin:0}
+#hk-studio .c2 .hero{position:relative}
+#hk-studio .c2 .hero .hk-food{height:235px;border-radius:130px 130px 12px 12px}
+#hk-studio .c2 .hero .stamp{position:absolute;top:4px;right:-3px;width:69px;height:69px;border-radius:50%;background:#a64c30;color:#fff7e7;display:grid;place-content:center;text-align:center;font-size:11px;line-height:1.7;transform:rotate(12deg);border:4px double #f5c4a5}
+#hk-studio .c2 .recipe-line{display:flex;justify-content:space-between;align-items:center;margin:16px 0 20px;gap:8px}
+#hk-studio .c2 .recipe-line h3{font-size:18px;letter-spacing:-.7px;margin:0 0 5px}
+#hk-studio .c2 .recipe-line p{font-size:11px;color:#886b58;margin:0}
+#hk-studio .c2 .recipe-line button{background:transparent;color:inherit;border:1px solid #cba991;border-radius:50%;width:42px;height:42px;flex-shrink:0;display:grid;place-items:center}
+#hk-studio .c2 .fridge-note{border-top:1px dashed #d2bca7;border-bottom:1px dashed #d2bca7;padding:15px 0;display:flex;align-items:center;gap:12px}
+#hk-studio .c2 .fridge-note .fridge-icon{background:#eedcca;color:#9b5237;border-radius:12px;padding:11px;display:flex}
+#hk-studio .c2 .fridge-note p{font-size:12px;line-height:1.8;margin:0;color:#816450}
+#hk-studio .c2 .fridge-note strong{display:block;color:#4b3025;font-size:13px}
+#hk-studio .c2 .main-cta{width:100%;padding:14px 10px;border:0;background:#a64c30;color:#fff8ed;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:9px;font-size:13px;font-weight:650;margin:18px 0}
+#hk-studio .c2 .hk-nav{margin-left:-22px;margin-right:-22px;background:#fff8ee;border-top:1px solid #e5d4c1;color:#967965}
+#hk-studio .c2 .hk-nav button:first-child{color:#a64c30;font-weight:750}
+</style>
+<template id="concept-2">
+<section class="hk-screen c2" aria-label="따뜻한 식탁 홈 시안">
+ <div class="hk-top"><button class="hk-action hk-icon" data-view="search" aria-label="레시피 검색" type="button"><i data-lucide="search" aria-hidden="true"></i></button><div class="hk-brand">냉장고 한끼</div><button class="hk-action hk-icon" data-view="my" aria-label="나의 정보" type="button"><i data-lucide="user-round" aria-hidden="true"></i></button></div>
+ <div class="intro"><p>오늘도, 잘 챙겨 먹어요</p><h2>냉장고 속 작은 재료가<br>따뜻한 집밥이 되도록.</h2></div>
+ <div class="hero"><div class="hk-food food-2" role="img" aria-label="따뜻한 두부 애호박 된장국"></div><div class="stamp">오늘의<br>집밥 한 그릇</div></div>
+ <div class="recipe-line"><div><h3>두부 애호박 된장국</h3><p>국 & 찌개 · 내 재료 3개 활용</p></div><button data-view="detail" type="button" aria-label="된장국 레시피 보기"><i data-lucide="arrow-up-right" aria-hidden="true"></i></button></div>
+ <div class="fridge-note"><span class="fridge-icon"><i data-lucide="refrigerator" aria-hidden="true"></i></span><p><strong>두부, 애호박, 대파가 있네요.</strong>냉장고에 있는 재료부터 꺼내볼까요?</p></div>
+ <button class="main-cta" data-view="recommend" type="button">내 재료로 한 끼 찾기 <i data-lucide="arrow-right" aria-hidden="true"></i></button>
+ <nav class="hk-nav" aria-label="따뜻한 식탁 메뉴"><button type="button" data-view="home"><i data-lucide="house" aria-hidden="true"></i>홈</button><button type="button" data-view="recommend"><i data-lucide="sparkles" aria-hidden="true"></i>맞춤추천</button><button type="button" data-view="brag"><i data-lucide="camera" aria-hidden="true"></i>자랑하기</button><button type="button" data-view="my"><i data-lucide="user-round" aria-hidden="true"></i>마이</button></nav>
+</section>
+</template>

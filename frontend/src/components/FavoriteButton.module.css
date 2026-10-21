@@ -2,17 +2,20 @@
 .button {
   display: flex;
   flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--touch-target-min);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
+  overflow-wrap: anywhere;
 }
 
 .button:hover {
@@ -32,3 +35,7 @@
   font-size: var(--font-size-xs);
   color: var(--color-danger-text);
 }
+.state { flex: 1 1 12rem; min-width: 0; font-size: var(--font-size-sm); color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.state .button { width: 100%; margin-top: var(--space-2); }
+.button:disabled { cursor: progress; opacity: 0.7; }
+.button[aria-disabled='true'] { cursor: progress; }

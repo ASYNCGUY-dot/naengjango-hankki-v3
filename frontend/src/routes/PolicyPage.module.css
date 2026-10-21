@@ -65,12 +65,12 @@
 }
 
 /* 건강 정보 문단. 그냥 지나치면 안 되는 내용이라 눈에 띄게 둔다. */
-.note {
+.page .note {
   margin-top: var(--space-4);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
 }
 
 .foot {

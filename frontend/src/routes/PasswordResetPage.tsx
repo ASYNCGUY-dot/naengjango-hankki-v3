@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { MIN_PASSWORD_LENGTH, confirmPasswordReset } from '../api/auth'
 import { ApiError, TimeoutError } from '../api/client'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
 import styles from './AuthPage.module.css'
+import resetStyles from './비밀번호초기화.module.css'
 
 function describe(caught: unknown): string {
   if (caught instanceof ApiError || caught instanceof TimeoutError) return caught.message
@@ -32,10 +33,10 @@ function describe(caught: unknown): string {
 export function ForgotPasswordPage() {
   return (
     <main className={styles.page}>
-      <div className={styles.brand}>
+      <header className={resetStyles.header}>
         <h1>비밀번호 초기화</h1>
-        <p className={styles.tagline}>지금은 만든 사람에게 연락해주세요</p>
-      </div>
+        <p>지금은 만든 사람에게 연락해주세요</p>
+      </header>
 
       <p className={styles.wake} role="status">
         <span aria-hidden="true">💬</span>
@@ -66,19 +67,33 @@ export function ResetPasswordPage() {
   const [isPending, setIsPending] = useState(false)
   const [isDone, setIsDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorField, setErrorField] = useState<string | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const errorRef = useRef<HTMLParagraphElement>(null)
+  const successRef = useRef<HTMLParagraphElement>(null)
   const isSlow = useSlowRequestHint(isPending)
+
+  useEffect(() => {
+    if (isDone) successRef.current?.focus()
+    else if (error && errorField === null) errorRef.current?.focus()
+  }, [error, errorField, isDone])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (isPending) return
     setError(null)
+    setErrorField(null)
 
     if (password.length < MIN_PASSWORD_LENGTH) {
       setError(`비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`)
+      setErrorField('new-password')
+      formRef.current?.querySelector<HTMLInputElement>('#new-password')?.focus()
       return
     }
     if (password !== confirm) {
       setError('두 비밀번호가 다릅니다.')
+      setErrorField('new-password-confirm')
+      formRef.current?.querySelector<HTMLInputElement>('#new-password-confirm')?.focus()
       return
     }
 
@@ -96,9 +111,9 @@ export function ResetPasswordPage() {
   if (token === '') {
     return (
       <main className={styles.page}>
-        <div className={styles.brand}>
+        <header className={resetStyles.header}>
           <h1>비밀번호 초기화</h1>
-        </div>
+        </header>
         <p className={styles.error} role="alert">
           링크가 올바르지 않습니다. 초기화를 다시 요청해주세요.
         </p>
@@ -111,9 +126,10 @@ export function ResetPasswordPage() {
 
   return (
     <main className={styles.page}>
-      <div className={styles.brand}>
+      <header className={resetStyles.header}>
         <h1>새 비밀번호 설정</h1>
-      </div>
+        <p>다른 곳에서 쓰지 않는 비밀번호로 바꿔주세요.</p>
+      </header>
 
       {isSlow && (
         <p className={styles.wake} role="status">
@@ -123,14 +139,14 @@ export function ResetPasswordPage() {
       )}
 
       {error !== null && (
-        <p className={styles.error} role="alert">
+        <p id="reset-error" ref={errorRef} className={styles.error} role="alert" tabIndex={-1}>
           {error}
         </p>
       )}
 
       {isDone ? (
         <>
-          <p className={styles.wake} role="status">
+          <p ref={successRef} className={styles.wake} role="status" tabIndex={-1}>
             <span aria-hidden="true">✅</span>
             <span>
               비밀번호가 바뀌었어요
@@ -142,7 +158,7 @@ export function ResetPasswordPage() {
           </button>
         </>
       ) : (
-        <form onSubmit={handleSubmit} noValidate>
+        <form ref={formRef} onSubmit={handleSubmit} noValidate>
           <div className={styles.field}>
             <label htmlFor="new-password">새 비밀번호</label>
             <input
@@ -151,8 +167,12 @@ export function ResetPasswordPage() {
               autoComplete="new-password"
               placeholder={`${MIN_PASSWORD_LENGTH}자 이상`}
               value={password}
+              required minLength={MIN_PASSWORD_LENGTH}
+              aria-invalid={errorField === 'new-password'}
+              aria-describedby={errorField === 'new-password' ? 'new-password-hint reset-error' : 'new-password-hint'}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <span id="new-password-hint" className={styles.hint}>{MIN_PASSWORD_LENGTH}자 이상 입력해주세요.</span>
           </div>
           <div className={styles.field}>
             <label htmlFor="new-password-confirm">새 비밀번호 확인</label>
@@ -162,6 +182,8 @@ export function ResetPasswordPage() {
               autoComplete="new-password"
               placeholder="한 번 더 입력하세요"
               value={confirm}
+              required aria-invalid={errorField === 'new-password-confirm'}
+              aria-describedby={errorField === 'new-password-confirm' ? 'reset-error' : undefined}
               onChange={(e) => setConfirm(e.target.value)}
             />
           </div>
