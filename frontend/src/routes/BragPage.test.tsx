@@ -64,6 +64,7 @@ describe('자랑하기 피드', () => {
 
     expect(await screen.findByText('간이 딱 맞았어요.')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /jisu님이 만든 블랙빈 곤약국수/ })).toBeInTheDocument()
+    expect(screen.getByText('레시피 보기').closest('a')).toBe(screen.getByRole('link', { name: /블랙빈 곤약국수 레시피 보기/ }))
     expect(screen.getByRole('link', { name: /블랙빈 곤약국수 레시피 보기/ })).toHaveAttribute(
       'href',
       '/recipe/67',
@@ -231,7 +232,8 @@ describe('자랑하기 피드', () => {
 
     await screen.findAllByText('간이 딱 맞았어요.')
     // 두 글 중 내 것 하나에만 버튼이 있어야 한다.
-    await waitFor(() => expect(screen.getAllByRole('button', { name: '삭제' })).toHaveLength(1))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: '이 글 삭제: 블랙빈 곤약국수' })).toHaveLength(1))
+    expect(screen.getByRole('button', { name: '이 글 삭제: 블랙빈 곤약국수' })).toHaveTextContent('이 글 삭제')
   })
 
   it('삭제는 확인을 받고 나서만 보낸다', async () => {
@@ -241,7 +243,7 @@ describe('자랑하기 피드', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderWithProviders(<BragPage />)
 
-    await user.click(await screen.findByRole('button', { name: '삭제' }))
+    await user.click(await screen.findByRole('button', { name: '이 글 삭제: 블랙빈 곤약국수' }))
 
     expect(confirmSpy).toHaveBeenCalled()
     const deletes = fetchMock.mock.calls.filter(
@@ -257,7 +259,7 @@ describe('자랑하기 피드', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderWithProviders(<BragPage />)
 
-    await user.click(await screen.findByRole('button', { name: '삭제' }))
+    await user.click(await screen.findByRole('button', { name: '이 글 삭제: 블랙빈 곤약국수' }))
 
     expect(await screen.findByText(/아직 올라온 자랑이 없어요/)).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([input, init]) => (
@@ -277,13 +279,13 @@ describe('자랑하기 피드', () => {
     })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderWithProviders(<BragPage />)
-    await user.click(await screen.findByRole('button', { name: '삭제' }))
+    await user.click(await screen.findByRole('button', { name: '이 글 삭제: 블랙빈 곤약국수' }))
     await user.tab()
     const next = screen.getByRole('link', { name: '다음 요리 레시피 보기' })
     expect(next).toHaveFocus()
 
     await act(async () => { release(json({ deleted: true })) })
-    expect(screen.queryByRole('button', { name: '삭제' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '이 글 삭제: 블랙빈 곤약국수' })).not.toBeInTheDocument()
     expect(next).toHaveFocus()
     expect(screen.getByRole('button', { name: '사진 모아보기' })).not.toHaveFocus()
   })

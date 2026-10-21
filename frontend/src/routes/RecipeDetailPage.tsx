@@ -174,7 +174,10 @@ export default function RecipeDetailPage() {
         </div>
       </div>
 
-      {/* 제목 바로 아래에 둔다. "마음에 든다"는 판단은 사진과 이름을 본 직후에 생긴다.
+      {/* 공모전에서 시세 활용을 바로 확인할 수 있도록 메뉴 소개에 재료비를 붙인다. */}
+      <RecipeCostCard recipeId={recipe.id} />
+
+      {/* 메뉴 소개와 재료비를 확인한 뒤 추천하거나 즐겨찾기에 담을 수 있다.
           둘을 나란히 놓는 이유는 서로 다른 행동이기 때문이다 - 추천은 남에게 보이는
           공개 지표이고, 즐겨찾기는 내가 다시 보려고 담는 것이다. 하나만 두면 사용자는
           자기가 무엇을 한 건지 모른다. */}
@@ -183,7 +186,7 @@ export default function RecipeDetailPage() {
         <FavoriteButton recipeId={recipe.id} />
       </div>
       <nav className={styles.jumpLinks} aria-label="레시피 바로가기">
-        {[['ingredients', '재료'], ['steps', '조리 순서'], ['nutrition', '영양'], ['reviews', '후기']].map(([id, label]) => (
+        {[['cost', '재료비'], ['ingredients', '재료'], ['steps', '조리 순서'], ['nutrition', '영양'], ['reviews', '후기']].map(([id, label]) => (
           <a key={id} href={`#recipe-${id}`} onClick={(event) => {
             event.preventDefault()
             const target = document.getElementById(`recipe-${id}`)
@@ -218,9 +221,6 @@ export default function RecipeDetailPage() {
       {/* 재료 목록 바로 위에 둔다. "무엇이 필요한가" 다음에 오는 질문이 "그중 뭐가
           없는가"이므로 목록을 보기 전에 답을 주는 편이 낫다. */}
       <MissingIngredientsCard recipeId={recipe.id} />
-
-      {/* "뭐가 없나" 다음 질문은 "사면 얼마냐"다. 그래서 부족한 재료 바로 아래에 둔다. */}
-      <RecipeCostCard recipeId={recipe.id} />
 
       <div className={styles.sectionHead}>
         <h2 id="recipe-ingredients" tabIndex={-1}>재료</h2>

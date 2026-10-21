@@ -48,6 +48,7 @@ export default function FeedbackPage() {
   const [body, setBody] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [bodyError, setBodyError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [deleteStatus, setDeleteStatus] = useState('')
@@ -180,7 +181,14 @@ export default function FeedbackPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    if (userId === null || body.trim() === '' || sendLock.current) return
+    if (userId === null || sendLock.current) return
+    if (body.trim() === '') {
+      setBodyError('보낼 의견을 입력해주세요.')
+      setSent(false)
+      bodyInput.current?.focus()
+      return
+    }
+    setBodyError(null)
     sendLock.current = true
     setIsSending(true)
     setError(null)
@@ -236,12 +244,12 @@ export default function FeedbackPage() {
       </p>
 
       {error !== null && (
-        <p className={styles.error} role="alert">
+        <p id="feedback-submit-error" className={styles.error} role="alert">
           {error}
         </p>
       )}
 
-      <form className={styles.form} onSubmit={(event) => void handleSubmit(event)}>
+      <form className={styles.form} onSubmit={(event) => void handleSubmit(event)} aria-busy={isSending} aria-describedby={error ? 'feedback-submit-error' : undefined}>
         <label className={styles.label} htmlFor="feedback-body">
           이런 게 궁금해요
         </label>
@@ -257,13 +265,17 @@ export default function FeedbackPage() {
           rows={6}
           maxLength={2000}
           value={body}
+          aria-invalid={Boolean(bodyError)}
+          aria-describedby={bodyError ? 'feedback-body-error' : undefined}
           placeholder="짧아도 괜찮아요. 생각난 김에 적어주세요."
           onChange={(event) => {
             setBody(event.target.value)
             setSent(false)
+            setBodyError(null)
           }}
         />
-        <button className={styles.primary} type="submit" disabled={isSending || body.trim() === ''}>
+        {bodyError && <p id="feedback-body-error" className={styles.fieldError} role="alert">{bodyError}</p>}
+        <button className={styles.primary} type="submit" disabled={isSending}>
           {isSending ? '보내는 중…' : '보내기'}
         </button>
         {sent && (

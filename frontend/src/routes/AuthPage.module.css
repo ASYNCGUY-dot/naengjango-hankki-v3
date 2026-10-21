@@ -320,8 +320,8 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
 }
 
 .wake small {

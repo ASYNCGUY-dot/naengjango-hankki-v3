@@ -65,9 +65,9 @@ async function fillSignupForm(
   await user.selectOptions(screen.getByLabelText('성별'), '여성')
   await user.selectOptions(screen.getByLabelText('연령대'), '20대')
 
-  await user.click(screen.getByLabelText(/이용약관/))
+  await user.click(screen.getByRole('checkbox', { name: /이용약관/ }))
   if (options.agreePrivacy !== false) {
-    await user.click(screen.getByLabelText(/개인정보/))
+    await user.click(screen.getByRole('checkbox', { name: /개인정보/ }))
   }
 }
 
@@ -206,8 +206,8 @@ describe('로그인 화면', () => {
     await user.click(screen.getByRole('button', { name: '회원가입' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('동의')
-    expect(screen.getByLabelText(/개인정보/)).toHaveFocus()
-    expect(screen.getByLabelText(/개인정보/)).toHaveAttribute('aria-describedby', 'auth-error')
+    expect(screen.getByRole('checkbox', { name: /개인정보/ })).toHaveFocus()
+    expect(screen.getByRole('checkbox', { name: /개인정보/ })).toHaveAttribute('aria-describedby', 'auth-error')
     expect(signupCalls(fetchMock)).toHaveLength(0)
   })
 

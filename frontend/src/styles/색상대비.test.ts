@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
+import tokenCss from '../../../design/tokens.css?raw'
 import themeCss from './집밥테마.css?raw'
 
 // 실제 프론트에서 마지막에 적용되는 테마를 읽는다. 루트 design 토큰만 검사하면
 // 집밥테마가 덮어쓴 색상의 대비 오류를 발견할 수 없다.
-function colors(selector: string): Record<string, string> {
-  const start = themeCss.indexOf(selector)
+function colors(selector: string, css = themeCss): Record<string, string> {
+  const start = css.indexOf(selector)
   if (start < 0) throw new Error(`테마 선택자가 없습니다: ${selector}`)
-  const body = themeCss.slice(themeCss.indexOf('{', start) + 1, themeCss.indexOf('}', start))
+  const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start))
   return Object.fromEntries(
     [...body.matchAll(/(--[\w-]+)\s*:\s*(#[\da-fA-F]{6})\s*;/g)].map((match) => [match[1], match[2]]),
   )
@@ -29,9 +30,9 @@ function contrast(foreground: string, background: string): number {
   return (Math.max(...values) + 0.05) / (Math.min(...values) + 0.05)
 }
 
-const light = colors(':root {')
+const light = { ...colors(':root {', tokenCss), ...colors(':root {') }
 const darkOverrides = colors(":root[data-theme='dark']")
-const dark = { ...light, ...darkOverrides }
+const dark = { ...light, ...colors(':root[data-theme="dark"]', tokenCss), ...darkOverrides }
 const surfaces = ['base', 'raised', 'sunken', 'accent']
 
 type Pair = { label: string; foreground: string; background: string; minimum: number }
@@ -55,6 +56,25 @@ const pairs: Pair[] = [
     background: `--color-surface-${surface}`,
     minimum: 4.5,
   })),
+  // 오류·성공은 브랜드 강조색과 구분하며 공유 토큰까지 합친 실제 적용값으로 검사한다.
+  ...['danger', 'success', 'warning'].flatMap((meaning) => surfaces.map((surface) => ({
+    label: `${meaning} 안내 글자 / ${surface} 배경`,
+    foreground: `--color-${meaning}-text`,
+    background: `--color-surface-${surface}`,
+    minimum: 4.5,
+  }))),
+  ...['success', 'warning'].map((meaning) => ({
+    label: `${meaning} 배지 글자 / 채움 배경`,
+    foreground: '--color-text-on-fill',
+    background: `--color-${meaning}-fill`,
+    minimum: 4.5,
+  })),
+  ...['base', 'raised', 'sunken'].map((surface) => ({
+    label: `삭제 아이콘 / ${surface} 배경`,
+    foreground: '--color-danger-fill',
+    background: `--color-surface-${surface}`,
+    minimum: 3,
+  })),
   ...surfaces.map((surface) => ({
     label: `키보드 초점 / ${surface} 배경`,
     foreground: '--color-focus-ring',
@@ -68,7 +88,7 @@ const pairs: Pair[] = [
     background: `--color-surface-${surface}`,
     minimum: 3,
   })),
-  { label: '선택 메뉴 아이콘 / 메뉴 배경', foreground: '--feed-coral', background: '--color-surface-raised', minimum: 3 },
+  { label: '선택 메뉴 아이콘 / 메뉴 배경', foreground: '--feed-accent', background: '--color-surface-raised', minimum: 3 },
 ]
 
 describe.each([{ name: '밝은 테마', palette: light }, { name: '어두운 테마', palette: dark }])('$name 색상 대비', ({ palette }) => {

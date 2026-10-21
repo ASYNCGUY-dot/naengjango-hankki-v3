@@ -309,11 +309,11 @@ export default function AuthPage({ mode }: { mode: Mode }) {
               <Checkbox id="agree-terms" checked={agreedTerms} onChange={setAgreedTerms}
                 required invalid={errorField === 'agree-terms'}
                 label="(필수) 이용약관에 동의합니다"
-                to="/terms" />
+                to="/terms" linkLabel="이용약관 보기 (새 창)" />
               <Checkbox id="agree-privacy" checked={agreedPrivacy} onChange={setAgreedPrivacy}
                 required invalid={errorField === 'agree-privacy'}
                 label="(필수) 개인정보 수집·이용에 동의합니다"
-                to="/privacy" />
+                to="/privacy" linkLabel="개인정보 처리방침 보기 (새 창)" />
               <Checkbox id="agree-marketing" checked={agreedMarketing} onChange={setAgreedMarketing}
                 label="(선택) 마케팅 정보 수신에 동의합니다" />
               <p className={styles.hint}>
@@ -391,6 +391,7 @@ function Checkbox(props: {
   label: string
   /** 있으면 라벨 옆에 "보기" 링크를 단다. 동의 대상 문서로 가는 길이다. */
   to?: string
+  linkLabel?: string
   required?: boolean
   invalid?: boolean
 }) {
@@ -410,7 +411,8 @@ function Checkbox(props: {
       </label>
       {props.to !== undefined && (
         // 새 탭으로 연다. 같은 탭에서 열면 지금까지 입력한 가입 정보가 날아간다.
-        <Link className={styles.consentLink} to={props.to} target="_blank" rel="noreferrer">
+        <Link className={styles.consentLink} to={props.to} target="_blank" rel="noreferrer"
+          aria-label={props.linkLabel ?? '보기 (새 창)'} title={props.linkLabel ?? '보기 (새 창)'}>
           보기
         </Link>
       )}

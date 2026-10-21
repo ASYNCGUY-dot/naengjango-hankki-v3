@@ -106,12 +106,12 @@
   resize: vertical;
 }
 
-/* 알레르기 판단이 이 칸의 글자에 달려 있다. 라벨보다 눈에 띄어야 한다. */
+/* 재료명 작성 안내. 상자와 굵은 글자로 강조하고 실제 알레르기 경고와 구분한다. */
 .hint {
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-loose);
 }
@@ -206,8 +206,8 @@
   margin-bottom: var(--space-4);
   padding: var(--space-3);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-loose);
 }

@@ -52,13 +52,13 @@
   cursor: wait;
 }
 
-/* 개인 기준이 아니라는 안내. 눈에 띄어야 오해가 안 생긴다. */
+/* 개인 기준이 아니라는 안내. 상자와 본문 강조로 알리고 오류색은 쓰지 않는다. */
 .warn {
   margin-top: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   font-size: var(--font-size-xs);
 }
 
@@ -137,7 +137,7 @@
 .fill {
   height: 100%;
   border-radius: var(--radius-pill);
-  background: var(--color-accent);
+  background: var(--color-success-text);
 }
 
 .pct {

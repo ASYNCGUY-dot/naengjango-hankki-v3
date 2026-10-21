@@ -34,6 +34,7 @@ function mockApi(
     all?: unknown[]
     isAdmin?: boolean
     postFails?: boolean
+    postResponse?: () => Response | Promise<Response>
     mineResponse?: () => Response | Promise<Response>
     allResponse?: () => Response | Promise<Response>
     profileResponse?: () => Response | Promise<Response>
@@ -44,6 +45,7 @@ function mockApi(
     const path = new URL(input as string).pathname
     const method = (init as RequestInit | undefined)?.method
     if (method === 'POST') {
+      if (options.postResponse) return options.postResponse()
       if (options.postFails) return json({ detail: '서버에서 문제가 발생했습니다.' }, 500)
       const sent = JSON.parse((init as RequestInit).body as string)
       return json(item({ id: 99, body: sent.body }))
@@ -93,12 +95,47 @@ describe('하고 싶은 말', () => {
     expect(screen.getByText(/안 쓰게 됐다면 며칠째에 그랬는지/)).toBeInTheDocument()
   })
 
-  it('빈 내용으로는 보낼 수 없다', async () => {
+  it.each(['', '   '])('빈 내용(%j)은 보내지 않고 오류를 알려 입력칸으로 초점을 옮긴다', async (body) => {
+    const user = userEvent.setup()
     signIn()
-    mockApi()
+    const fetchMock = mockApi()
     renderWithProviders(<FeedbackPage />)
 
-    expect(await screen.findByRole('button', { name: '보내기' })).toBeDisabled()
+    const input = screen.getByLabelText('이런 게 궁금해요')
+    if (body) await user.type(input, body)
+    const button = await screen.findByRole('button', { name: '보내기' })
+    expect(button).toBeEnabled()
+    await user.click(button)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('보낼 의견을 입력해주세요.')
+    expect(input).toHaveFocus()
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAccessibleDescription('보낼 의견을 입력해주세요.')
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+
+    await user.type(input, '의견을 적었어요')
+    expect(input).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.queryByText('보낼 의견을 입력해주세요.')).not.toBeInTheDocument()
+  })
+
+  it('보내는 동안 중복 제출을 막고 완료 후 다시 보낼 수 있다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    let resolvePost!: (response: Response) => void
+    const fetchMock = mockApi({ postResponse: () => new Promise((resolve) => { resolvePost = resolve }) })
+    renderWithProviders(<FeedbackPage />)
+
+    const input = screen.getByLabelText('이런 게 궁금해요')
+    await user.type(input, '재료비가 보기 편해요')
+    await user.dblClick(screen.getByRole('button', { name: '보내기' }))
+
+    expect(screen.getByRole('button', { name: '보내는 중…' })).toBeDisabled()
+    expect(input.closest('form')).toHaveAttribute('aria-busy', 'true')
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+
+    await act(async () => { resolvePost(json(item({ id: 99, body: '재료비가 보기 편해요' }))) })
+    expect(screen.getByRole('button', { name: '보내기' })).toBeEnabled()
+    expect(input.closest('form')).toHaveAttribute('aria-busy', 'false')
   })
 
   it('보내면 목록 맨 위에 붙고 입력칸을 비운다', async () => {

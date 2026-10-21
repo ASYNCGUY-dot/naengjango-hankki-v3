@@ -15,7 +15,7 @@ import styles from './AppLayout.module.css'
 const TABS = [
   { to: '/', label: '홈', icon: 'home', end: true },
   { to: '/recommend', label: '맞춤추천', icon: 'search', end: false },
-  { to: '/brags', label: '자랑하기', icon: 'plus', end: false },
+  { to: '/brags', label: '자랑하기', icon: 'image', end: false },
   // 냉장고는 탭에서 빼고 마이 안으로 넣었다. 매일 여는 화면이 아니라 가끔 정리하는
   // 화면이라, 네 칸 중 하나를 계속 차지할 자리가 아니라고 봤다.
   { to: '/my', label: '마이', icon: 'user', end: false },

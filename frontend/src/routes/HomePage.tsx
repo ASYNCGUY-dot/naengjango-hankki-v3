@@ -16,7 +16,7 @@ import styles from './HomePage.module.css'
 
 const SEARCH_DEBOUNCE_MS = 400
 const VIEWS = [
-  { id: 'recipes', label: '추천' },
+  { id: 'recipes', label: '레시피' },
   { id: 'videos', label: '요리 영상' },
   { id: 'brags', label: '한 끼 자랑' },
 ] as const
@@ -185,7 +185,7 @@ export default function HomePage() {
           {videoError && <div className={styles.error} role="alert"><p>{videoError}</p><button className={styles.retry} type="button" onClick={() => setRetryAttempt((value) => value + 1)}>다시 불러오기</button></div>}
           {isSlow && <p className={styles.notice} role="status">서버를 깨우는 중이에요. 첫 요청은 30초쯤 걸릴 수 있어요.</p>}
           {videoLoading ? <p className={styles.empty} role="status">요리 영상을 불러오고 있어요.</p>
-            : videos.length === 0 && !videoError ? <p className={styles.empty}>아직 준비된 영상이 없어요.<br />추천 탭에서 오늘의 메뉴를 찾아보세요.</p>
+            : videos.length === 0 && !videoError ? <p className={styles.empty}>아직 준비된 영상이 없어요.<br />레시피 탭에서 오늘의 메뉴를 찾아보세요.</p>
             : <ul className={styles.videoGrid}>{videos.map((video) => (
               <li key={video.video_id}><a className={styles.video} href={toHttps(video.video_url) ?? video.video_url} target="_blank" rel="noreferrer noopener"><img src={toHttps(video.thumbnail_url) ?? ''} alt="" loading="lazy" /><p className={styles.videoTitle}>{video.video_title}</p><p className={styles.videoMeta}>{video.channel_title}</p></a></li>
             ))}</ul>}
@@ -200,7 +200,7 @@ export default function HomePage() {
           <div className={styles.sectionHead}>
             <div className={styles.sectionTitle}>
               <h2>{keyword.trim() ? `'${keyword.trim()}' 검색 결과` : '오늘 뭐 먹지?'}</h2>
-              <p className={styles.resultCount}>{!isLoading && recipes.length > 0 ? `${recipes.length}개 보는 중` : '레시피 둘러보기'}</p>
+              <p className={styles.resultCount}>{!isLoading && recipes.length > 0 ? `레시피 ${recipes.length}개` : '레시피 둘러보기'}</p>
             </div>
             <Link to="/recommend" className={styles.pantryLink} aria-label="내 재료로 만들 수 있는 요리">
               <Icon name="fridge" size={20} /><span>내 재료로 찾기</span><Icon name="chevron-right" size={16} />

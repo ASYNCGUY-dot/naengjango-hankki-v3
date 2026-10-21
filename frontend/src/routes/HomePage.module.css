@@ -1,7 +1,7 @@
 .page { padding-top: var(--space-2); }
 .appbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--feed-page-padding); }
 .appbar h1 { min-width: 0; font-size: var(--feed-title-size); font-weight: 800; line-height: var(--line-height-tight); letter-spacing: var(--letter-spacing-tight); }
-.brandDot { color: var(--feed-coral); }
+.brandDot { color: var(--feed-accent); }
 .headerActions { display: flex; flex-shrink: 0; gap: var(--space-1); margin-left: auto; }
 .iconButton { width: var(--touch-target-min); height: var(--touch-target-min); border: none; background: none; color: var(--color-text-primary); display: grid; place-items: center; border-radius: var(--radius-sm); cursor: pointer; }
 .iconButton:hover { background: var(--color-surface-sunken); }
@@ -14,14 +14,14 @@
 .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 var(--feed-page-padding); border-bottom: 1px solid var(--color-border); }
 .tab, .selectedTab { position: relative; display: block; min-height: var(--touch-target-min); padding: var(--space-2) var(--space-1); border: none; background: none; color: var(--color-text-primary); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); cursor: pointer; }
 .selectedTab { color: var(--color-accent-text); font-weight: var(--font-weight-bold); }
-.selectedTab::after { position: absolute; content: ''; bottom: -1px; left: 0; right: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--feed-coral); }
+.selectedTab::after { position: absolute; content: ''; bottom: -1px; left: 0; right: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--feed-accent); }
 .pantryLink { display: inline-flex; flex-shrink: 0; align-items: center; gap: var(--space-1); min-height: var(--touch-target-min); padding: var(--space-2); border-radius: var(--radius-md); color: var(--color-accent-text); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); text-decoration: none; }
 .pantryLink > svg { flex-shrink: 0; }
 .pantryLink:hover { background: var(--color-surface-accent); }
 .feedPanel { padding: var(--space-4) var(--feed-page-padding) 0; }
 .panel { min-width: 0; }
 .chips { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-3) var(--feed-page-padding) var(--space-2); list-style: none; scrollbar-width: thin; }
-.chip { min-height: var(--touch-target-min); padding: 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary); font-size: var(--font-size-xs); white-space: nowrap; cursor: pointer; }
+.chip { min-width: var(--touch-target-min); min-height: var(--touch-target-min); padding: 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary); font-size: var(--font-size-xs); white-space: nowrap; cursor: pointer; }
 .chipSelected { background: var(--color-surface-accent); color: var(--color-accent-text); border-color: var(--color-accent-text); font-weight: var(--font-weight-bold); }
 .sectionHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--feed-page-padding) var(--space-3); }
 .sectionTitle { flex: 1 1 8rem; min-width: 0; }
@@ -31,8 +31,8 @@
 .eyebrow { font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-bottom: var(--space-1); }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) var(--space-3); padding: 0 var(--feed-page-padding); list-style: none; }
 .skeleton { aspect-ratio: 3 / 4; background: var(--color-surface-sunken); border-radius: var(--feed-radius); }
-.notice, .error { margin: var(--space-3) var(--feed-page-padding); padding: var(--space-3); font-size: var(--font-size-sm); background: var(--color-surface-accent); border-radius: var(--radius-sm); }
-.notice { color: var(--color-accent-text); }
+.notice, .error { margin: var(--space-3) var(--feed-page-padding); padding: var(--space-3); font-size: var(--font-size-sm); background: var(--color-surface-sunken); border-radius: var(--radius-sm); }
+.notice { color: var(--color-text-primary); }
 .notice small { display: block; color: var(--color-text-secondary); font-size: var(--font-size-xs); margin-top: var(--space-1); }
 .error { color: var(--color-danger-text); }
 .empty { padding: var(--space-10) var(--feed-page-padding); text-align: center; color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: var(--line-height-loose); }

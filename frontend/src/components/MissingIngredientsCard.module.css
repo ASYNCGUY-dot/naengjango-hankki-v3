@@ -35,7 +35,7 @@
 }
 
 .ready {
-  color: var(--color-accent-text);
+  color: var(--color-success-text);
   font-weight: var(--font-weight-medium);
 }
 

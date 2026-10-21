@@ -106,8 +106,9 @@
 }
 
 .addButton:disabled {
-  opacity: 0.7;
-  cursor: progress;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
 }
 
 .list {
@@ -234,7 +235,8 @@
 }
 
 .cta:disabled {
-  opacity: 0.6;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
   cursor: not-allowed;
 }
 
@@ -248,8 +250,8 @@
 }
 
 .notice {
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;

@@ -243,6 +243,24 @@ describe('레시피 상세 화면', () => {
     expect(screen.getByRole('button', { name: '다른 메뉴' })).toHaveFocus()
   })
 
+  it('재료비를 영양보다 먼저 보여주고 바로가기로 초점과 화면을 이동한다', async () => {
+    const user = userEvent.setup()
+    mockDetailApi(detail())
+    renderDetail('/recipe/67')
+
+    const cost = await screen.findByRole('region', { name: '재료비는 얼마나 들까요' })
+    const nutrition = screen.getByRole('heading', { name: '영양 정보' })
+    expect(cost.compareDocumentPosition(nutrition) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const scroll = vi.fn()
+    cost.scrollIntoView = scroll
+
+    const navigation = screen.getByRole('navigation', { name: '레시피 바로가기' })
+    await user.click(within(navigation).getByRole('link', { name: /^재료비$/ }))
+
+    expect(cost).toHaveFocus()
+    expect(scroll).toHaveBeenCalled()
+  })
+
   it('조리 시작을 누르면 조리 순서로 초점과 화면을 이동한다', async () => {
     const user = userEvent.setup()
     mockDetailApi(detail())

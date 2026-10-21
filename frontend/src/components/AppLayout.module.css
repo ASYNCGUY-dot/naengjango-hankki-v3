@@ -64,7 +64,7 @@
   flex-shrink: 0;
 }
 
-.active .icon { color: var(--feed-coral); stroke-width: 2; }
+.active .icon { color: var(--feed-accent); stroke-width: 2; }
 .tab:hover { background: var(--color-surface-sunken); }
 
 @media (min-width: 513px) {

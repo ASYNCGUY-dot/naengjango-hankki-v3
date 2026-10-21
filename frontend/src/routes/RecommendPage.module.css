@@ -211,8 +211,8 @@
   margin: var(--space-3) var(--feed-page-padding);
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   display: flex;
   gap: var(--space-3);

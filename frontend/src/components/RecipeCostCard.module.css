@@ -1,16 +1,34 @@
-/* 부족한 재료 카드(MissingIngredientsCard)와 같은 틀을 쓴다. 두 카드가 이어서 읽히므로
-   모양이 다르면 서로 다른 종류의 정보처럼 보인다. */
+/* 공공데이터로 계산한 금액을 상세 상단에서 먼저 읽는다. 계산 한계와 출처는 접지 않는다. */
 .card {
   container: recipe-cost / inline-size;
-  margin: var(--space-6) var(--space-4);
+  margin: var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
+  border-top: var(--space-1) solid var(--color-accent);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
+  scroll-margin-block: var(--space-4);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .card h2 {
   font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+}
+
+.provider {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
 }
 
@@ -45,17 +63,26 @@
 }
 
 .total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
   margin-top: var(--space-3);
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
 .total strong {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   /* 숫자 자리가 흔들리지 않게 한다. */
   font-variant-numeric: tabular-nums;
+}
+
+.partialLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
 }
 
 .meta {
@@ -68,6 +95,28 @@
   list-style: none;
   padding: 0;
   margin-top: var(--space-3);
+}
+
+.details {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.details summary {
+  min-height: var(--touch-target-min);
+  padding-block: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.details summary span {
+  display: inline-block;
+  margin-inline-start: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-secondary);
 }
 
 .list > li {
@@ -148,6 +197,10 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   line-height: var(--line-height-base);
+}
+
+.note + .note {
+  margin-top: var(--space-1);
 }
 
 /* 다른 부위·상태 시세라서 뺀 재료와 그 이유. 빠진 재료 문단 바로 아래에 붙여 읽힌다. */

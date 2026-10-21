@@ -2,7 +2,7 @@
 .overview { min-width: 0; }
 .hero {
   position: relative;
-  aspect-ratio: var(--recipe-card-aspect);
+  aspect-ratio: 16 / 10;
   background: var(--color-surface-sunken);
 }
 
@@ -62,21 +62,23 @@
   align-items: center;
   padding: 0.15em var(--space-2);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
 }
 
 .nutrients {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
   list-style: none;
 }
 
 .nutrients li {
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
@@ -230,8 +232,8 @@
 }
 
 .notice {
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
@@ -257,7 +259,7 @@
 }
 
 .skeletonHero {
-  aspect-ratio: var(--recipe-card-aspect);
+  aspect-ratio: 16 / 10;
   background: var(--color-surface-sunken);
 }
 
@@ -275,5 +277,5 @@
 .nutritionHeading { font-size: var(--font-size-lg); margin: var(--space-6) var(--space-4) var(--space-2); }
 @container (min-width: 40rem) {
   .summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-4); padding: var(--space-5); }
-  .hero { border-radius: var(--radius-sm); overflow: hidden; }
+  .hero { aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; }
 }

@@ -55,7 +55,7 @@
 }
 
 .prompts li::marker {
-  color: var(--color-accent-text);
+  color: var(--color-text-secondary);
 }
 
 .textarea {
@@ -71,6 +71,13 @@
   font-size: 1rem;
   line-height: var(--line-height-loose);
   resize: vertical;
+}
+
+/* 큰 글씨로 좁아진 화면에서는 겹친 좌우 여백보다 입력 공간을 우선한다. */
+@container (max-width: 18rem) {
+  .page { padding-inline: min(var(--feed-page-padding), 4cqi); }
+  .form { padding: min(var(--space-4), 3cqi); }
+  .textarea { padding: min(var(--space-2), 3cqi); }
 }
 
 .primary {
@@ -104,7 +111,13 @@
 
 .thanks {
   font-size: var(--font-size-sm);
-  color: var(--color-accent-text);
+  color: var(--color-success-text);
+}
+
+.fieldError {
+  color: var(--color-danger-text);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-base);
 }
 
 .section {
@@ -157,7 +170,7 @@
 .who {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--color-accent-text);
+  color: var(--color-text-primary);
 }
 
 .date {

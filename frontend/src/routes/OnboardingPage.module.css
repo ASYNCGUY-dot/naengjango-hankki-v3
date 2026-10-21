@@ -41,15 +41,15 @@
 
 /* 알레르기는 안전과 직결되므로 눈에 띄게 둔다. */
 .safety {
-  border: 1px solid var(--color-accent);
+  border: 1px solid var(--color-danger-text);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4) var(--space-4);
-  background: var(--color-surface-accent);
+  background: var(--color-surface-sunken);
 }
 
 .safety legend {
   padding: 0 var(--space-2);
-  color: var(--color-accent-text);
+  color: var(--color-danger-text);
 }
 
 .chips {
@@ -61,10 +61,12 @@
 }
 
 .chip {
+  min-width: var(--touch-target-min);
   max-width: 100%;
   min-height: var(--touch-target-min);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -131,13 +133,13 @@
   cursor: pointer;
 }
 
-/* 건강 정보 동의. 알레르기 칩과 같은 강조를 줘서 안전 관련 묶음으로 읽히게 한다. */
+/* 건강 정보 동의. 별도 상자로 묶고 선택 여부는 체크박스로 표시한다. */
 .consent {
   margin-bottom: var(--space-6);
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-accent);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  background: var(--color-surface-accent);
+  background: var(--color-surface-sunken);
 }
 
 .consentLabel {
@@ -197,8 +199,8 @@
   margin-bottom: var(--space-4);
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   font-size: var(--font-size-sm);
 }
 

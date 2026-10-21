@@ -3,17 +3,20 @@
   --color-surface-base: #ffffff;
   --color-surface-raised: #ffffff;
   --color-surface-sunken: #f6f5f3;
-  --color-surface-accent: #fff1ec;
+  --color-surface-accent: #eef6ee;
   --color-text-primary: #242322;
   --color-text-secondary: #706d6a;
   --color-text-on-accent: #ffffff;
-  --color-accent: #cc4b3d;
-  --color-accent-strong: #b63d30;
-  --color-accent-text: #b63d30;
+  /* 초록은 행동·선택, 빨강은 위험·오류·삭제를 구분한다. */
+  --color-accent: #3e7b54;
+  --color-accent-strong: #2f5d40;
+  --color-accent-text: #336547;
+  --color-danger-fill: #c7473b;
+  --color-danger-text: #a6362f;
   --color-border: #e8e5e1;
   --color-border-strong: #8c8984;
-  --color-focus-ring: #b63d30;
-  --feed-coral: #ed6655;
+  --color-focus-ring: #2f5d40;
+  --feed-accent: #3e7b54;
   --feed-page-background: #f6f5f3;
   --feed-radius: 0.3rem;
   --feed-page-padding: 1.25rem;
@@ -36,17 +39,19 @@ body { background: var(--feed-page-background); }
     --color-surface-base: #1c1b19;
     --color-surface-raised: #1c1b19;
     --color-surface-sunken: #292622;
-    --color-surface-accent: #3b2822;
+    --color-surface-accent: #233429;
     --color-text-primary: #f5f0e9;
     --color-text-secondary: #bcb3aa;
     --color-text-on-accent: #211914;
-    --color-accent: #ff9e88;
-    --color-accent-strong: #ffb29f;
-    --color-accent-text: #ffad98;
+    --color-accent: #8fc47f;
+    --color-accent-strong: #a9d69b;
+    --color-accent-text: #9fce90;
+    --color-danger-fill: #f08d83;
+    --color-danger-text: #f4a49c;
     --color-border: #3c3731;
     --color-border-strong: #92877e;
-    --color-focus-ring: #ffad98;
-    --feed-coral: #ff9e88;
+    --color-focus-ring: #9fce90;
+    --feed-accent: #8fc47f;
     --feed-page-background: #151412;
   }
 }
@@ -55,17 +60,19 @@ body { background: var(--feed-page-background); }
   --color-surface-base: #1c1b19;
   --color-surface-raised: #1c1b19;
   --color-surface-sunken: #292622;
-  --color-surface-accent: #3b2822;
+  --color-surface-accent: #233429;
   --color-text-primary: #f5f0e9;
   --color-text-secondary: #bcb3aa;
   --color-text-on-accent: #211914;
-  --color-accent: #ff9e88;
-  --color-accent-strong: #ffb29f;
-  --color-accent-text: #ffad98;
+  --color-accent: #8fc47f;
+  --color-accent-strong: #a9d69b;
+  --color-accent-text: #9fce90;
+  --color-danger-fill: #f08d83;
+  --color-danger-text: #f4a49c;
   --color-border: #3c3731;
   --color-border-strong: #92877e;
-  --color-focus-ring: #ffad98;
-  --feed-coral: #ff9e88;
+  --color-focus-ring: #9fce90;
+  --feed-accent: #8fc47f;
   --feed-page-background: #151412;
 }
 

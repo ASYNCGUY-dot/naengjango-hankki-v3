@@ -84,9 +84,9 @@ function FeedCard({
           <span className={styles.photoFallback}>
             <Icon name="bowl" size={32} />
             <span>{brag.menu_name}</span>
-            <small>레시피 보기</small>
           </span>
         )}
+        <span className={styles.recipeCaption}>레시피 보기<Icon name="chevron-right" size={16} /></span>
       </Link>
 
       <p ref={bodyRef} id={bodyId} className={isExpanded || reading ? `${styles.body} ${styles.expanded}` : styles.body}>
@@ -126,11 +126,12 @@ function FeedCard({
             <button
               className={styles.delete}
               type="button"
+              aria-label={`이 글 삭제: ${brag.menu_name}`}
               onClick={() => {
                 if (window.confirm('이 글을 삭제할까요? 되돌릴 수 없어요.')) onDelete()
               }}
             >
-              삭제
+              이 글 삭제
             </button>
           )}
         </div>

@@ -99,12 +99,12 @@ describe('홈 화면', () => {
     vi.restoreAllMocks()
   })
 
-  it('추천 탭에서 시작하고 재료 추천과 집밥 쓰기로 연결한다', () => {
+  it('레시피 탭에서 시작하고 재료 추천과 집밥 쓰기로 연결한다', () => {
     mockApi({})
     renderWithProviders(<HomePage />)
 
     const tabs = screen.getByRole('tablist', { name: '둘러보기' })
-    expect(within(tabs).getByRole('tab', { name: '추천' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(tabs).getByRole('tab', { name: '레시피' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('link', { name: /내 재료로 만들 수 있는 요리/ })).toHaveAttribute(
       'href',
       '/recommend',
@@ -117,7 +117,7 @@ describe('홈 화면', () => {
     mockApi({})
     renderWithProviders(<HomePage />)
 
-    const recommended = screen.getByRole('tab', { name: '추천' })
+    const recommended = screen.getByRole('tab', { name: '레시피' })
     const videos = screen.getByRole('tab', { name: '요리 영상' })
     const brags = screen.getByRole('tab', { name: '한 끼 자랑' })
     recommended.focus()
@@ -163,7 +163,7 @@ describe('홈 화면', () => {
     expect(screen.queryByRole('heading', { name: '레시피 둘러보기' })).not.toBeInTheDocument()
   })
 
-  it('다른 탭에서 검색하면 추천으로 돌아와 서버의 레시피 검색을 사용한다', async () => {
+  it('다른 탭에서 검색하면 레시피로 돌아와 서버의 레시피 검색을 사용한다', async () => {
     const user = userEvent.setup()
     const fetchMock = mockApi({
       search: (url) => url.searchParams.get('keyword') === '두부'
@@ -175,7 +175,7 @@ describe('홈 화면', () => {
 
     await user.type(screen.getByLabelText('레시피 검색'), '두부')
 
-    expect(screen.getByRole('tab', { name: '추천' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '레시피' })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByText('검색한 두부조림')).toBeInTheDocument()
     const searches = fetchMock.mock.calls
       .map(([input]) => new URL(input as string))
@@ -195,6 +195,7 @@ describe('홈 화면', () => {
 
     expect(await screen.findByText('두부조림')).toBeInTheDocument()
     expect(screen.getByText('된장국')).toBeInTheDocument()
+    expect(screen.getByText('레시피 2개')).toBeInTheDocument()
     // "전체"는 서버가 주지 않고 화면이 앞에 붙인다.
     expect(screen.getByRole('button', { name: '전체' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: '반찬' })).toBeInTheDocument()

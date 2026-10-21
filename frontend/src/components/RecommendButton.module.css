@@ -24,9 +24,9 @@
 
 /* 추천한 상태. 색만으로 구분하지 않는다 - 글자가 "추천함"으로 바뀌고 하트도 채워진다. */
 .on {
-  border-color: var(--color-danger-text);
-  background: var(--color-surface-sunken);
-  color: var(--color-danger-text);
+  border-color: var(--color-accent-text);
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
 }
 
 /* 누적 수. 이 숫자가 이 버튼의 존재 이유라 늘 보이게 둔다. */

@@ -64,7 +64,7 @@
   margin-top: var(--space-1);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--color-accent-text);
+  color: var(--color-success-text);
 }
 
 /* 추천 화면에서 "재료 N개 활용"을 보여주는 자리.
@@ -86,8 +86,8 @@
 }
 
 .weak {
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
 }
 
 /* 자격 미달(qualifies=false)인 추천. 겹치는 재료가 너무 적거나 메뉴명의 핵심 재료가
