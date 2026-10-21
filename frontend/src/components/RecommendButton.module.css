@@ -2,17 +2,20 @@
 .button {
   display: flex;
   flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--touch-target-min);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
+  overflow-wrap: anywhere;
 }
 
 .button:hover {
@@ -21,15 +24,16 @@
 
 /* 추천한 상태. 색만으로 구분하지 않는다 - 글자가 "추천함"으로 바뀌고 하트도 채워진다. */
 .on {
-  border-color: var(--color-danger-text);
-  background: var(--color-surface-sunken);
-  color: var(--color-danger-text);
+  border-color: var(--color-accent-text);
+  background: var(--color-surface-accent);
+  color: var(--color-accent-text);
 }
 
 /* 누적 수. 이 숫자가 이 버튼의 존재 이유라 늘 보이게 둔다. */
 .count {
+  flex-shrink: 0;
   padding: 0 var(--space-2);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
   font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
@@ -45,3 +49,7 @@
   font-size: var(--font-size-xs);
   color: var(--color-danger-text);
 }
+.state { flex: 1 1 12rem; min-width: 0; font-size: var(--font-size-sm); color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.state .button { width: 100%; margin-top: var(--space-2); }
+.button:disabled { cursor: progress; opacity: 0.7; }
+.button[aria-disabled='true'] { cursor: progress; }

@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { toHttps } from '../api/client'
 import styles from './RecipeCard.module.css'
+import Icon from './아이콘'
 
 /**
  * 카드가 필요로 하는 최소한의 모양.
@@ -38,16 +40,17 @@ export default function RecipeCard({
   // image_url은 string | null이다. 1,148개 중 2개가 실제로 비어 있어서, 개발 중에는
   // 거의 안 걸리고 실사용에서만 터진다. 타입이 여기서 처리를 강제한다.
   const imageUrl = toHttps(recipe.image_url)
+  const [failedImage, setFailedImage] = useState<string | null>(null)
 
   return (
     <Link className={styles.card} to={`/recipe/${recipe.id}`}>
       <div className={styles.media}>
-        {imageUrl === null ? (
+        {imageUrl === null || failedImage === imageUrl ? (
           <div className={styles.placeholder} aria-hidden="true">
-            🍽️
+            <Icon name="bowl" size={32} />
           </div>
         ) : (
-          <img src={imageUrl} alt="" loading="lazy" />
+          <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedImage(imageUrl)} />
         )}
       </div>
       <div className={styles.body}>

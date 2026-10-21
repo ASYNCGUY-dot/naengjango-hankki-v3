@@ -216,7 +216,8 @@ describe('즐겨찾기', () => {
 
   it('즐겨찾기 목록을 못 받아도 계정 정보와 로그아웃은 보인다', async () => {
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    const user = userEvent.setup()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       if (String(input).includes('/favorites/')) return json({ detail: '오류' }, 500)
       return json(profile())
     })
@@ -224,5 +225,11 @@ describe('즐겨찾기', () => {
 
     expect(await screen.findByText('최지수')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '로그아웃' })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('즐겨찾기 목록을 불러오지 못했어요')
+    expect(screen.queryByText(/여기에 모여요/)).not.toBeInTheDocument()
+    fetchMock.mockImplementation(async (input) => json(String(input).includes('/favorites/') ? [] : profile()))
+    await user.click(screen.getByRole('button', { name: '즐겨찾기 다시 불러오기' }))
+    expect(await screen.findByText(/여기에 모여요/)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

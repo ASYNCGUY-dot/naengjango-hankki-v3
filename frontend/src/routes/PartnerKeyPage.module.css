@@ -1,9 +1,14 @@
 .page {
-  padding: var(--space-4);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-6) var(--feed-page-padding);
+  max-width: 42rem;
+  margin-inline: auto;
+  overflow-wrap: anywhere;
 }
 
 .page h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--feed-title-size);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
   margin-bottom: var(--space-2);
@@ -33,7 +38,7 @@
 
 .notice h2 {
   margin-bottom: var(--space-2);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
 }
 
@@ -42,7 +47,7 @@
   flex-direction: column;
   gap: var(--space-2);
   padding-left: var(--space-4);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   line-height: var(--line-height-base);
   color: var(--color-text-secondary);
 }
@@ -64,7 +69,7 @@
 
 .registered {
   background: var(--color-surface-sunken);
-  border-left: 3px solid var(--color-accent);
+  border-left: 3px solid var(--color-success-text);
 }
 
 .unregistered {
@@ -80,6 +85,7 @@
 }
 
 .form {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -90,20 +96,25 @@
 }
 
 .form label {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
 }
 
 .form input {
+  width: 100%;
+  min-height: var(--touch-target-min);
+  min-width: 0;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
   color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   /* 키는 영문·숫자라 고정폭이 읽기 쉽다. 오타를 눈으로 잡을 수 있다. */
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -114,12 +125,13 @@
 }
 
 .primary {
+  min-height: var(--touch-target-min);
   padding: var(--space-3);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-accent);
   color: var(--color-text-on-accent);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
 }
@@ -130,11 +142,12 @@
 }
 
 .danger {
+  min-height: var(--touch-target-min);
   width: 100%;
   margin-top: var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
@@ -153,5 +166,6 @@
 
 .saved {
   font-size: var(--font-size-xs);
-  color: var(--color-accent-text);
+  color: var(--color-success-text);
 }
+.retry { min-height: var(--touch-target-min); padding: var(--space-2) var(--space-3); margin-top: var(--space-2); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface-raised); color: var(--color-text-primary); cursor: pointer; }

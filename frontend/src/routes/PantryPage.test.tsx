@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -24,7 +24,7 @@ function signIn(userId = 15) {
 /** 요청 종류별로 답한다. 목록은 호출할 때마다 최신 상태를 돌려준다. */
 function mockApi(
   getItems: () => Item[],
-  overrides: { onWrite?: () => Response; suggestions?: () => unknown[] } = {},
+  overrides: { onWrite?: () => Response | Promise<Response>; suggestions?: () => unknown[] } = {},
 ) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const method = (init as RequestInit | undefined)?.method ?? 'GET'
@@ -87,6 +87,19 @@ describe('냉장고 화면', () => {
     expect(screen.getByText(/지남/)).toBeInTheDocument()
   })
 
+  it('조회 실패를 빈 냉장고로 안내하지 않고 다시 불러올 수 있다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(json({ detail: '연결하지 못했어요.' }, 500))
+      .mockResolvedValueOnce(json([{ id: 1, name: '두부', expiry_date: null }]))
+    renderWithProviders(<PantryPage />)
+    await screen.findByRole('alert')
+    expect(screen.queryByText(/아직 넣어둔 재료가 없어요/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '냉장고 다시 불러오기' }))
+    expect(await screen.findByText('두부')).toBeInTheDocument()
+  })
+
   it('재료를 추가하면 서버에 보내고 목록을 다시 읽는다', async () => {
     const user = userEvent.setup()
     signIn()
@@ -107,6 +120,50 @@ describe('냉장고 화면', () => {
     expect(post).toBeDefined()
     const sent = JSON.parse((post![1] as RequestInit).body as string)
     expect(sent).toEqual({ name: '두부', expiry_date: null })
+    expect(screen.getByLabelText('재료 이름')).toHaveFocus()
+  })
+
+  it('추가 대기 중 다른 재료의 날짜로 이동하면 재조회 중에도 그 초점을 유지한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    let releasePost!: (response: Response) => void
+    let releaseRefresh!: (response: Response) => void
+    let reads = 0
+    const existing = { id: 1, name: '양파', expiry_date: null }
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (String(input).includes('/pantry/suggest')) return json([])
+      if (init?.method === 'POST') return new Promise((resolve) => { releasePost = resolve })
+      if (++reads === 1) return json([existing])
+      return new Promise((resolve) => { releaseRefresh = resolve })
+    })
+    renderWithProviders(<PantryPage />)
+    const date = await screen.findByLabelText('양파 유통기한')
+    await user.type(screen.getByLabelText('재료 이름'), '두부')
+    await user.click(screen.getByRole('button', { name: '추가' }))
+    await user.click(date)
+    await act(async () => { releasePost(json({ added: true })) })
+
+    expect(date).toBeInTheDocument()
+    expect(date).toHaveFocus()
+    await act(async () => { releaseRefresh(json([existing, { id: 2, name: '두부', expiry_date: null }])) })
+    expect(screen.getByText('두부')).toBeInTheDocument()
+    expect(date).toHaveFocus()
+  })
+
+  it('추가 대기 중 다음 재료를 입력하면 늦은 응답이 그 입력을 지우지 않는다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    let release!: (response: Response) => void
+    mockApi(() => [], { onWrite: () => new Promise((resolve) => { release = resolve }) })
+    renderWithProviders(<PantryPage />)
+    const name = screen.getByLabelText('재료 이름')
+    await user.type(name, '두부')
+    await user.click(screen.getByRole('button', { name: '추가' }))
+    await user.clear(name)
+    await user.type(name, '달걀')
+    await act(async () => { release(json({ added: true })) })
+    expect(name).toHaveValue('달걀')
+    expect(name).toHaveFocus()
   })
 
   it('이름이 비면 추가 버튼을 누를 수 없다', async () => {
@@ -211,7 +268,7 @@ describe('재료 자동완성', () => {
 
     await user.type(screen.getByLabelText('재료 이름'), '두부')
 
-    const suggestion = await screen.findByRole('button', { name: /두부/ })
+    const suggestion = await screen.findByRole('option', { name: /두부/ })
     expect(suggestion).toHaveTextContent('레시피 118개')
 
     await user.click(suggestion)
@@ -228,6 +285,47 @@ describe('재료 자동완성', () => {
     expect(
       fetchMock.mock.calls.some(([url]) => String(url).includes('/pantry/suggest')),
     ).toBe(false)
+  })
+
+  it('방향키와 Enter로 추천 이름을 고르고 Escape로 닫는다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi(() => [], { suggestions: () => [
+      { name: '두부', recipe_count: 118 }, { name: '순두부', recipe_count: 12 },
+    ] })
+    renderWithProviders(<PantryPage />)
+    const input = screen.getByRole('combobox', { name: '재료 이름' })
+    await user.type(input, '두')
+    await screen.findByRole('option', { name: /순두부/ })
+    expect(input).toHaveAttribute('aria-controls', 'pantry-suggestions')
+    await user.keyboard('{ArrowUp}')
+    expect(screen.getByRole('option', { name: /순두부/ })).toHaveAttribute('aria-selected', 'true')
+    await user.keyboard('{Enter}')
+    expect(input).toHaveValue('순두부')
+    expect(input).toHaveFocus()
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
+    await user.clear(input)
+    await user.type(input, '두')
+    await screen.findByRole('option', { name: /순두부/ })
+    await user.keyboard('{ArrowDown}{Escape}')
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    expect(input).not.toHaveAttribute('aria-activedescendant')
+  })
+
+  it('삭제한 버튼의 초점을 다음 재료와 마지막에는 입력칸으로 옮긴다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockApi(() => [
+      { id: 1, name: '두부', expiry_date: null },
+      { id: 2, name: '양파', expiry_date: null },
+    ])
+    renderWithProviders(<PantryPage />)
+    await user.click(await screen.findByRole('button', { name: '두부 삭제' }))
+    expect(screen.getByRole('button', { name: '양파 삭제' })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: '양파 삭제' }))
+    expect(screen.getByRole('combobox', { name: '재료 이름' })).toHaveFocus()
+    expect(screen.getByText('냉장고에 재료 0개가 있어요.')).toHaveAttribute('role', 'status')
   })
 
   it('추천을 못 받아도 직접 쳐서 넣을 수 있다', async () => {

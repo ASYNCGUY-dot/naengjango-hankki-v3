@@ -102,13 +102,18 @@ describe('재료 구매 수수료 받기', () => {
     expect(screen.getByText('아직 등록된 키가 없어요.')).toBeInTheDocument()
   })
 
-  it('상태 조회가 실패해도 화면이 죽지 않는다', async () => {
-    // 무료 티어에서 첫 요청이 깨지는 일이 있다. 그때 빈 화면이 되면 안 된다.
+  it('조회 실패를 미등록으로 표시하지 않고 재시도하여 등록 상태를 복구한다', async () => {
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network'))
+    const user = userEvent.setup()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network'))
     renderWithProviders(<PartnerKeyPage />)
-
-    expect(await screen.findByText('아직 등록된 키가 없어요.')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('등록 상태를 불러오는 중')
+    expect(await screen.findByRole('alert')).toHaveTextContent('등록 상태를 불러오지 못했어요')
+    expect(screen.queryByText('아직 등록된 키가 없어요.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '키 등록하기' })).not.toBeInTheDocument()
+    fetchMock.mockImplementation(async () => json({ registered: true, updated_at: null, revenue_min_likes: 100 }))
+    await user.click(screen.getByRole('button', { name: '등록 상태 다시 불러오기' }))
+    expect(await screen.findByText('키가 등록돼 있어요.')).toBeInTheDocument()
   })
 })
 

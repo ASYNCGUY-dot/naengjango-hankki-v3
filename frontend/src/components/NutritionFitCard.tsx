@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { getNutritionFit, type NutritionFit } from '../api/recipes'
@@ -28,18 +28,35 @@ export default function NutritionFitCard({ recipeId }: { recipeId: number }) {
   const { userId, isAuthenticated } = useAuth()
   const [fit, setFit] = useState<NutritionFit | null>(null)
   const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const requesting = useRef(false)
 
   useEffect(() => {
+    setFit(null)
+    setFailed(false)
     if (userId === null) return
     const controller = new AbortController()
+    requesting.current = true
     getNutritionFit(recipeId, userId, controller.signal)
-      .then(setFit)
+      .then((result) => {
+        if (!controller.signal.aborted) setFit(result)
+      })
       .catch(() => {
-        // 레시피 본문은 이미 보이고 있다. 이 카드 하나 때문에 화면을 망치지 않는다.
         if (!controller.signal.aborted) setFailed(true)
       })
+      .finally(() => {
+        if (!controller.signal.aborted) requesting.current = false
+      })
     return () => controller.abort()
-  }, [recipeId, userId])
+  }, [recipeId, userId, attempt])
+
+  function retry() {
+    if (requesting.current) return
+    requesting.current = true
+    setFit(null)
+    setFailed(false)
+    setAttempt((value) => value + 1)
+  }
 
   if (!isAuthenticated) {
     return (
@@ -53,26 +70,36 @@ export default function NutritionFitCard({ recipeId }: { recipeId: number }) {
     )
   }
 
-  if (failed || fit === null) return null
-
-  if (!fit.available) {
-    return (
-      <section className={styles.card} aria-labelledby="fit-heading">
-        <h2 id="fit-heading">나에게 맞는 영양</h2>
-        <p className={styles.guide}>
-          성별과 연령대를 입력하면 하루 권장량 대비로 알려드려요.{' '}
-          <Link to="/onboarding">식단 정보 입력하기</Link>
-        </p>
-      </section>
-    )
-  }
-
   return (
     <section className={styles.card} aria-labelledby="fit-heading">
       <div className={styles.head}>
         <h2 id="fit-heading">나에게 맞는 영양</h2>
-        <span className={styles.bracket}>{fit.bracket_label}</span>
+        {fit?.available && <span className={styles.bracket}>{fit.bracket_label}</span>}
       </div>
+
+      {fit === null && !failed && (
+        <p className={styles.guide} role="status">영양 정보를 불러오는 중이에요…</p>
+      )}
+      {failed && (
+        <p className={styles.guide} role="alert">영양 정보를 불러오지 못했어요. 다시 시도해주세요.</p>
+      )}
+      {/* 재시도를 누른 버튼은 성공 후에도 유지하여 키보드 초점을 잃지 않게 한다. */}
+      {(failed || attempt > 0) && (
+        <button className={styles.retry} type="button" onClick={retry}
+          aria-disabled={fit === null && !failed}>
+          영양 정보 다시 불러오기
+        </button>
+      )}
+      {attempt > 0 && fit !== null && (
+        <p className={styles.guide} role="status">영양 정보를 불러왔어요.</p>
+      )}
+      {fit !== null && !fit.available && (
+        <p className={styles.guide}>
+          성별과 연령대를 입력하면 하루 권장량 대비로 알려드려요.{' '}
+          <Link to="/onboarding">식단 정보 입력하기</Link>
+        </p>
+      )}
+      {fit?.available && <>
 
       {/* 개인 기준이 아닌데 개인 기준처럼 보이면 안 된다. */}
       {fit.is_estimated && (
@@ -151,6 +178,7 @@ export default function NutritionFitCard({ recipeId }: { recipeId: number }) {
           적게 나옵니다. 열량·단백질·나트륨은 레시피에 등록된 값 그대로예요.
         </p>
       )}
+      </>}
     </section>
   )
 }

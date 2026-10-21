@@ -1,0 +1,260 @@
+.feed {
+  min-width: 0;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-5) var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card {
+  min-width: 0;
+}
+
+.photoLink {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--space-1);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 4;
+  object-fit: cover;
+}
+
+.photoFallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  aspect-ratio: 5 / 4;
+  padding: var(--space-3);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  word-break: keep-all;
+}
+
+.recipeCaption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-target-min);
+  padding-inline: var(--space-1);
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
+.recipeCaption svg {
+  flex-shrink: 0;
+}
+
+.body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.5;
+  letter-spacing: var(--letter-spacing-tight);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.expanded {
+  display: block;
+  overflow: visible;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch-target-min);
+  margin-top: calc(var(--space-1) * -1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  flex-shrink: 0;
+}
+
+.like {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.like:hover,
+.liked {
+  color: var(--color-accent-text);
+}
+
+.liked svg {
+  fill: currentColor;
+}
+
+.like:disabled {
+  cursor: wait;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.expand,
+.delete {
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.expand {
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
+.delete {
+  margin-left: auto;
+  color: var(--color-danger-text);
+}
+
+.date {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-loose);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.empty a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target-min);
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-bold);
+  text-underline-offset: var(--space-1);
+}
+
+.skeleton {
+  aspect-ratio: 3 / 4;
+  border-radius: var(--space-1);
+  background: var(--color-surface-sunken);
+}
+
+.more {
+  display: block;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  margin-top: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--space-1);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.more:disabled {
+  color: var(--color-text-secondary);
+  cursor: wait;
+}
+
+.error {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border-left: 2px solid var(--color-danger-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-danger-text);
+  font-size: var(--font-size-sm);
+}
+
+.notice {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--space-1);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.notice small {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.viewOptions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+.viewOptions button, .retry { min-height: var(--touch-target-min); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); color: var(--color-text-primary); background: var(--color-surface-base); font-size: var(--font-size-sm); cursor: pointer; }
+.viewOptions button[aria-pressed='true'] { border-color: var(--color-accent-text); color: var(--color-accent-text); background: var(--color-surface-accent); }
+.retry { margin-top: var(--space-2); }
+.reading { grid-template-columns: minmax(0, 1fr); max-width: 38rem; margin-inline: auto; gap: var(--space-8); }
+.reading .body { font-size: var(--font-size-base); line-height: var(--line-height-loose); }
+.reading .card + .card { border-top: 1px solid var(--color-border); padding-top: var(--space-6); }
+@container (min-width: 40rem) {
+  .list:not(.reading) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .body { font-size: var(--font-size-base); }
+  .meta, .date { font-size: var(--font-size-sm); }
+}
+@container (min-width: 60rem) { .list:not(.reading) { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (max-width: 19.99rem) { .list { grid-template-columns: minmax(0, 1fr); } .meta { flex-wrap: wrap; } }

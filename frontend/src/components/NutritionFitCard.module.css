@@ -8,12 +8,15 @@
 
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
 }
 
 .card h2 {
+  flex: 1 1 12ch;
+  min-width: 0;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
 }
@@ -21,7 +24,7 @@
 .bracket {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .guide {
@@ -30,13 +33,32 @@
   color: var(--color-text-secondary);
 }
 
-/* 개인 기준이 아니라는 안내. 눈에 띄어야 오해가 안 생긴다. */
+.retry {
+  min-height: var(--touch-target-min);
+  max-width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.retry[aria-disabled='true'] {
+  cursor: wait;
+}
+
+/* 개인 기준이 아니라는 안내. 상자와 본문 강조로 알리고 오류색은 쓰지 않는다. */
 .warn {
   margin-top: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   font-size: var(--font-size-xs);
 }
 
@@ -63,6 +85,7 @@
 
 .rowHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
@@ -71,25 +94,32 @@
 
 .label {
   display: flex;
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
   font-weight: var(--font-weight-medium);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .supplement,
 .limitTag {
   padding: 0 var(--space-2);
-  border-radius: var(--radius-pill);
+  max-width: 100%;
+  border-radius: 6px;
   background: var(--color-surface-sunken);
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-regular);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .amount {
+  max-width: 100%;
   color: var(--color-text-primary);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .target {
@@ -107,7 +137,7 @@
 .fill {
   height: 100%;
   border-radius: var(--radius-pill);
-  background: var(--color-accent);
+  background: var(--color-success-text);
 }
 
 .pct {

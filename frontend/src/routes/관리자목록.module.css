@@ -1,0 +1,4 @@
+.actions button:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}

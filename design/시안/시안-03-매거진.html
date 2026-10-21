@@ -1,0 +1,62 @@
+<style>
+#hk-studio .c3{background:#f5f1e7;color:#282a25;display:flex;flex-direction:column;min-height:760px;padding:0 22px;--accent:#bf422b;--surface:#f5f1e7}
+#hk-studio .c3 .c3-top{height:60px;border-bottom:1px solid #282a25;gap:12px}
+#hk-studio .c3 .hk-brand{font-size:17px;font-weight:800;letter-spacing:-.8px}
+#hk-studio .c3 .c3-topnote{font-size:11px;letter-spacing:1.5px;color:#77786b}
+#hk-studio .c3 .c3-search{width:36px;height:36px;display:grid;place-items:center;border:1px solid #c7c5b7;border-radius:50%;color:#282a25}
+#hk-studio .c3 .c3-search svg{width:17px;height:17px}
+#hk-studio .c3 .c3-intro{position:relative;padding:19px 0 21px}
+#hk-studio .c3 .c3-kicker{font-size:11px;font-weight:700;letter-spacing:2px;color:#b23d28;margin:0 0 10px}
+#hk-studio .c3 h1{font-family:"Noto Serif KR",Batang,"Times New Roman",serif;font-size:34px;line-height:1.36;letter-spacing:-2.1px;font-weight:500;margin:0}
+#hk-studio .c3 .c3-introfoot{position:absolute;right:0;bottom:27px;writing-mode:vertical-rl;font-size:11px;color:#77786b;letter-spacing:2px}
+#hk-studio .c3 .c3-feature{width:100%;display:block;text-align:left;color:inherit}
+#hk-studio .c3 .c3-photo{display:block;height:186px;position:relative;overflow:hidden}
+#hk-studio .c3 .c3-stamp{position:absolute;right:13px;top:13px;background:#f8f3e5;color:#af3925;border:1px solid #af3925;outline:4px solid #f8f3e5;width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.6;font-family:"Noto Serif KR",Batang,serif;font-weight:600;font-size:11px;transform:rotate(9deg)}
+#hk-studio .c3 .c3-caption{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:1px;color:#74766b;padding-top:9px}
+#hk-studio .c3 .c3-title{display:block;font-family:"Noto Serif KR",Batang,serif;font-size:21px;font-weight:600;letter-spacing:-.8px;margin-top:12px}
+#hk-studio .c3 .c3-desc{display:block;font-size:11px;line-height:1.6;color:#73746b;margin-top:6px}
+#hk-studio .c3 .c3-cta{display:flex;width:100%;justify-content:space-between;align-items:center;min-height:46px;margin-top:18px;background:#bf422b;padding:0 15px;color:#fff9f0;font-size:12px;font-weight:700}
+#hk-studio .c3 .c3-cta svg{width:19px;height:19px}
+#hk-studio .c3 .c3-other{display:grid;grid-template-columns:1fr 78px;gap:12px;align-items:center;width:100%;text-align:left;color:inherit;border-top:1px solid #c9c7b9;border-bottom:1px solid #c9c7b9;padding:15px 0;margin:15px 0 20px}
+#hk-studio .c3 .c3-other-copy{display:block}
+#hk-studio .c3 .c3-other-label{display:block;font-size:11px;letter-spacing:1px;color:#b23d28;margin-bottom:7px}
+#hk-studio .c3 .c3-other-title{display:block;font-size:13px;line-height:1.6;font-weight:700;letter-spacing:-.3px}
+#hk-studio .c3 .c3-other-meta{display:block;font-size:11px;color:#77786b;margin-top:6px}
+#hk-studio .c3 .c3-thumbnail{display:block;width:78px;height:73px}
+#hk-studio .c3 .hk-nav{margin-top:auto;min-height:66px;padding:11px 0 12px;background:#f5f1e7;border-top:0}
+#hk-studio .c3 .hk-nav button{color:#797a70;font-size:11px;display:flex;gap:5px;align-items:center;justify-content:center;flex-direction:column}
+#hk-studio .c3 .hk-nav button[aria-current="page"]{color:#ad3522;font-weight:800}
+#hk-studio .c3 .hk-nav svg{width:19px;height:19px;stroke-width:1.6}
+#hk-studio .c3 button:focus-visible{outline:2px solid #bf422b;outline-offset:3px}
+</style>
+<template id="concept-3">
+  <section class="hk-screen c3" aria-label="한끼 매거진 홈 시안">
+    <header class="hk-top c3-top">
+      <strong class="hk-brand">냉장고 한끼</strong>
+      <span class="c3-topnote">나의 작은 식탁</span>
+      <button type="button" class="hk-action c3-search" data-view="search" aria-label="레시피 검색"><i data-lucide="search" aria-hidden="true"></i></button>
+    </header>
+    <div class="c3-intro">
+      <p class="c3-kicker">냉장고에서 시작하는</p>
+      <h1>오늘, 한 끼의<br>여유.</h1>
+      <span class="c3-introfoot">매일의 집밥 기록</span>
+    </div>
+    <button type="button" class="hk-action c3-feature" data-view="detail" aria-label="냉장고 채소 비빔밥 레시피 보기">
+      <span class="hk-food food-1 c3-photo" role="img" aria-label="갖가지 채소와 달걀을 담은 비빔밥"><span class="c3-stamp">오늘의<br>한 그릇</span></span>
+      <span class="c3-caption"><span>한 그릇에 담은 냉장고</span><span>보유 재료 4개 활용</span></span>
+      <span class="c3-title">남은 채소가 근사해지는 순간</span>
+      <span class="c3-desc">아삭한 채소, 따뜻한 밥, 고소한 참기름 한 방울.<br>냉장고 속 재료로 차리는 나만의 비빔밥.</span>
+    </button>
+    <button type="button" class="hk-action c3-cta" data-view="recommend"><span>내 재료로 한 끼 찾기</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></button>
+    <button type="button" class="hk-action c3-other" data-view="detail" aria-label="두부 애호박 된장국 레시피 보기">
+      <span class="c3-other-copy"><span class="c3-other-label">함께 차려도 좋아요</span><span class="c3-other-title">속을 따뜻하게 채우는<br>두부 애호박 된장국</span><span class="c3-other-meta">두부 · 애호박 · 된장</span></span>
+      <span class="hk-food food-2 c3-thumbnail" role="img" aria-label="두부와 애호박이 들어간 된장국"></span>
+    </button>
+    <nav class="hk-nav" aria-label="주요 메뉴">
+      <button type="button" class="hk-action" data-view="home" aria-current="page"><i data-lucide="house" aria-hidden="true"></i><span>홈</span></button>
+      <button type="button" class="hk-action" data-view="recommend"><i data-lucide="sparkles" aria-hidden="true"></i><span>맞춤추천</span></button>
+      <button type="button" class="hk-action" data-view="brag"><i data-lucide="camera" aria-hidden="true"></i><span>자랑하기</span></button>
+      <button type="button" class="hk-action" data-view="my"><i data-lucide="user-round" aria-hidden="true"></i><span>마이</span></button>
+    </nav>
+  </section>
+</template>

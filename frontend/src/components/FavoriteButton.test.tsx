@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -70,7 +70,7 @@ describe('즐겨찾기', () => {
     const pending = new Promise<void>((resolve) => {
       releaseToggle = resolve
     })
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
       if ((init as RequestInit | undefined)?.method === 'POST') {
         await pending
         return json({ favorited: true })
@@ -81,8 +81,14 @@ describe('즐겨찾기', () => {
 
     await user.click(await screen.findByRole('button', { name: /즐겨찾기/ }))
     expect(screen.getByRole('button', { name: /즐겨찾기됨/ })).toBeInTheDocument()
+    const pendingButton = screen.getByRole('button', { name: /즐겨찾기됨/ })
+    expect(pendingButton).toBeDisabled()
+    expect(pendingButton).toHaveAttribute('aria-busy', 'true')
+    await user.click(pendingButton)
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
 
     releaseToggle()
+    await waitFor(() => expect(pendingButton).toBeEnabled())
   })
 
   it('담기에 실패하면 되돌리고 알린다', async () => {
@@ -103,13 +109,41 @@ describe('즐겨찾기', () => {
     )
   })
 
-  it('목록을 못 받으면 별을 아예 안 보여준다', async () => {
-    // 지금 상태를 모르는데 빈 별을 보여주면 틀린 정보가 된다.
+  it('조회 실패를 알리고 재시도하면 실제 저장 상태를 보여준다', async () => {
     signIn()
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json({ detail: '오류' }, 500))
-    const { container } = renderWithProviders(<FavoriteButton recipeId={67} />)
+    const user = userEvent.setup()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => json({ detail: '오류' }, 500))
+    renderWithProviders(<FavoriteButton recipeId={67} />)
+    expect(screen.getByRole('status')).toHaveTextContent('불러오는 중')
+    expect(await screen.findByRole('alert')).toHaveTextContent('불러오지 못했어요')
+    expect(screen.queryByRole('button', { pressed: false })).not.toBeInTheDocument()
+    fetchMock.mockImplementation(async () => json([favorite(67)]))
+    await user.click(screen.getByRole('button', { name: '즐겨찾기 다시 불러오기' }))
+    expect(await screen.findByRole('button', { name: /즐겨찾기됨/ })).toHaveAttribute('aria-pressed', 'true')
+  })
 
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(container.querySelector('button')).toBeNull()
+  it.each([false, true])('재시도 버튼을 유지하고 다른 입력 중 초점을 옮기지 않는다 (입력 이동: %s)', async (moveFocus) => {
+    signIn()
+    const user = userEvent.setup()
+    let release: (response: Response) => void = () => {}
+    const response = new Promise<Response>((resolve) => { release = resolve })
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(json({ detail: '오류' }, 500))
+      .mockImplementationOnce(() => response)
+    renderWithProviders(<><FavoriteButton recipeId={67} /><label>다른 입력<input /></label></>)
+
+    const button = await screen.findByRole('button', { name: '즐겨찾기 다시 불러오기' })
+    await user.click(button)
+    expect(button).toBeInTheDocument()
+    expect(button).toHaveFocus()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    await user.click(button)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    if (moveFocus) await user.type(screen.getByLabelText('다른 입력'), '작성 중')
+    await act(async () => { release(json([favorite(67)])) })
+
+    expect(await screen.findByRole('button', { name: /즐겨찾기됨/ })).toBe(button)
+    expect(moveFocus ? screen.getByLabelText('다른 입력') : button).toHaveFocus()
+    if (moveFocus) expect(screen.getByLabelText('다른 입력')).toHaveValue('작성 중')
   })
 })

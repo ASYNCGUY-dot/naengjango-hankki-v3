@@ -1,9 +1,11 @@
 import { apiFetch, type RecipeSummary } from './client'
-import type { components } from './schema'
+import type { components, operations } from './schema'
 
 export type { RecipeSummary }
 export type CategoryCount = components['schemas']['CategoryCount']
 export type RecipeTheme = components['schemas']['RecipeTheme']
+type ThemeQuery = NonNullable<operations['list_home_themes_recommendation_recipes_themes_get']['parameters']['query']>
+export type ThemeKey = NonNullable<ThemeQuery['theme']>
 export type NutritionFit = components['schemas']['NutritionFitResponse']
 export type Substitution = components['schemas']['SubstitutionResponse']
 
@@ -85,9 +87,34 @@ export const THEME_SIZE = 10
  * 줄마다 따로 부르면 무료 티어(0.1 CPU)에서 왕복이 네 배가 되고, 콜드스타트까지 겹치면
  * 첫 화면이 그만큼 늦어진다.
  */
-export async function listThemes(signal?: AbortSignal): Promise<RecipeTheme[]> {
+export async function listThemes(signal?: AbortSignal, month?: number): Promise<RecipeTheme[]> {
   return apiFetch<RecipeTheme[]>('/recommendation/recipes/themes', {
-    query: { limit: THEME_SIZE },
+    query: { limit: THEME_SIZE, month },
     signal,
   })
+}
+
+/** 테마 판정과 전체 개수는 서버가 계산하고, 화면은 같은 기준의 다음 묶음을 요청한다. */
+export async function getThemeRecipes(options: {
+  theme: ThemeKey
+  month: number
+  offset?: number
+  signal?: AbortSignal
+}): Promise<RecipeTheme> {
+  const { theme, month, offset = 0, signal } = options
+  const rows = await apiFetch<RecipeTheme[]>('/recommendation/recipes/themes', {
+    query: { theme, month, limit: PAGE_SIZE, offset },
+    signal,
+  })
+  const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : null
+  // 예전 서버는 모르는 query를 무시하고 홈 미리보기를 반환한다. 이를 전체 목록으로
+  // 오인하거나 다음 페이지에 같은 열 개를 반복해 붙이지 않도록 계약을 확인한다.
+  if (!row || row.key !== theme || typeof row.title !== 'string'
+    || !Number.isSafeInteger(row.total) || row.total < 0 || !Array.isArray(row.recipes)
+    || row.recipes.length !== Math.min(PAGE_SIZE, Math.max(0, row.total - offset))
+    || row.recipes.some((recipe) => !recipe || !Number.isSafeInteger(recipe.id) || typeof recipe.menu_name !== 'string')
+    || new Set(row.recipes.map((recipe) => recipe.id)).size !== row.recipes.length) {
+    throw new Error('전체 목록을 확인할 수 없어요. 잠시 후 다시 불러와주세요.')
+  }
+  return row
 }

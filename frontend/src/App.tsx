@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import AppLayout from './components/AppLayout'
+import RouteExperience from './components/화면이동'
 import AdminPage from './routes/AdminPage'
 import AuthPage from './routes/AuthPage'
 import BragPage from './routes/BragPage'
@@ -17,6 +18,7 @@ import { ForgotPasswordPage, ResetPasswordPage } from './routes/PasswordResetPag
 import { PrivacyPage, TermsPage } from './routes/PolicyPage'
 import RecipeDetailPage from './routes/RecipeDetailPage'
 import RecommendPage from './routes/RecommendPage'
+import ThemePage from './routes/테마목록'
 
 /**
  * V2는 화면이 전부 하나의 라우트(/demo)였고 탭 전환을 State로만 처리했다. 그래서 레시피
@@ -30,7 +32,7 @@ import RecommendPage from './routes/RecommendPage'
  */
 export default function App() {
   return (
-    <Routes>
+    <RouteExperience><Routes>
       {/* 로그인·회원가입은 하단 탭바가 없는 화면이라 AppLayout 밖에 둔다.
           "/"가 이미 로그인 화면이지만, 로그아웃 후 이동이나 안내 문구의 링크가
           가리킬 고정된 주소가 따로 있어야 한다. */}
@@ -46,6 +48,7 @@ export default function App() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
+        <Route path="/themes/:themeKey" element={<ThemePage />} />
         {/* 냉장고는 탭에서 빠지고 마이 안으로 들어갔다. 주소는 그대로 둔다 -
             추천 화면의 "냉장고 채우러 가기" 같은 링크가 이미 여기를 가리킨다. */}
         <Route path="/pantry" element={<PantryPage />} />
@@ -69,6 +72,6 @@ export default function App() {
       </Route>
       {/* 없는 주소는 홈으로. 지인 테스트에서 오타 링크를 받아도 빈 화면을 보지 않게 한다. */}
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    </Routes></RouteExperience>
   )
 }

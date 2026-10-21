@@ -151,6 +151,61 @@ def test_body_line_height_is_generous_enough_for_korean(light):
     assert float(light["--line-height-base"]) >= 1.55
 
 
+def _global_token_names(frontend: Path) -> set[str]:
+    """진입점이 불러온 CSS의 루트 선언과 documentElement에 설정한 값만 전역이다."""
+    entry = (frontend / "main.tsx").read_text(encoding="utf-8")
+    defined = set()
+    for relative in re.findall(r"""^\s*import\s+['"]([^'"]+\.css)['"]""", entry, re.M):
+        css_path = (frontend / relative).resolve()
+        css = re.sub(r"/\*.*?\*/", "", css_path.read_text(encoding="utf-8"), flags=re.S)
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+            # :root[data-theme=...]와 :root:not(...)도 루트에 값을 정의한다.
+            # 같은 전역 CSS 파일 안의 .card 등 지역 선언까지 허용하지 않는다.
+            if any(
+                re.fullmatch(r":root(?:\[[^\]]*\]|:[\w-]+\([^()]*\))*", part.strip())
+                for part in selector.split(",")
+            ):
+                defined.update(re.findall(r"(--[\w-]+)\s*:", body))
+
+    for source in [*frontend.rglob("*.ts"), *frontend.rglob("*.tsx")]:
+        if ".test." in source.name:
+            continue
+        code = source.read_text(encoding="utf-8")
+        code = re.sub(r"/\*.*?\*/|//[^\n]*", "", code, flags=re.S)
+        defined.update(
+            name
+            for _, name in re.findall(
+                r"""document\s*\.\s*documentElement\s*\.\s*style\s*\.\s*setProperty"""
+                r"""\(\s*(['"])(--[\w-]+)\1\s*,""",
+                code,
+            )
+        )
+    return defined
+
+
+def test_global_token_discovery_does_not_leak_component_variables(tmp_path):
+    (tmp_path / "main.tsx").write_text("import './theme.css'\n", encoding="utf-8")
+    (tmp_path / "theme.css").write_text(
+        ":root { --global: red; }\n"
+        ":root[data-theme='dark'] { --dark-global: black; }\n"
+        ".card { --card-only: blue; }\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "unused.css").write_text(":root { --not-imported: pink; }", encoding="utf-8")
+    (tmp_path / "Component.tsx").write_text(
+        "document.documentElement.style.setProperty('--root-runtime', '4px')\n"
+        "element.style.setProperty('--element-only', '2px')\n"
+        "// document.documentElement.style.setProperty('--comment-only', '1px')\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "Component.test.tsx").write_text(
+        "document.documentElement.style.setProperty('--test-only', '4px')",
+        encoding="utf-8",
+    )
+
+    assert _global_token_names(tmp_path) == {"--global", "--dark-global", "--root-runtime"}
+
+
 def test_css_uses_only_defined_tokens():
     """화면 CSS가 정의되지 않은 토큰을 쓰면 실패한다 (2026-09-30).
 
@@ -163,8 +218,7 @@ def test_css_uses_only_defined_tokens():
     무시하고, 다크 모드에서 읽히지 않을 수 있다.
     """
     frontend = TOKENS_CSS.parent.parent / "frontend" / "src"
-    defined = set(re.findall(r"(--[\w-]+)\s*:", TOKENS_CSS.read_text(encoding="utf-8")))
-    defined |= set(re.findall(r"(--[\w-]+)\s*:", (frontend / "index.css").read_text(encoding="utf-8")))
+    defined = _global_token_names(frontend)
 
     problems = []
     for css in sorted(frontend.rglob("*.css")):

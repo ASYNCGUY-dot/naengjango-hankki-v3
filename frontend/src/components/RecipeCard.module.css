@@ -1,21 +1,22 @@
 .card {
   display: flex;
   flex-direction: column;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  min-width: 0;
+  background: transparent;
+  border: none;
   text-decoration: none;
   color: inherit;
 }
 
 .card:hover {
-  border-color: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 .media {
   aspect-ratio: var(--recipe-card-aspect);
   background: var(--color-surface-sunken);
+  border-radius: var(--feed-radius);
+  overflow: hidden;
 }
 
 .media img {
@@ -38,13 +39,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3);
+  padding: var(--space-2) 0 0;
 }
 
 .title {
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-tight);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-base);
   /* 가장 긴 메뉴명이 25자다("브로콜리 컬리플라워 샐러드와 두유 요거트 소스").
      두 줄까지 보이고 넘치면 줄인다. */
   display: -webkit-box;
@@ -63,7 +64,7 @@
   margin-top: var(--space-1);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--color-accent-text);
+  color: var(--color-success-text);
 }
 
 /* 추천 화면에서 "재료 N개 활용"을 보여주는 자리.
@@ -74,7 +75,7 @@
   display: inline-flex;
   align-items: center;
   padding: 0.15em var(--space-2);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
 }
@@ -85,8 +86,8 @@
 }
 
 .weak {
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
 }
 
 /* 자격 미달(qualifies=false)인 추천. 겹치는 재료가 너무 적거나 메뉴명의 핵심 재료가
@@ -94,4 +95,10 @@
 .poor {
   background: var(--color-warning-fill);
   color: var(--color-text-on-fill);
+}
+
+@container (min-width: 40rem) {
+  .body { padding-top: var(--space-3); gap: var(--space-1); }
+  .title { font-size: var(--font-size-base); font-weight: var(--font-weight-bold); }
+  .meta, .note { font-size: var(--font-size-sm); }
 }
