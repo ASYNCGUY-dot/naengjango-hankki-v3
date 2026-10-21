@@ -39,13 +39,44 @@ describe('재료비 카드', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => vi.restoreAllMocks())
 
-  it('로그인하지 않으면 서버를 부르지 않고 안내만 한다', () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch')
+  it('로그인하지 않아도 공개 경로로 1인분 재료비를 보여 준다', async () => {
+    // 전에는 안내문만 보여서, 레시피 링크를 받은 사람은 KAMIS 재료비를 볼 수 없었다(2026-10-21).
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(body({ household_size: 1 })))
     renderWithProviders(<RecipeCostCard recipeId={67} />)
 
-    expect(screen.getByText(/로그인하면 KAMIS 농산물 시세로/)).toBeInTheDocument()
+    expect(await screen.findByText('3,240원')).toBeInTheDocument()
+    expect(screen.getByText(/1인분 기준 · 시세를 찾은 재료 3개/)).toBeInTheDocument()
+    const url = String(fetchMock.mock.calls[0][0])
+    expect(url).toContain('/recommendation/recipes/67/price/public')
+    expect(url).not.toContain('user_id')
+  })
+
+  it('로그인하지 않았으면 가구원 수 환산은 로그인해야 한다고 알린다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(body({ household_size: 1 })))
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    expect(await screen.findByText(/로그인하면 가구원 수에 맞춰 계산해드려요/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '로그인하기' })).toHaveAttribute('href', '/login')
-    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('로그인했으면 개인 경로를 부르고 가구원 수 안내는 없다', async () => {
+    signIn()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(body()))
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    await screen.findByText('3,240원')
+    const url = String(fetchMock.mock.calls[0][0])
+    expect(url).not.toContain('/public')
+    expect(url).toContain('user_id=116')
+    expect(screen.queryByText(/로그인하면 가구원 수에 맞춰/)).not.toBeInTheDocument()
+  })
+
+  it('로그인하지 않았을 때 KAMIS가 응답하지 않아도 다시 불러올 수 있다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ detail: 'KAMIS 응답 없음' }, 503))
+    renderWithProviders(<RecipeCostCard recipeId={67} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('KAMIS 시세를 잠시 못 불러왔어요.')
+    expect(screen.getByRole('button', { name: '다시 불러오기' })).toBeInTheDocument()
   })
 
   it('재료비를 10원 단위로, 몇 인분 기준인지와 함께 보여준다', async () => {

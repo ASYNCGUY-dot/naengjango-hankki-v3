@@ -969,6 +969,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recommendation/recipes/{recipe_id}/price/public": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recipe Price Public
+         * @description 로그인 없이 이 레시피의 1인분 재료비를 본다 (2026-10-21).
+         *
+         *     재료비가 로그인 뒤에만 있어서, 레시피 링크를 받은 사람(공모전 심사자 포함)은 이 서비스의
+         *     핵심인 KAMIS 재료비를 볼 수 없었다. 레시피 상세(/recommendation/recipes/{id})가 이미
+         *     로그인 없이 열려 있으니 그와 같은 범위로 연다.
+         *
+         *     개인화는 하지 않는다. 가구원 수는 프로필에 있어서 **항상 1인분**으로 계산한다. 공개
+         *     경로라 사용자 데이터는 읽지도 쓰지도 않는다. KAMIS 호출은 로그인 경로와 같은 캐시(10분)를
+         *     거쳐서, 이 경로가 많이 불려도 KAMIS 호출 수는 늘지 않는다.
+         */
+        get: operations["get_recipe_price_public_recommendation_recipes__recipe_id__price_public_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recommendation/recipes/{recipe_id}/shopping-links": {
         parameters: {
             query?: never;
@@ -4092,6 +4120,37 @@ export interface operations {
             header?: {
                 authorization?: string | null;
             };
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recipe_price_public_recommendation_recipes__recipe_id__price_public_get: {
+        parameters: {
+            query?: never;
+            header?: never;
             path: {
                 recipe_id: number;
             };

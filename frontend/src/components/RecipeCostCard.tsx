@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ApiError } from '../api/client'
-import { getRecipePrice, type RecipePrice } from '../api/price'
+import { getPublicRecipePrice, getRecipePrice, type RecipePrice } from '../api/price'
 import { useAuth } from '../auth/context'
 import styles from './RecipeCostCard.module.css'
 
@@ -70,10 +70,15 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
   const cardRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
-    if (userId === null) return
     const controller = new AbortController()
     setState({ kind: 'loading' })
-    getRecipePrice(recipeId, userId, controller.signal)
+    // 로그인하지 않았으면 공개 경로로 1인분 재료비를 받는다(2026-10-21). 전에는 안내문만 보여서,
+    // 레시피 링크를 받은 사람은 이 앱의 핵심인 KAMIS 재료비를 볼 수 없었다.
+    const request =
+      userId === null
+        ? getPublicRecipePrice(recipeId, controller.signal)
+        : getRecipePrice(recipeId, userId, controller.signal)
+    request
       .then((price) => setState({ kind: 'ready', price }))
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return
@@ -95,19 +100,6 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
       {children}
     </section>
   )
-
-  if (!isAuthenticated) {
-    return card(
-      <>
-        <p className={styles.guide}>
-          로그인하면 KAMIS 농산물 시세로 이 레시피 재료비를 계산해드려요.
-        </p>
-        <Link className={styles.action} to="/login">
-          로그인하기
-        </Link>
-      </>,
-    )
-  }
 
   if (state.kind === 'loading') {
     return card(
@@ -250,6 +242,16 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
         {/* "더 이전"이라고 쓰지 않는다. 가장 많은 날짜를 앞에 쓰는데 나머지가 더 최근일 수도 있다. */}
         {days.length > 1 && ' (일부 재료는 다른 날 시세)'}
       </p>
+
+      {/* 로그인하지 않은 사람은 공개 경로의 1인분 값을 본다. 가구원 수 환산은 프로필이 있어야 한다. */}
+      {!isAuthenticated && (
+        <>
+          <p className={styles.note}>1인분 기준이에요. 로그인하면 가구원 수에 맞춰 계산해드려요.</p>
+          <Link className={styles.action} to="/login">
+            로그인하기
+          </Link>
+        </>
+      )}
     </>,
   )
 }

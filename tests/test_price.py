@@ -54,6 +54,66 @@ def _signup_with_household_size_2(client, username: str) -> tuple[int, dict]:
     return user_id, headers
 
 
+# ---------- 로그인 없이 보는 1인분 재료비 (2026-10-21) ----------
+#
+# 레시피 링크를 받은 사람(공모전 심사자 포함)이 로그인 없이 KAMIS 재료비를 볼 수 있게 연다. 개인화는
+# 하지 않는다 - 가구원 수는 프로필에 있으므로 항상 1인분이다.
+
+def test_public_price_needs_no_login_and_is_one_serving(client, monkeypatch):
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: FAKE_KAMIS_ITEMS)
+
+    res = client.get(f"/recommendation/recipes/{RECIPE_ID}/price/public")
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["household_size"] == 1
+    # 시드 레시피는 2인분 기준(두부 200g, 양파 50g)이라 1인분은 두부 100g(200원) + 양파 25g(37.5원).
+    assert body["total_cost"] == 237.5
+    assert body["basis"]["market"] == "서울 소매가"
+
+
+def test_public_price_ignores_who_is_asking(client, monkeypatch):
+    """로그인한 사람이 불러도 프로필의 가구원 수를 읽지 않는다. 개인화는 로그인 경로의 일이다."""
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: FAKE_KAMIS_ITEMS)
+    _user_id, headers = _signup_with_household_size_2(client, "u_price_public_auth")
+
+    body = client.get(f"/recommendation/recipes/{RECIPE_ID}/price/public", headers=headers).json()
+
+    assert body["household_size"] == 1
+    assert body["total_cost"] == 237.5
+
+
+def test_public_price_for_a_missing_recipe_is_404(client, monkeypatch):
+    monkeypatch.setattr(price_agent, "get_all_prices", lambda: FAKE_KAMIS_ITEMS)
+    assert client.get("/recommendation/recipes/999999/price/public").status_code == 404
+
+
+def test_public_and_private_price_share_one_kamis_fetch(client, monkeypatch):
+    """공개 경로가 많이 불려도 KAMIS 호출 수가 늘지 않아야 한다."""
+    calls = {"n": 0}
+
+    def _fetch():
+        calls["n"] += 1
+        return FAKE_KAMIS_ITEMS
+
+    monkeypatch.setattr(price_agent, "get_all_prices", _fetch)
+    user_id, headers = _signup_with_household_size_2(client, "u_price_public_cache")
+
+    client.get(f"/recommendation/recipes/{RECIPE_ID}/price/public")
+    client.get(f"/recommendation/recipes/{RECIPE_ID}/price/public")
+    client.get(f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": user_id}, headers=headers)
+
+    assert calls["n"] == 1
+
+
+def test_public_price_is_503_when_kamis_is_down(client, monkeypatch):
+    def _raise():
+        raise requests.Timeout("KAMIS 응답 없음")
+
+    monkeypatch.setattr(price_agent, "get_all_prices", _raise)
+    assert client.get(f"/recommendation/recipes/{RECIPE_ID}/price/public").status_code == 503
+
+
 def test_price_without_token_returns_401(client):
     res = client.get(f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": 999999999})
     assert res.status_code == 401
