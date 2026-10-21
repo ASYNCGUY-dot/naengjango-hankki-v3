@@ -547,20 +547,21 @@ if res.status_code == 200:
         "KAMIS 재료비(서울 소매가)",
         basis.get("market") == "서울 소매가" and isinstance(price_body.get("household_size"), int),
         f"200, {elapsed:.1f}s, 약 {round(price_body.get('total_cost', 0))}원, "
-        f"재료 {len(price_body.get('included', []))}개, 등급 {price_body.get('tier')}, "
-        f"기준 {basis.get('price_days', [])[:1]}",
+        f"재료 {len(price_body.get('included', []))}개, "
+        f"기준 {basis.get('price_days', [])[:1]}, 이전 시세 {basis.get('stale')}, 일부 누락 {basis.get('partial')}",
     )
     # KAMIS는 kg 환산(Y)에서 가격만 1kg당으로 바꾸고 unit은 "100g"으로 둔다. 서버가 받는 순간
     # unit을 "1kg"으로 맞추는데, 이게 빠지면 100g 품목 재료비가 10배로 나온다(2026-10-01).
-    # 무게 단위가 "1kg" 말고 다른 값으로 보이면 그 정규화가 빠진 것이다.
+    # 무게 단위가 "1kg" 말고 다른 값으로 보이면 그 정규화가 빠진 것이다. 가격 등급과 함께 matched가
+    # 응답에서 빠져서(2026-10-20) 재료비에 들어간 included의 단위로 본다.
     odd_units = sorted({
-        m.get("unit") for m in price_body.get("matched", [])
+        m.get("unit") for m in price_body.get("included", [])
         if re.fullmatch(r"[\d.]+\s*(kg|g)", m.get("unit") or "") and m.get("unit") != "1kg"
     })
-    check("KAMIS 무게 단위가 가격과 같은 1kg", not odd_units, f"매칭 {len(price_body.get('matched', []))}개, 어긋난 단위 {odd_units}")
+    check("KAMIS 무게 단위가 가격과 같은 1kg", not odd_units, f"재료비 {len(price_body.get('included', []))}개, 어긋난 단위 {odd_units}")
     # 이 레시피에는 "주재료"·"장식" 구획 제목 행이 있다. 재료비가 그것을 재료로 세면 카드의
     # "시세를 못 찾은 재료"에 제목이 재료처럼 나온다(2026-10-08에 고침).
-    listed = [e.get("ingredient") for e in price_body.get("excluded", [])] + price_body.get("unmatched", [])
+    listed = [e.get("ingredient") for e in price_body.get("excluded", [])]
     titles = sorted({name for name in listed if name in ("주재료", "부재료", "장식", "양념", "양념장", "재료")})
     check("재료비가 구획 제목을 재료로 세지 않는다", not titles, f"빠진 재료 {len(listed)}개 중 제목 {titles}")
     # 시세 날짜는 "10/08"처럼 날짜만 온다. KAMIS 라벨의 "1일전" 같은 말은 조회한 날짜 기준이라

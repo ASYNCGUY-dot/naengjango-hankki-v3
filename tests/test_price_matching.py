@@ -523,17 +523,6 @@ def test_seasonings_are_left_out_of_the_price(name):
     assert price_agent.is_price_staple(name)
 
 
-def test_tier_ignores_seasonings_instead_of_counting_them_as_unmatched():
-    """조미료가 "매칭 안 됨"으로 쌓이면 매칭 비율이 깎여 멀쩡한 레시피가 "정보부족"이 된다.
-
-    라우터는 재료 전체를 넘긴다. 예전에는 "부르기 전에 걸렀다고 가정"했는데 아무도 안 거르고 있었다.
-    """
-    names = ["양파", "청양고추", "달걀", "소금", "간장", "설탕", "참기름", "후춧가루", "식용유"]
-    result = price_agent.estimate_recipe_price_tier(names, ITEMS)
-    assert result["tier"] != "정보부족"
-    assert "소금" not in result["unmatched"]
-
-
 # ---------- 단위 ----------
 
 def test_egg_and_milk_units_convert_as_estimates():
