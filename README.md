@@ -102,8 +102,8 @@ KAMIS에 그 부위 시세가 없는 재료(닭가슴살 등)에 다른 부위 �
 | 영역 | 스택 |
 |---|---|
 | 백엔드 | FastAPI, psycopg2, Supabase(Postgres) — 라우터 21개, 엔드포인트 60경로 |
-| 프론트 | Vite, React 19, TypeScript 6, React Router 7 — 화면 16개 |
-| 테스트 | pytest 773개, Vitest 267개 |
+| 프론트 | Vite, React 19, TypeScript 6, React Router 7 — 화면 17개 |
+| 테스트 | pytest 795개, Vitest 448개 |
 | 배포 | Render (정적 사이트 + 웹 서비스), 무료 티어 |
 | 접근성 | Lighthouse 100점 (모바일) |
 
@@ -158,11 +158,11 @@ docs/         작업 기록
 받는다. `.env`의 `POSTGRES_URL`은 **운영 DB**를 가리킨다 — 로컬에서 서버를 띄우거나 스크립트를
 돌리면 운영 데이터에 닿는다. 테스트는 sqlite(`tests/fixtures/seed.sql`)로 돌아 운영에 닿지 않는다.
 
-**지금 상태.** 배포본은 `main`과 같다. pytest 773개, Vitest 267개가 통과한다(2026-10-21). 배포 점검
+**지금 상태.** 배포본은 `main`과 같다. pytest 795개, Vitest 448개가 통과한다(2026-10-21). 배포 점검
 59항목은 운영에 실제로 데이터를 쓰므로 그때마다 확인을 받고 돌린다.
-최근 작업(9월 말~10월)은 [PROJECT_REPORT_V3.md](PROJECT_REPORT_V3.md) §4.4~§4.14에 날짜순으로
+최근 작업(9월 말~10월)은 [PROJECT_REPORT_V3.md](PROJECT_REPORT_V3.md) §4.4~§4.16에 날짜순으로
 있다 — 재료 구매 링크, KAMIS 재료비, 추천의 조미료 판정, 재료 이름 정리, 외부 API 키 보호, 다른 부위·상태 시세 제외,
-재료비 측정의 재현과 정확도 표본, 재료비 카드의 실패 안내, 이전 시세 24시간 상한.
+재료비 측정의 재현과 정확도 표본, 재료비 카드의 실패 안내, 이전 시세 24시간 상한, 집밥 피드 디자인 개편, 로그인 없이 재료비 보기.
 
 **`main`은 보호돼 있다(2026-10-18).** 협업자는 `main`에 직접 push할 수 없고, 브랜치를 올려 PR을 연다.
 PR은 CI 세 가지(`check`·`frontend-check`·`postgres-check`)가 통과하고, 최신 `main`을 반영하고, 작성자가
