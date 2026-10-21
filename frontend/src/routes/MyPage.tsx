@@ -26,25 +26,30 @@ export default function MyPage() {
 
   const [profile, setProfile] = useState<Profile | null>(null)
   // 저장해둔 레시피. 이게 없던 동안에는 마음에 든 것을 다시 찾을 방법이 검색뿐이었다.
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([])
+  const [favorites, setFavorites] = useState<FavoriteItem[] | null>(null)
+  const [favoritesError, setFavoritesError] = useState(false)
+  const [retry, setRetry] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     if (userId === null) return
+    setFavorites(null)
+    setFavoritesError(false)
+    setProfile(null)
+    setError(null)
     const controller = new AbortController()
     listFavorites(userId, controller.signal)
-      .then(setFavorites)
-      // 저장 목록을 못 받아도 계정 정보와 로그아웃은 보여야 한다.
-      .catch(() => {})
+      .then((items) => { if (!controller.signal.aborted) setFavorites(items) })
+      .catch(() => { if (!controller.signal.aborted) setFavoritesError(true) })
 
     getProfile(userId, controller.signal)
-      .then(setProfile)
+      .then((value) => { if (!controller.signal.aborted) setProfile(value) })
       .catch((caught: unknown) => {
         if (!controller.signal.aborted) setError(describe(caught))
       })
     return () => controller.abort()
-  }, [userId])
+  }, [userId, retry])
 
   async function handleLogout() {
     if (isLoggingOut) return
@@ -81,12 +86,11 @@ export default function MyPage() {
       <h1>마이</h1>
 
       {error !== null && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
+        <div className={styles.error}><p role="alert">{error}</p><button className={styles.button} type="button" onClick={() => setRetry((value) => value + 1)}>내 정보 다시 불러오기</button></div>
       )}
 
       <div className={styles.card}>
+        {profile === null && error === null && <p role="status">내 정보를 불러오는 중…</p>}
         <p className={styles.who}>{profile?.name ?? '내 계정'}</p>
         {profile?.username && <p className={styles.account}>@{profile.username}</p>}
       </div>
@@ -117,9 +121,13 @@ export default function MyPage() {
       <section className={styles.saved} aria-labelledby="saved-heading">
         <div className={styles.savedHead}>
           <h2 id="saved-heading">즐겨찾기</h2>
-          {favorites.length > 0 && <span>{favorites.length}개</span>}
+          {favorites !== null && favorites.length > 0 && <span>{favorites.length}개</span>}
         </div>
-        {favorites.length === 0 ? (
+        {favoritesError ? (
+          <div className={styles.error}><p role="alert">즐겨찾기 목록을 불러오지 못했어요.</p><button className={styles.button} type="button" onClick={() => setRetry((value) => value + 1)}>즐겨찾기 다시 불러오기</button></div>
+        ) : favorites === null ? (
+          <p className={styles.savedEmpty} role="status">즐겨찾기를 불러오는 중…</p>
+        ) : favorites.length === 0 ? (
           <p className={styles.savedEmpty}>
             레시피 화면에서 <strong>즐겨찾기</strong>를 누르면 여기에 모여요.
           </p>

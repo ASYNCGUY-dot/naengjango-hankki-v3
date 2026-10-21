@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router-dom'
 // 그대로 import한다 - 사본이 둘이면 한쪽이 낡는다. vite.config.ts의 server.fs.allow 참고.
 import '../../design/tokens.css'
 import './index.css'
+import './styles/집밥테마.css'
 import App from './App'
 import { AuthProvider } from './auth/AuthContext'
 

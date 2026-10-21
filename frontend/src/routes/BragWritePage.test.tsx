@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -74,20 +74,28 @@ describe('자랑 글쓰기', () => {
   })
 
   it('레시피를 고르기 전에는 올릴 수 없다', async () => {
+    const user = userEvent.setup()
     signIn()
     mockApi()
     renderWithProviders(<BragWritePage />, { route: '/brags/new' })
 
-    expect(screen.getByRole('button', { name: '올리기' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: '올리기' }))
+    const input = screen.getByLabelText('레시피 검색')
+    expect(input).toHaveFocus()
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAccessibleDescription(/검색 결과에서 선택해주세요/)
   })
 
   it('내용 없이 레시피만으로는 올릴 수 없다', async () => {
+    const user = userEvent.setup()
     signIn()
     mockApi()
     renderWithProviders(<BragWritePage />, { route: '/brags/new?recipe=67' })
 
     await screen.findByText('블랙빈 곤약국수')
-    expect(screen.getByRole('button', { name: '올리기' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: '올리기' }))
+    expect(screen.getByLabelText('어땠나요?')).toHaveFocus()
+    expect(screen.getByLabelText('어땠나요?')).toHaveAccessibleDescription(/집밥 이야기를 입력해주세요/)
   })
 
   it('사진 없이 글만 올릴 수 있다', async () => {
@@ -135,5 +143,57 @@ describe('자랑 글쓰기', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('사진을 올리지 못했어요')
     expect(screen.getByLabelText('어땠나요?')).toHaveValue('살아남아야 하는 글')
+    expect(screen.getByRole('alert')).toHaveFocus()
+  })
+
+  it('이전 검색 응답이 늦게 와도 최신 검색 결과를 유지한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    let resolveFirst!: (response: Response) => void
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const keyword = new URL(String(input)).searchParams.get('keyword')
+      if (keyword === '두부') return new Promise<Response>((resolve) => { resolveFirst = resolve })
+      return Promise.resolve(json([{ ...RECIPE, id: 9, menu_name: '양파볶음' }]))
+    })
+    renderWithProviders(<BragWritePage />, { route: '/brags/new' })
+    const input = screen.getByLabelText('레시피 검색')
+    await user.type(input, '두부')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    const firstSignal = fetchMock.mock.calls[0][1]?.signal
+    await user.clear(input)
+    await user.type(input, '양파')
+    expect(firstSignal?.aborted).toBe(true)
+    await screen.findByRole('button', { name: '양파볶음' })
+    await act(async () => resolveFirst(json([{ ...RECIPE, menu_name: '늦은 두부조림' }])))
+    expect(screen.queryByRole('button', { name: '늦은 두부조림' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '양파볶음' })).toBeInTheDocument()
+  })
+
+  it('검색 실패를 빈 결과와 구분하고 같은 검색어로 재시도한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(json({ detail: '검색 연결 실패' }, 500))
+      .mockResolvedValueOnce(json([]))
+    renderWithProviders(<BragWritePage />, { route: '/brags/new' })
+    await user.type(screen.getByLabelText('레시피 검색'), '두부')
+    expect(screen.getByRole('status')).toHaveTextContent('검색하는 중')
+    expect(await screen.findByRole('alert')).toHaveTextContent('검색 연결 실패')
+    expect(screen.queryByText(/검색 결과가 없어요/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '검색 다시 시도' }))
+    expect(await screen.findByText(/검색 결과가 없어요/)).toHaveAttribute('role', 'status')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('레시피를 고른 후 내용으로, 바꾸면 검색칸으로 초점을 옮긴다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockApi({ search: [{ ...RECIPE, menu_name: '두부조림' }] })
+    renderWithProviders(<BragWritePage />, { route: '/brags/new' })
+    await user.type(screen.getByLabelText('레시피 검색'), '두부')
+    await user.click(await screen.findByRole('button', { name: '두부조림' }))
+    expect(screen.getByLabelText('어땠나요?')).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: '바꾸기' }))
+    expect(screen.getByLabelText('레시피 검색')).toHaveFocus()
   })
 })

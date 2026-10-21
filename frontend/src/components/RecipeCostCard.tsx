@@ -90,8 +90,11 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
   }
 
   const card = (children: ReactNode) => (
-    <section ref={cardRef} tabIndex={-1} className={styles.card} aria-labelledby="cost-heading">
-      <h2 id="cost-heading">재료비는 얼마나 들까요</h2>
+    <section id="recipe-cost" ref={cardRef} tabIndex={-1} className={styles.card} aria-labelledby="cost-heading">
+      <div className={styles.heading}>
+        <h2 id="cost-heading">재료비는 얼마나 들까요</h2>
+        <span className={styles.provider}>KAMIS</span>
+      </div>
       {children}
     </section>
   )
@@ -167,6 +170,7 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
   const totalText = won(shownTotal > 0 ? shownTotal : price.total_cost)
   // 부위·품종을 안 적어 같은 품목의 가운데 시세로 계산한 재료(2026-10-17). 확정값처럼 보이면 안 된다.
   const hasRepresentative = included.some((item) => item.match_basis === 'representative')
+  const hasEstimatedWeight = included.some((item) => item.is_estimated)
   // 다른 부위·상태의 시세밖에 없어 뺀 재료. 이유가 안 보이면 계산을 못 한 것처럼 읽힌다.
   const substitutes = excluded.filter(
     (e) => e.reason_code === 'other_cut' || e.reason_code === 'other_state',
@@ -179,59 +183,25 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
       ) : (
         <>
           <p className={styles.total}>
-            약 <strong>{totalText}</strong>
+            <span>약 <strong>{totalText}</strong></span>
+            <span className={styles.partialLabel}>부분 합계</span>
           </p>
           <p className={styles.meta}>
             {price.household_size}인분 기준 · 시세를 찾은 재료 {included.length}개
           </p>
-
-          <ul className={styles.list}>
-            {sorted.map((item) => (
-              <li key={item.ingredient}>
-                <span className={styles.name}>
-                  {item.ingredient}
-                  {/* 개수 단위(계란 10구 등)를 평균 무게로 바꾼 값이다. */}
-                  {item.is_estimated && <span className={styles.estimate}>추정</span>}
-                  {item.match_basis === 'representative' && (
-                    <span className={styles.estimate} title="부위나 품종이 안 적혀 있어 같은 품목의 가운데 시세로 계산했어요">
-                      대표값
-                    </span>
-                  )}
-                </span>
-                <span className={styles.amount}>{Math.round(item.amount_g)}g</span>
-                <span className={styles.cost}>{won(item.cost)}</span>
-              </li>
-            ))}
-          </ul>
 
           {/* 안 밝히면 부분 합계가 전체 재료비처럼 읽힌다. */}
           <p className={styles.note}>
             시세를 찾은 재료만 더해서 실제 장보기 비용보다 적게 나와요. 소금·간장 같은 조미료는
             집에 있다고 보고 뺐어요.
           </p>
+          {hasEstimatedWeight && (
+            <p className={styles.note}>평균 무게로 환산한 추정값을 포함해요.</p>
+          )}
           {hasRepresentative && (
-            <p className={styles.note}>
-              대표값: 부위나 품종이 안 적힌 재료는 같은 품목의 가운데 시세로 계산했어요.
-            </p>
+            <p className={styles.note}>부위·품종의 대표 시세로 계산한 추정값을 포함해요.</p>
           )}
         </>
-      )}
-
-      {excluded.length > 0 && (
-        <p className={styles.excluded}>
-          빠진 재료 {excluded.length}개: {excluded.map((e) => e.ingredient).join(' · ')}
-          <br />
-          두부·고추장 같은 가공식품과 양이 안 적힌 재료는 KAMIS 시세로 계산할 수 없어요.
-        </p>
-      )}
-      {substitutes.length > 0 && (
-        <ul className={styles.substitutes}>
-          {substitutes.map((e) => (
-            <li key={e.ingredient}>
-              {e.ingredient}: {e.reason}
-            </li>
-          ))}
-        </ul>
       )}
 
       {/* 이번 조회가 실패해 서버가 받아 둔 시세(24시간 안)로 계산했을 때(2026-10-18). 날짜는 아래
@@ -245,11 +215,62 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
       )}
 
       <p className={styles.source}>
-        시세: {price.basis?.provider ?? 'KAMIS'} · {price.basis?.market ?? ''}
+        시세: {price.basis?.provider ?? 'KAMIS'}
+        {price.basis?.market && ` · ${price.basis.market}`}
         {days[0] && ` · ${days[0]} 기준`}
         {/* "더 이전"이라고 쓰지 않는다. 가장 많은 날짜를 앞에 쓰는데 나머지가 더 최근일 수도 있다. */}
         {days.length > 1 && ' (일부 재료는 다른 날 시세)'}
       </p>
+
+      {(included.length > 0 || excluded.length > 0) && (
+        <details className={styles.details}>
+          <summary>계산 내역 보기 <span>포함 {included.length}개 · 제외 {excluded.length}개</span></summary>
+          {included.length > 0 && (
+            <ul className={styles.list}>
+              {sorted.map((item) => (
+                <li key={item.ingredient}>
+                  <span className={styles.name}>
+                    {item.ingredient}
+                    {/* 개수 단위(계란 10구 등)를 평균 무게로 바꾼 값이다. */}
+                    {item.is_estimated && <span className={styles.estimate}>추정</span>}
+                    {item.match_basis === 'representative' && (
+                      <span className={styles.estimate} title="부위나 품종이 안 적혀 있어 같은 품목의 가운데 시세로 계산했어요">
+                        대표값
+                      </span>
+                    )}
+                  </span>
+                  <span className={styles.amount}>{Math.round(item.amount_g)}g</span>
+                  <span className={styles.cost}>{won(item.cost)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {hasEstimatedWeight && (
+            <p className={styles.note}>추정: 개수 단위로 적힌 재료를 평균 무게로 바꿔 계산했어요.</p>
+          )}
+          {hasRepresentative && (
+            <p className={styles.note}>
+              대표값: 부위나 품종이 안 적힌 재료는 같은 품목의 가운데 시세로 계산했어요.
+            </p>
+          )}
+          {excluded.length > 0 && (
+            <p className={styles.excluded}>
+              빠진 재료 {excluded.length}개: {excluded.map((e) => e.ingredient).join(' · ')}
+              <br />
+              두부·고추장 같은 가공식품과 양이 안 적힌 재료는 KAMIS 시세로 계산할 수 없어요.
+            </p>
+          )}
+          {substitutes.length > 0 && (
+            <ul className={styles.substitutes}>
+              {substitutes.map((e) => (
+                <li key={e.ingredient}>
+                  {e.ingredient}: {e.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
+      )}
     </>,
   )
 }

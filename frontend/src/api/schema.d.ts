@@ -847,13 +847,16 @@ export interface paths {
         };
         /**
          * List Home Themes
-         * @description 홈 화면에 줄 단위로 보여줄 테마들.
+         * @description 홈 미리보기 또는 선택한 테마의 레시피 목록.
          *
          *     홈이 가나다순 20개를 한 덩어리로 쏟아내 "어지럽다"는 피드백을 받아 만들었다
          *     (2026-08-18). 테마는 데이터가 지탱하는 것만 쓴다 - 요청에 있던 한식·중식·일식과
          *     난이도는 recipes에 컬럼이 없어 만들 수 없고, 난이도는 재료 개수로 대신한다.
          *
-         *     month는 테스트와 미리보기용이다. 안 주면 오늘 날짜를 쓴다.
+         *     theme을 생략하면 기존 홈 미리보기처럼 빈 테마를 제외해 돌려준다.
+         *     theme을 지정하면 해당 테마만 offset부터 조회하며, 목록 끝에도 전체 개수와 제목을
+         *     유지한다. month를 지정하면 다음 페이지에서도 같은 월의 제철 목록을 볼 수 있다.
+         *     month를 안 주면 오늘 날짜를 쓴다.
          */
         get: operations["list_home_themes_recommendation_recipes_themes_get"];
         put?: never;
@@ -3884,6 +3887,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 month?: number | null;
+                theme?: ("seasonal" | "simple" | "light" | "hearty") | null;
+                offset?: number;
             };
             header?: never;
             path?: never;

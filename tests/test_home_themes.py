@@ -8,6 +8,8 @@
 recipes에 그런 컬럼이 없다. 난이도는 재료 개수로 대신한다.
 """
 
+import pytest
+
 from src.agents import recommendation_agent
 
 
@@ -131,3 +133,112 @@ class TestThemeShape:
             )
         names = [r["menu_name"] for r in _themes(client)["light"]["recipes"]]
         assert names != sorted(names)
+
+
+class TestThemePagination:
+    @pytest.mark.parametrize("theme_key", ["seasonal", "simple", "light", "hearty"])
+    def test_all_pages_keep_the_same_total_without_duplicates_or_omissions(
+        self, client, db_conn, theme_key
+    ):
+        # 시드와 분리된 24개로 첫 20개, 마지막 4개, 목록 끝을 모두 확인한다.
+        # 이 변경은 테스트 트랜잭션 안에서만 살아 있고 종료 시 롤백된다.
+        db_conn.execute("UPDATE recipes SET status = 'pending'")
+        expected_ids = list(range(10000, 10024))
+        calorie = 500 if theme_key == "hearty" else 100
+        for recipe_id in [*expected_ids, 10024]:
+            db_conn.execute(
+                "INSERT INTO recipes (id, menu_name, category, calorie, status) "
+                "VALUES (?, ?, '반찬', ?, ?)",
+                (
+                    recipe_id,
+                    f"한라봉요리{recipe_id}",
+                    calorie,
+                    "pending" if recipe_id == 10024 else "approved",
+                ),
+            )
+            db_conn.execute(
+                "INSERT INTO recipe_ingredients (recipe_id, name, amount, unit) "
+                "VALUES (?, '한라봉', 100, 'g')",
+                (recipe_id,),
+            )
+
+        pages = []
+        for offset in (0, 20, 24):
+            result = _themes(
+                client, theme=theme_key, month=2, limit=20, offset=offset
+            )
+            assert list(result) == [theme_key]
+            pages.append(result[theme_key])
+
+        assert [len(page["recipes"]) for page in pages] == [20, 4, 0]
+        assert [page["total"] for page in pages] == [24, 24, 24]
+        assert len({page["title"] for page in pages}) == 1
+        assert len({page["subtitle"] for page in pages}) == 1
+        assert [
+            recipe["id"] for page in pages for recipe in page["recipes"]
+        ] == expected_ids
+        if theme_key == "seasonal":
+            assert pages[0]["title"] == "2월 제철"
+            assert pages[0]["subtitle"] == "한라봉이 제철이에요"
+
+    @pytest.mark.parametrize("theme_key", ["seasonal", "simple", "light", "hearty"])
+    def test_explicit_empty_theme_keeps_its_metadata(self, client, db_conn, theme_key):
+        db_conn.execute("UPDATE recipes SET status = 'pending'")
+
+        result = _themes(client, theme=theme_key, month=2)
+
+        assert list(result) == [theme_key]
+        assert result[theme_key]["total"] == 0
+        assert result[theme_key]["recipes"] == []
+        assert result[theme_key]["title"]
+        assert result[theme_key]["subtitle"]
+        # 홈 미리보기는 기존처럼 빈 테마를 감춘다.
+        assert _themes(client, month=2) == {}
+
+    def test_explicit_month_stays_fixed_when_today_changes(self, client, db_conn, monkeypatch):
+        from datetime import date
+
+        from api.routers import recommendation
+
+        class MarchDate(date):
+            @classmethod
+            def today(cls):
+                return cls(2026, 3, 1)
+
+        monkeypatch.setattr(recommendation, "date", MarchDate)
+        for recipe_id in (10000, 10001):
+            db_conn.execute(
+                "INSERT INTO recipes (id, menu_name, category, calorie, status) "
+                "VALUES (?, '한라봉요리', '반찬', 100, 'approved')",
+                (recipe_id,),
+            )
+            db_conn.execute(
+                "INSERT INTO recipe_ingredients (recipe_id, name, amount, unit) "
+                "VALUES (?, '한라봉', 100, 'g')",
+                (recipe_id,),
+            )
+
+        first = _themes(client, theme="seasonal", month=2, limit=1)["seasonal"]
+        second = _themes(
+            client, theme="seasonal", month=2, limit=1, offset=1
+        )["seasonal"]
+
+        assert first["title"] == second["title"] == "2월 제철"
+        assert first["total"] == second["total"] == 2
+        assert [first["recipes"][0]["id"], second["recipes"][0]["id"]] == [10000, 10001]
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"offset": -1},
+            {"theme": "unknown"},
+            {"theme": ""},
+            {"limit": 0},
+            {"limit": 21},
+            {"month": 0},
+            {"month": 13},
+        ],
+    )
+    def test_invalid_pagination_parameters_are_rejected(self, client, params):
+        response = client.get("/recommendation/recipes/themes", params=params)
+        assert response.status_code == 422

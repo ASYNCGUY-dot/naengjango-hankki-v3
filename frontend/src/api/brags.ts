@@ -1,4 +1,4 @@
-import { API_BASE, apiFetch, tokenStore } from './client'
+import { apiFetch, buildApiUrl, tokenStore } from './client'
 import type { components } from './schema'
 
 export type BragItem = components['schemas']['BragItem']
@@ -53,11 +53,10 @@ export async function uploadBragPhoto(userId: number, file: Blob): Promise<strin
   const form = new FormData()
   form.append('file', file, 'photo.jpg')
 
-  const url = new URL('/brags/photo', API_BASE)
-  url.searchParams.set('user_id', String(userId))
+  const url = buildApiUrl('/brags/photo', { user_id: userId })
 
   const token = tokenStore.get()
-  const res = await fetch(url.toString(), {
+  const res = await fetch(url, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,

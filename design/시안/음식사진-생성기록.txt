@@ -1,0 +1,25 @@
+냉장고 한끼 디자인 시안용 음식 사진
+
+생성 방식: imagegen 내장 도구. API/CLI는 사용하지 않음.
+사용 범위: 디자인 검토용 예시 사진. 실제 레시피 완성 사진이 아님.
+원본: 음식사진-원본.png
+웹 표시용 동일 이미지: 음식사진-미리보기.jpg (픽셀 크기와 구도는 그대로, JPEG 인코딩)
+
+생성 프롬프트:
+Use case: photorealistic-natural. Asset type: food photography image atlas for a Korean recipe app design concept. Create ONE square contact sheet containing EXACTLY FOUR equal square food photographs arranged as a precise seamless 2 by 2 grid, NO gutters, NO borders, NO text, NO labels, NO lettering. Each quadrant is an independent overhead editorial photograph with all food inside its quadrant. Top left: appetizing Korean bibimbap rice bowl topped with sunny side egg, spinach, orange carrot strips, shiitake mushrooms and zucchini, pale green ceramic bowl on light warm ivory linen. Top right: rustic Korean tofu and zucchini doenjang soup with visible white tofu cubes, sliced green zucchini, brown mushrooms and spring onion in an earthenware bowl on warm beige table. Bottom left: colorful fresh salad with cherry tomatoes, leafy greens, cucumber and nicely seared tofu cubes on an ivory ceramic plate, soft pink linen backdrop. Bottom right: rich kimchi fried rice with fried egg and scallions in matte dark charcoal bowl on dark forest green tabletop. Premium Korean home cooking magazine photography, natural soft daylight, realistic food texture, tastefully styled, bowls nearly filling each quadrant but never clipped. Avoid extra bowls, utensils crossing quadrants, hands, words and watermarks. Four precise equal quadrants suitable for CSS background-position crops. Requested size 1024x1024.
+
+검토 범위:
+현재 배포 프론트의 비로그인 첫 화면 직접 확인.
+로그인 이후 화면은 frontend/src/routes 및 components의 소스, design/tokens.css,
+기존 design/mockups/index.html을 확인하고 시안으로 재구성.
+하단의 홈 / 맞춤추천 / 자랑하기 / 마이 구조는 유지.
+재료 요약, 유통기한, 맞춤추천을 홈에 드러내는 구성은 이번 디자인 제안.
+앱 로직과 운영 데이터는 수정하지 않음.
+
+디자인 선택 메모:
+01 싱그러운 주방: 기존 초록 브랜드를 이어가며 핵심 추천 진입을 강화. 우선 추천.
+02 따뜻한 식탁: 편안한 집밥 정서를 강조하는 크림·테라코타.
+03 한끼 매거진: 세리프와 편집 구도. 콘텐츠 탐색과 브랜드 인상에 중점.
+04 알뜰 냉장고: 재료와 유통기한 중심. 사용 목적을 가장 선명하게 보여줌.
+05 나이트 키친: 다크그린·라임, 큰 음식 사진과 높은 대비.
+06 즐거운 한끼: 선명한 색, 굵은 선, 재료칩 중심의 경쾌한 디자인.

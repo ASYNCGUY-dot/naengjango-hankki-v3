@@ -1,12 +1,14 @@
 .appbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
-  padding: var(--space-4) var(--space-4) var(--space-3);
+  padding: var(--space-5) var(--feed-page-padding) var(--space-4);
 }
 
-.appbar h1 {
-  font-size: var(--font-size-xl);
+.appbar h1,
+.guest h1 {
+  font-size: var(--feed-title-size);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
 }
@@ -17,9 +19,14 @@
 }
 
 .addForm {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-2);
-  padding: 0 var(--space-4) var(--space-3);
+  padding: 0 var(--feed-page-padding) var(--space-3);
+}
+
+.addForm input:first-of-type {
+  grid-column: 1 / -1;
 }
 
 /* 입력창 아래 붙는 추천 목록. 목록을 띄우려고 화면이 밀리지 않게 흐름 안에 둔다 -
@@ -27,7 +34,7 @@
 .suggestions {
   list-style: none;
   padding: 0;
-  margin: 0 var(--space-4) var(--space-3);
+  margin: 0 var(--feed-page-padding) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
@@ -40,50 +47,57 @@
 
 .suggestions button {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
   width: 100%;
   min-height: var(--touch-target-min);
-  padding: 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border: none;
   background: none;
   color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
   text-align: left;
   cursor: pointer;
 }
 
-.suggestions button:hover {
+.suggestions button:hover,
+.suggestions button[aria-selected="true"] {
   background: var(--color-surface-sunken);
 }
 
 /* 어느 표기를 골라야 추천이 잘 되는지 알려주는 값이다. */
 .suggestionCount {
   flex-shrink: 0;
-  font-size: var(--font-size-xs);
+  font-size: 0.875rem;
   color: var(--color-text-secondary);
 }
 
 .addForm input {
-  flex: 1;
+  min-width: 0;
+  width: 100%;
   min-height: var(--touch-target-min);
-  padding: 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: 1rem;
 }
 
 .addButton {
   flex: 0 0 auto;
   min-width: var(--touch-target-min);
   min-height: var(--touch-target-min);
-  padding: 0 var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-accent);
   color: var(--color-text-on-accent);
   font-weight: var(--font-weight-bold);
+  font-size: 1rem;
   cursor: pointer;
 }
 
@@ -92,8 +106,9 @@
 }
 
 .addButton:disabled {
-  opacity: 0.7;
-  cursor: progress;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
 }
 
 .list {
@@ -101,30 +116,42 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: 0 var(--space-4);
+  padding: 0 var(--feed-page-padding);
 }
 
 .item {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
 
+.itemHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
 .name {
   flex: 1;
+  min-width: 0;
+  font-size: 1rem;
   font-weight: var(--font-weight-medium);
   /* 재료명이 길어도 줄바꿈되게 둔다. 잘라내면 무슨 재료인지 알 수 없다. */
   word-break: break-word;
 }
 
 .expiry {
-  font-size: var(--font-size-xs);
+  font-size: 0.875rem;
   color: var(--color-text-secondary);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /* 임박·지남은 텍스트용 토큰을 쓴다. 채움색(--color-warning-fill)은 흰 배경에서
@@ -140,12 +167,14 @@
 }
 
 .dateInput {
+  min-width: 0;
+  width: 100%;
   min-height: var(--touch-target-min);
-  padding: 0 var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
   background: var(--color-surface-base);
-  font-size: var(--font-size-xs);
+  font-size: 1rem;
 }
 
 .iconButton {
@@ -168,10 +197,9 @@
 }
 
 .sheet {
-  position: sticky;
-  bottom: 0;
+  position: static;
   margin-top: var(--space-6);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--feed-page-padding);
   background: var(--color-surface-raised);
   border-top: 1px solid var(--color-border);
 }
@@ -193,7 +221,7 @@
   min-height: var(--touch-target-min);
   padding: var(--space-3);
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-accent);
   color: var(--color-text-on-accent);
   font-weight: var(--font-weight-bold);
@@ -207,22 +235,23 @@
 }
 
 .cta:disabled {
-  opacity: 0.6;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
   cursor: not-allowed;
 }
 
 .notice,
 .error,
 .empty {
-  margin: var(--space-3) var(--space-4);
+  margin: var(--space-3) var(--feed-page-padding);
   padding: var(--space-3);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
 }
 
 .notice {
-  background: var(--color-surface-accent);
-  color: var(--color-accent-text);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
@@ -231,7 +260,7 @@
 .notice small {
   display: block;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: 0.875rem;
   margin-top: var(--space-1);
 }
 
@@ -239,6 +268,19 @@
   background: var(--color-surface-sunken);
   color: var(--color-danger-text);
   font-weight: var(--font-weight-medium);
+}
+
+.retry {
+  display: block;
+  min-height: var(--touch-target-min);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-base);
+  color: var(--color-danger-text);
+  font: inherit;
+  cursor: pointer;
 }
 
 .empty {
@@ -263,4 +305,64 @@
   height: 3.5rem;
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
+}
+.page,
+.guest {
+  width: 100%;
+  max-width: 48rem;
+  margin-inline: auto;
+  min-width: 0;
+  line-height: 1.6;
+}
+
+.page {
+  container: pantry / inline-size;
+}
+
+@media (min-width: 48rem) {
+  .appbar {
+    padding-top: var(--space-8);
+    padding-bottom: var(--space-5);
+  }
+
+  .summary,
+  .notice,
+  .error,
+  .empty,
+  .guest p {
+    font-size: 1rem;
+  }
+}
+
+@media (min-width: 64rem) {
+  .addForm {
+    grid-template-columns: minmax(0, 1fr) minmax(11rem, 0.7fr) auto;
+    padding-bottom: var(--space-4);
+  }
+
+  .addForm input:first-of-type,
+  .itemHeading {
+    grid-column: auto;
+  }
+
+  .item {
+    grid-template-columns: minmax(0, 1fr) minmax(11rem, 0.7fr) auto;
+  }
+}
+
+/* 320px 기본 글자에서는 날짜와 버튼을 나란히 두고, 글자 확대 때문에
+   실제 가용 폭이 좁아진 경우에만 한 열로 접는다. */
+@container pantry (max-width: 18rem) {
+  .addForm,
+  .item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .itemHeading {
+    grid-column: auto;
+  }
+
+  .iconButton {
+    justify-self: end;
+  }
 }

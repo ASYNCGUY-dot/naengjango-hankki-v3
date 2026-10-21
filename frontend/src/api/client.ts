@@ -64,8 +64,10 @@ type RequestOptions = {
   signal?: AbortSignal
 }
 
-function buildUrl(path: string, query?: RequestOptions['query']): string {
-  const url = new URL(path, API_BASE)
+/** 절대 API 주소와 개발 프록시의 상대 경로를 모두 지원하며 경로 접두사를 유지한다. */
+export function buildApiUrl(path: string, query?: RequestOptions['query']): string {
+  const base = new URL(`${API_BASE.replace(/\/+$/, '')}/`, window.location.origin)
+  const url = new URL(path.replace(/^\/+/, ''), base)
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value === undefined) continue
@@ -100,7 +102,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
   let response: Response
   try {
-    response = await fetch(buildUrl(path, query), {
+    response = await fetch(buildApiUrl(path, query), {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),

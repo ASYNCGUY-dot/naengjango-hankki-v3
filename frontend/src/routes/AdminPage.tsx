@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
@@ -11,11 +11,27 @@ import {
 } from '../api/admin'
 import { ApiError, TimeoutError } from '../api/client'
 import { useAuth } from '../auth/context'
+import { useDeferredFocus } from '../hooks/비동기초점'
+import adminStyles from './관리자목록.module.css'
 import styles from './MyRecipesPage.module.css'
 
 function describe(caught: unknown): string {
   if (caught instanceof ApiError || caught instanceof TimeoutError) return caught.message
   return '요청에 실패했어요. 잠시 후 다시 시도해주세요.'
+}
+
+type QueueState =
+  | { kind: 'loading' }
+  | { kind: 'failed'; message: string }
+  | { kind: 'forbidden' }
+  | { kind: 'ready'; recipes: PendingRecipe[]; ingredients: PendingIngredient[] }
+
+type Decision = 'approve' | 'reject'
+type PendingDecision = { key: string; name: string; decision: Decision }
+type FocusPlan = {
+  canRestore: () => boolean
+  trigger: HTMLButtonElement
+  candidates: string[]
 }
 
 /**
@@ -31,32 +47,35 @@ function describe(caught: unknown): string {
 export default function AdminPage() {
   const { userId, isAuthenticated } = useAuth()
 
-  const [recipes, setRecipes] = useState<PendingRecipe[]>([])
-  const [ingredients, setIngredients] = useState<PendingIngredient[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isForbidden, setIsForbidden] = useState(false)
+  const [queue, setQueue] = useState<QueueState>({ kind: 'loading' })
+  const [pending, setPending] = useState<PendingDecision | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const pendingRef = useRef(false)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const retryRef = useRef<HTMLButtonElement>(null)
+  const approveButtons = useRef(new Map<string, HTMLButtonElement>())
+  const focusPlan = useRef<FocusPlan | null>(null)
+  const { capture } = useDeferredFocus()
 
   const load = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal?: AbortSignal, preserveList = false) => {
       if (userId === null) return
+      if (!preserveList) setQueue({ kind: 'loading' })
       try {
         const [pendingRecipes, pendingIngredients] = await Promise.all([
           listPendingRecipes(userId, signal),
           listPendingIngredients(userId, signal),
         ])
-        setRecipes(pendingRecipes)
-        setIngredients(pendingIngredients)
-        setIsForbidden(false)
+        if (signal?.aborted) return
+        setQueue({ kind: 'ready', recipes: pendingRecipes, ingredients: pendingIngredients })
       } catch (caught) {
         if (signal?.aborted) return
         if (caught instanceof ApiError && caught.status === 403) {
-          setIsForbidden(true)
+          setQueue({ kind: 'forbidden' })
         } else {
-          setError(describe(caught))
+          setQueue({ kind: 'failed', message: describe(caught) })
         }
-      } finally {
-        if (!signal?.aborted) setIsLoading(false)
       }
     },
     [userId],
@@ -67,6 +86,30 @@ export default function AdminPage() {
     void load(controller.signal)
     return () => controller.abort()
   }, [load])
+
+  useLayoutEffect(() => {
+    if (pending !== null || queue.kind === 'loading') return
+    const plan = focusPlan.current
+    focusPlan.current = null
+    if (!plan?.canRestore()) return
+
+    if (queue.kind === 'failed') {
+      retryRef.current?.focus()
+      return
+    }
+    if (plan.trigger.isConnected && !plan.trigger.disabled) {
+      plan.trigger.focus()
+      return
+    }
+    for (const key of plan.candidates) {
+      const button = approveButtons.current.get(key)
+      if (button) {
+        button.focus()
+        return
+      }
+    }
+    headingRef.current?.focus()
+  }, [pending, queue])
 
   if (!isAuthenticated) {
     return (
@@ -80,10 +123,10 @@ export default function AdminPage() {
     )
   }
 
-  if (isForbidden) {
+  if (queue.kind === 'forbidden') {
     return (
       <div className={styles.guest}>
-        <h1>승인 대기 목록</h1>
+        <h1 ref={headingRef} tabIndex={-1}>승인 대기 목록</h1>
         <p>관리자 권한이 필요한 화면이에요.</p>
         <Link className={styles.primary} to="/my">
           마이로 돌아가기
@@ -92,25 +135,68 @@ export default function AdminPage() {
     )
   }
 
-  async function decide(kind: 'recipe' | 'ingredient', id: number, decision: 'approve' | 'reject') {
-    if (userId === null) return
+  async function decide(
+    kind: 'recipe' | 'ingredient',
+    id: number,
+    name: string,
+    decision: Decision,
+    trigger: HTMLButtonElement,
+  ) {
+    if (userId === null || pendingRef.current || queue.kind !== 'ready') return
+    if (decision === 'reject' && !window.confirm(`"${name}"을 거절하고 삭제할까요?`)) return
+    pendingRef.current = true
+    const key = `${kind}-${id}`
+    const keys = [
+      ...queue.recipes.map((recipe) => `recipe-${recipe.id}`),
+      ...queue.ingredients.map((item) => `ingredient-${item.id}`),
+    ]
+    const index = keys.indexOf(key)
+    focusPlan.current = {
+      canRestore: capture(),
+      trigger,
+      candidates: [...keys.slice(index + 1), ...keys.slice(0, index).reverse()],
+    }
+    setPending({ key, name, decision })
     setError(null)
+    setNotice(null)
     try {
       if (kind === 'recipe') {
         await reviewRecipe(id, userId, decision)
       } else {
         await reviewIngredient(id, userId, decision)
       }
-      // 목록을 다시 받는다. 눈앞에서만 지우면 서버에서 실패했을 때 처리한 줄 알게 된다.
-      await load()
+      // 처리는 성공했지만 목록 갱신은 실패할 수 있으므로 두 결과를 구분한다.
+      setNotice(`${name} ${decision === 'approve' ? '승인' : '거절'}을 완료했어요.`)
+      await load(undefined, true)
     } catch (caught) {
       setError(describe(caught))
+    } finally {
+      pendingRef.current = false
+      setPending(null)
     }
   }
 
+  function retry(trigger: HTMLButtonElement) {
+    focusPlan.current = { canRestore: capture(), trigger, candidates: [] }
+    setError(null)
+    void load()
+  }
+
+  const status = pending !== null
+    ? `${pending.name} ${pending.decision === 'approve' ? '승인' : '거절'} 처리 중…`
+    : queue.kind === 'loading'
+      ? '승인 대기 목록을 불러오는 중…'
+      : notice ?? (queue.kind === 'ready'
+        ? `대기 목록을 확인했어요. 레시피 ${queue.recipes.length}건, 재료 ${queue.ingredients.length}건이에요.`
+        : null)
+
   return (
     <div className={styles.page}>
-      <h1>승인 대기 목록</h1>
+      <h1 ref={headingRef} tabIndex={-1}>승인 대기 목록</h1>
+
+      <div role="status">
+        {status && <p className={styles.notice}>{status}</p>}
+      </div>
 
       {error !== null && (
         <p className={styles.error} role="alert">
@@ -118,17 +204,26 @@ export default function AdminPage() {
         </p>
       )}
 
-      {isLoading ? (
-        <p className={styles.empty}>불러오는 중…</p>
-      ) : (
+      {queue.kind === 'failed' && (
+        <div>
+          <p className={styles.error} role="alert">
+            승인 대기 목록을 불러오지 못했어요. {queue.message}
+          </p>
+          <button ref={retryRef} className={styles.ghost} type="button" onClick={(event) => retry(event.currentTarget)}>
+            대기 목록 다시 불러오기
+          </button>
+        </div>
+      )}
+
+      {queue.kind === 'ready' && (
         <>
-          <h2 className={styles.subhead}>레시피 {recipes.length}건</h2>
-          {recipes.length === 0 ? (
+          <h2 className={styles.subhead}>레시피 {queue.recipes.length}건</h2>
+          {queue.recipes.length === 0 ? (
             <p className={styles.empty}>승인을 기다리는 레시피가 없어요.</p>
           ) : (
             <ul className={styles.list}>
-              {recipes.map((recipe) => (
-                <li key={recipe.id}>
+              {queue.recipes.map((recipe) => (
+                <li key={recipe.id} aria-busy={pending?.key === `recipe-${recipe.id}`}>
                   <div className={styles.itemHead}>
                     {/* 승인 전에 내용을 봐야 판단할 수 있다. 상세는 관리자에게도 열려 있다. */}
                     <Link className={styles.itemName} to={`/recipe/${recipe.id}`}>
@@ -140,11 +235,18 @@ export default function AdminPage() {
                     {recipe.calorie !== null && ` · ${Math.round(recipe.calorie)} kcal`} ·{' '}
                     {recipe.username}
                   </p>
-                  <div className={styles.itemActions}>
+                  <div className={`${styles.itemActions} ${adminStyles.actions}`}>
                     <button
+                      ref={(button) => {
+                        const key = `recipe-${recipe.id}`
+                        if (button) approveButtons.current.set(key, button)
+                        else approveButtons.current.delete(key)
+                      }}
                       className={styles.ghost}
                       type="button"
-                      onClick={() => void decide('recipe', recipe.id, 'approve')}
+                      aria-label={`${recipe.menu_name} 승인`}
+                      disabled={pending !== null}
+                      onClick={(event) => void decide('recipe', recipe.id, recipe.menu_name, 'approve', event.currentTarget)}
                     >
                       승인
                     </button>
@@ -152,11 +254,9 @@ export default function AdminPage() {
                     <button
                       className={styles.danger}
                       type="button"
-                      onClick={() => {
-                        if (window.confirm(`"${recipe.menu_name}"을 거절하고 삭제할까요?`)) {
-                          void decide('recipe', recipe.id, 'reject')
-                        }
-                      }}
+                      aria-label={`${recipe.menu_name} 거절`}
+                      disabled={pending !== null}
+                      onClick={(event) => void decide('recipe', recipe.id, recipe.menu_name, 'reject', event.currentTarget)}
                     >
                       거절
                     </button>
@@ -166,13 +266,13 @@ export default function AdminPage() {
             </ul>
           )}
 
-          <h2 className={styles.subhead}>재료 {ingredients.length}건</h2>
-          {ingredients.length === 0 ? (
+          <h2 className={styles.subhead}>재료 {queue.ingredients.length}건</h2>
+          {queue.ingredients.length === 0 ? (
             <p className={styles.empty}>승인을 기다리는 재료가 없어요.</p>
           ) : (
             <ul className={styles.list}>
-              {ingredients.map((item) => (
-                <li key={item.id}>
+              {queue.ingredients.map((item) => (
+                <li key={item.id} aria-busy={pending?.key === `ingredient-${item.id}`}>
                   <div className={styles.itemHead}>
                     <span className={styles.itemName}>{item.ingredient_name}</span>
                   </div>
@@ -180,22 +280,27 @@ export default function AdminPage() {
                     {item.calorie === null ? '열량 미입력' : `${item.calorie} kcal / 100g`} ·{' '}
                     {item.username}
                   </p>
-                  <div className={styles.itemActions}>
+                  <div className={`${styles.itemActions} ${adminStyles.actions}`}>
                     <button
+                      ref={(button) => {
+                        const key = `ingredient-${item.id}`
+                        if (button) approveButtons.current.set(key, button)
+                        else approveButtons.current.delete(key)
+                      }}
                       className={styles.ghost}
                       type="button"
-                      onClick={() => void decide('ingredient', item.id, 'approve')}
+                      aria-label={`${item.ingredient_name} 승인`}
+                      disabled={pending !== null}
+                      onClick={(event) => void decide('ingredient', item.id, item.ingredient_name, 'approve', event.currentTarget)}
                     >
                       승인
                     </button>
                     <button
                       className={styles.danger}
                       type="button"
-                      onClick={() => {
-                        if (window.confirm(`"${item.ingredient_name}"을 거절하고 삭제할까요?`)) {
-                          void decide('ingredient', item.id, 'reject')
-                        }
-                      }}
+                      aria-label={`${item.ingredient_name} 거절`}
+                      disabled={pending !== null}
+                      onClick={(event) => void decide('ingredient', item.id, item.ingredient_name, 'reject', event.currentTarget)}
                     >
                       거절
                     </button>

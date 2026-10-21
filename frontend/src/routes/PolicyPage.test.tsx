@@ -14,8 +14,8 @@ describe('약관·개인정보 문서', () => {
     // (2026-08-18) - 체크박스는 라벨뿐이고 링크도 문서도 없었다.
     renderWithProviders(<App />, { route: '/signup' })
 
-    const links = screen.getAllByRole('link', { name: '보기' })
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/terms', '/privacy'])
+    expect(screen.getByRole('link', { name: '이용약관 보기 (새 창)' })).toHaveAttribute('href', '/terms')
+    expect(screen.getByRole('link', { name: '개인정보 처리방침 보기 (새 창)' })).toHaveAttribute('href', '/privacy')
   })
 
   it('문서 링크를 눌러도 동의가 켜지지 않는다', async () => {
@@ -24,9 +24,11 @@ describe('약관·개인정보 문서', () => {
     const user = userEvent.setup()
     renderWithProviders(<App />, { route: '/signup' })
 
-    await user.click(screen.getAllByRole('link', { name: '보기' })[0])
+    await user.click(screen.getByRole('link', { name: '이용약관 보기 (새 창)' }))
+    await user.click(screen.getByRole('link', { name: '개인정보 처리방침 보기 (새 창)' }))
 
     expect(screen.getByLabelText('(필수) 이용약관에 동의합니다')).not.toBeChecked()
+    expect(screen.getByLabelText('(필수) 개인정보 수집·이용에 동의합니다')).not.toBeChecked()
   })
 
   it('개인정보 안내가 알레르기와 병력을 빠뜨리지 않는다', () => {

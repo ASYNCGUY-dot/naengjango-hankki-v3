@@ -1,0 +1,78 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;650;700;750;800;900&family=Noto+Serif+KR:wght@400;500;600;700;800&display=swap">
+<style>
+#hk-studio{--studio-ink:light-dark(#272b28,#f0f2ed);--studio-muted:light-dark(#6c746c,#b0b8af);--studio-line:light-dark(#dce1d8,#424a40);--studio-bg:light-dark(#f0f3ed,#262d25);font-family:'Noto Sans KR','Malgun Gothic',sans-serif;color:var(--studio-ink);width:100%;text-align:left}
+#hk-studio *{box-sizing:border-box}
+#hk-studio button,#hk-studio input{font:inherit}
+#hk-studio button{cursor:var(--cursor-interaction,pointer)}
+#hk-studio button:focus-visible,#hk-studio input:focus-visible{outline:3px solid #a8b9ff;outline-offset:3px}
+#hk-studio button[hidden],#hk-studio [hidden]{display:none!important}
+#hk-studio .studio-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0 20px;border-bottom:1px solid var(--studio-line);margin-bottom:20px}
+#hk-studio .studio-head .studio-wordmark{font-size:18px;font-weight:750;letter-spacing:-.8px}
+#hk-studio .studio-head .studio-label{font-size:11px;letter-spacing:1px;color:var(--studio-muted);font-weight:500}
+#hk-studio .studio-switch{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:22px}
+#hk-studio .studio-switch button{border:1px solid var(--studio-line);background:transparent;color:var(--studio-muted);padding:8px 11px;border-radius:8px;font-size:12px;min-height:38px;font-weight:500}
+#hk-studio .studio-switch button[aria-pressed=true]{background:var(--studio-ink);border-color:var(--studio-ink);color:light-dark(#fff,#242b22)}
+#hk-studio .studio-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px 24px;align-items:start}
+#hk-studio .studio-item{margin:0;min-width:0}
+#hk-studio .studio-caption{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;gap:12px}
+#hk-studio .studio-caption h2{font-size:16px;font-weight:750;letter-spacing:-.6px;margin:0}
+#hk-studio .studio-caption .number{font-size:12px;color:var(--studio-muted);font-weight:500;margin-right:7px}
+#hk-studio .studio-caption p{font-size:11px;color:var(--studio-muted);margin:5px 0 0;line-height:1.6}
+#hk-studio .swatches{display:flex;gap:4px;flex-shrink:0}
+#hk-studio .swatches span{display:block;width:11px;height:11px;border-radius:50%;border:1px solid #7773}
+#hk-studio .screen-mount{border-radius:22px;border:1px solid var(--studio-line);overflow:hidden;box-shadow:0 6px 24px #15201009}
+#hk-studio .hk-screen{min-height:780px;position:relative;display:flex;flex-direction:column;overflow:hidden;font-size:14px;line-height:1.5;color-scheme:light}
+#hk-studio .hk-screen h1,#hk-studio .hk-screen h2,#hk-studio .hk-screen h3,#hk-studio .hk-screen p{max-width:100%}
+#hk-studio .hk-screen button{font-family:inherit}
+#hk-studio .hk-screen i,#hk-studio .hk-screen svg{width:20px;height:20px;stroke-width:1.65;flex-shrink:0;display:inline-block;vertical-align:middle}
+#hk-studio .hk-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#hk-studio .hk-brand{font-size:16px;display:flex;align-items:center;gap:7px}
+#hk-studio .hk-action{border:0;background:transparent;color:inherit;padding:0;display:inline-flex;align-items:center;justify-content:center}
+#hk-studio .hk-icon{min-width:32px;min-height:32px}
+#hk-studio .hk-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:13px 6px 14px;margin-top:auto;min-height:72px;gap:2px}
+#hk-studio .hk-nav button{background:transparent;border:0;color:inherit;display:flex;align-items:center;flex-direction:column;gap:6px;font-size:11px;line-height:1.2;min-height:44px;padding:2px 0}
+#hk-studio .hk-food{background-image:var(--food-atlas);background-size:200% auto;background-repeat:no-repeat;background-color:#dbd8c7}
+#hk-studio .food-1{background-position:left top}
+#hk-studio .food-2{background-position:right top}
+#hk-studio .food-3{background-position:left bottom}
+#hk-studio .food-4{background-position:right bottom}
+#hk-studio .studio-foot{font-size:11px;color:var(--studio-muted);margin-top:24px;line-height:1.7;border-top:1px solid var(--studio-line);padding-top:13px}
+#hk-studio[data-focus]:not([data-focus=all]) .studio-grid{grid-template-columns:minmax(0,1fr);max-width:420px;margin:0 auto}
+#hk-studio[data-focus]:not([data-focus=all]) .hk-screen{min-height:820px}
+#hk-studio .prototype{position:absolute;inset:0;background:var(--paper,#fafaf6);color:var(--ink,#25352a);z-index:5;display:flex;flex-direction:column;padding:24px 20px 0;overflow:auto}
+#hk-studio .prototype header{display:flex;align-items:center;gap:13px;margin-bottom:25px}
+#hk-studio .prototype header h2{font-size:18px;margin:0;font-weight:750;letter-spacing:-.6px}
+#hk-studio .prototype .back{border:0;background:var(--soft,#ecf0e7);color:inherit;border-radius:50%;width:36px;height:36px;display:grid;place-items:center}
+#hk-studio .prototype .subtext{font-size:12px;line-height:1.8;opacity:.72;margin:0 0 18px}
+#hk-studio .prototype .proto-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+#hk-studio .prototype .proto-chips button{border:1px solid currentColor;background:transparent;color:inherit;border-radius:20px;padding:7px 11px;font-size:12px}
+#hk-studio .prototype .proto-chips button[aria-pressed=true]{background:var(--accent,#296846);color:var(--on-accent,#fff);border-color:var(--accent,#296846)}
+#hk-studio .prototype .proto-primary{background:var(--accent,#296846);color:var(--on-accent,#fff);padding:13px 14px;border-radius:10px;border:0;font-weight:650;font-size:13px;min-height:44px}
+#hk-studio .prototype .proto-picture{aspect-ratio:1/1;border-radius:16px;margin-bottom:15px}
+#hk-studio .prototype .proto-recipe{border:0;background:transparent;color:inherit;text-align:left;margin:16px 0 20px;padding:0;width:100%}
+#hk-studio .prototype .proto-recipe .hk-food{height:180px;border-radius:12px;margin-bottom:11px}
+#hk-studio .prototype .proto-recipe strong{display:block;font-size:18px;letter-spacing:-.7px;margin:6px 0}
+#hk-studio .prototype .proto-recipe small{font-size:12px;opacity:.75}
+#hk-studio .prototype .proto-badge{font-size:11px;padding:5px 8px;border-radius:5px;display:inline-block;background:var(--soft,#e8efdf)}
+#hk-studio .prototype .proto-list{display:grid;gap:0;margin:5px 0 22px;list-style:none;padding:0}
+#hk-studio .prototype .proto-list li,#hk-studio .prototype .proto-list button{padding:15px 0;border:0;border-bottom:1px solid #8884;display:flex;justify-content:space-between;align-items:center;background:transparent;color:inherit;font-size:13px;width:100%;gap:12px}
+#hk-studio .prototype .proto-list span{font-size:11px;opacity:.7}
+#hk-studio .prototype .proto-list strong{font-weight:650}
+#hk-studio .prototype .proto-search{border:1px solid #8888;background:var(--paper,#fafaf6);color:inherit;border-radius:9px;padding:12px;width:100%;font-size:16px}
+#hk-studio .prototype .proto-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}
+#hk-studio .prototype .proto-grid .hk-food{aspect-ratio:1;border-radius:12px}
+#hk-studio .prototype .proto-heading{font-size:23px;line-height:1.5;letter-spacing:-.8px;margin:0 0 16px}
+#hk-studio .prototype .proto-note{margin-top:auto;font-size:11px;opacity:.7;padding:14px 0}
+#hk-studio .c5{--paper:#15251f;--ink:#eff4e8;--accent:#c8e993;--soft:#293a31;--on-accent:#1c2a20}
+#hk-studio .c6{--paper:#fff9e9;--ink:#292c28;--accent:#e85c45;--soft:#fff0b7}
+#hk-studio .c3{--paper:#f8f5ef;--ink:#252822;--accent:#b4432e;--soft:#ebe6dc}
+#hk-studio .c4{--paper:#f5f8fd;--ink:#20374d;--accent:#275fc6;--soft:#e6eef9}
+@media(max-width:620px){#hk-studio .studio-grid{grid-template-columns:minmax(0,1fr);gap:30px;max-width:420px;margin:auto}#hk-studio .studio-switch{gap:6px}#hk-studio .studio-switch button{font-size:11px;padding:8px 10px}#hk-studio .studio-head .studio-label{max-width:95px;text-align:right;line-height:1.6}#hk-studio .hk-screen{min-height:780px}}
+@media(prefers-reduced-motion:no-preference){#hk-studio button{transition:filter .15s,transform .15s}#hk-studio button:hover{filter:brightness(.96)}#hk-studio button:active{transform:translateY(1px)}}
+</style>
+<div id="hk-studio" data-focus="all" aria-label="냉장고 한끼 디자인 시안 비교">
+ <div class="studio-head"><div class="studio-wordmark">냉장고 한끼</div><div class="studio-label">여섯 가지 디자인 방향</div></div>
+ <div class="studio-switch" role="group" aria-label="시안 보기"><button type="button" data-focus="all" aria-pressed="true">전체 비교</button><button type="button" data-focus="1" aria-pressed="false">01 싱그러운</button><button type="button" data-focus="2" aria-pressed="false">02 따뜻한</button><button type="button" data-focus="3" aria-pressed="false">03 매거진</button><button type="button" data-focus="4" aria-pressed="false">04 알뜰</button><button type="button" data-focus="5" aria-pressed="false">05 나이트</button><button type="button" data-focus="6" aria-pressed="false">06 즐거운</button></div>
+ <div class="studio-grid"></div>
+ <div class="studio-foot">로그인 후 홈 화면 기준 · 메뉴·재료·수치는 시안용 예시 · 음식 사진은 AI 생성 이미지</div>
+</div>
