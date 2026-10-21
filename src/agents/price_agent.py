@@ -1,9 +1,11 @@
 """
-Price Agent [선택] - 가격대별 메뉴 등급 + 재료비 총액 추정
+Price Agent [선택] - 재료비 총액 추정
 - KAMIS(농산물유통정보) API로 식량작물·채소류·특용작물·과일류·축산물·수산물 6개 부류의
-  **서울 소매가격**을 가져와서, 레시피 재료가 각 부류 안에서 상대적으로 비싼 편인지 싼 편인지를 비교한다
-  (estimate_recipe_price_tier). 이건 절대 금액을 합산하지 않고 "중앙값 대비 몇 배인지"로만 등급을 매긴다.
-- 추가로 estimate_recipe_total_cost()는 "이 레시피를 만드는 데 대략 얼마 드는지"를 원 단위로 추정한다.
+  **서울 소매가격**을 가져온다.
+- 가격 등급(가성비·기본·프리미엄, estimate_recipe_price_tier)은 2026-10-20에 지웠다. 재료의 kg당 가격이
+  부류 중앙값보다 비싼지만 보고 쓰는 양은 보지 않아 실제 재료비와 거의 무관했고, 화면은 10월 9일부터
+  그리지 않았다(PROJECT_REPORT_V3.md §4.5).
+- estimate_recipe_total_cost()는 "이 레시피를 만드는 데 대략 얼마 드는지"를 원 단위로 추정한다.
   재료마다 KAMIS 단위가 제각각이라(kg/g/개/단 등), g 단위로 정확히 환산되는 재료만 계산에 포함하고,
   "개"처럼 개수 단위인 재료는 AVG_PIECE_WEIGHT_G(품목별 평균 중량표)로 추정 환산한다. 매칭이 안 되거나
   단위 환산이 안 되는 재료는 계산에서 빠지므로, 결과는 "포함된 재료만의 부분 합계"다.
@@ -13,7 +15,6 @@ Price Agent [선택] - 가격대별 메뉴 등급 + 재료비 총액 추정
 
 import os
 import re
-import statistics
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
@@ -426,14 +427,6 @@ class PartialPricesError(Exception):
         self.missing = missing
 
 
-def _category_medians(all_items: list[dict]) -> dict:
-    """부류별 가격 중앙값 (같은 부류 안에서만 비교해야 단위 문제가 덜하다)."""
-    by_cat = {}
-    for i in all_items:
-        by_cat.setdefault(i["category_code"], []).append(i["price"])
-    return {code: statistics.median(prices) for code, prices in by_cat.items() if prices}
-
-
 def match_ingredient_price(ingredient_name: str, all_items: list[dict]) -> dict | None:
     """
     재료명으로 KAMIS 품목을 찾는다.
@@ -594,64 +587,14 @@ def _prefer_domestic(matches: list[dict]) -> dict:
     return by_price[(len(by_price) - 1) // 2]
 
 
-def estimate_recipe_price_tier(ingredient_names: list[str], all_items: list[dict]) -> dict:
-    """
-    레시피 재료들을 KAMIS 가격과 매칭해서, 같은 부류 내 중앙값 대비 상대적으로
-    비싼 재료가 많은지 싼 재료가 많은지로 등급을 매긴다.
-
-    조미료는 여기서 거른다. 원래는 "부르기 전에 걸러졌다고 가정"했는데 라우터가 거르지 않고
-    재료 전체를 넘기고 있어서, 소금·간장 같은 것이 "매칭 안 됨"으로 쌓여 매칭 비율을 깎고
-    멀쩡한 레시피를 "정보부족"으로 만들었다.
-    """
-    ingredient_names = [n for n in ingredient_names if not is_price_staple(n)]
-    medians = _category_medians(all_items)
-
-    matched = []
-    unmatched = []
-    for name in ingredient_names:
-        m = match_ingredient_price(name, all_items)
-        if m is None:
-            unmatched.append(name)
-            continue
-        median = medians.get(m["category_code"])
-        ratio = (m["price"] / median) if median else None
-        matched.append({**m, "ingredient": name, "ratio": ratio})
-
-    # 매칭된 재료가 너무 적으면 등급을 매길 근거가 부족하다고 본다.
-    # 원래는 2개만 매칭돼도 등급을 매겼는데, 매칭 2개 중 1개만 비싼 재료여도
-    # "비싼 재료 비율 50%"가 되어 40% 기준을 넘겨버려서, 총 재료비가 몇십 원인 반찬이
-    # "프리미엄"으로 표시되는 문제가 실사용에서 발견됐다(#68). 표본 2~3개로는 비율이
-    # 재료 하나 차이로 크게 흔들려서 등급 자체가 신뢰하기 어려우므로, 최소 3개로 올렸다.
-    total_names = len(ingredient_names) or 1
-    if len(matched) < 3 or (len(matched) / total_names) < 0.3:
-        return {"tier": "정보부족", "matched": matched, "unmatched": unmatched}
-
-    ratios = [m["ratio"] for m in matched if m["ratio"] is not None]
-    expensive = sum(1 for r in ratios if r >= 1.3)
-    cheap = sum(1 for r in ratios if r <= 0.7)
-    total = len(ratios) or 1
-
-    if expensive / total >= 0.4:
-        tier = "프리미엄"
-    elif cheap / total >= 0.6:
-        tier = "가성비"
-    else:
-        tier = "기본"
-
-    return {"tier": tier, "matched": matched, "unmatched": unmatched}
-
-
 if __name__ == "__main__":
     print("KAMIS 부류별 소매 가격 조회 중...")
     all_items = get_all_prices()
     print(f"총 {len(all_items)}개 품목 가격 확인\n")
 
-    test_ingredients = ["배추", "두부", "돼지고기", "새우", "콩나물", "계란", "애호박", "단호박", "마늘"]
-    result = estimate_recipe_price_tier(test_ingredients, all_items)
-    print(f"테스트 재료: {test_ingredients}")
-    print(f"등급: {result['tier']}")
-    for m in result["matched"]:
-        ratio_txt = f"{m['ratio']:.2f}배" if m["ratio"] else "비교불가"
-        print(f"  - {m['ingredient']} -> {m['item_name']}({m['unit']}): {m['price']:,.0f}원, 부류 중앙값 대비 {ratio_txt}")
-    if result["unmatched"]:
-        print(f"  매칭 안 된 재료: {result['unmatched']}")
+    for name in ["배추", "두부", "돼지고기", "새우", "콩나물", "계란", "애호박", "단호박", "마늘"]:
+        m = match_ingredient_price(name, all_items)
+        if m is None:
+            print(f"  - {name}: 매칭 안 됨")
+        else:
+            print(f"  - {name} -> {m['item_name']}({m.get('kind_name')}, {m['unit']}): {m['price']:,.0f}원 [{m['match_basis']}]")

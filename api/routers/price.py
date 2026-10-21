@@ -1,7 +1,8 @@
 """
 V1의 price_agent.py 로직을 HTTP 엔드포인트로 감싸는 얇은 래퍼.
-KAMIS 서울 소매가격(2026-09-29까지는 도매)을 가져와 레시피의 가격 등급(estimate_recipe_price_tier)과
-재료비 추정(estimate_recipe_total_cost)을 그대로 노출한다.
+KAMIS 서울 소매가격(2026-09-29까지는 도매)을 가져와 레시피의 재료비 추정(estimate_recipe_total_cost)을
+그대로 노출한다. 가격 등급(tier·matched·unmatched)은 2026-10-20에 응답에서 뺐다 - 화면이 10월 9일부터
+그리지 않았고, 실제 재료비와 거의 무관한 값이었다(PROJECT_REPORT_V3.md §4.5).
 
 2026-07-18 3단 비교 카드 UI 검증 중 발견: KAMIS 공공 API가 가끔 부류 하나에 대해
 정상 dict 대신 list를 내려줘서(추정: 순간적인 요청 제한/오류 응답), price_agent.py의
@@ -42,14 +43,6 @@ router = APIRouter(prefix="/recommendation/recipes", tags=["price"])
 # 7일까지만 거슬러 올라간다(price_agent.MAX_LOOKBACK_DAYS).
 KAMIS_MAX_STALE_SECONDS = 24 * 60 * 60
 _prices_cache = TTLCache(ttl_seconds=600, max_stale_seconds=KAMIS_MAX_STALE_SECONDS)
-
-
-class MatchedIngredient(BaseModel):
-    ingredient: str
-    item_name: str
-    unit: str
-    price: float
-    ratio: float | None
 
 
 class IncludedCost(BaseModel):
@@ -95,9 +88,6 @@ class PriceBasis(BaseModel):
 
 
 class PriceResponse(BaseModel):
-    tier: str
-    matched: list[MatchedIngredient]
-    unmatched: list[str]
     total_cost: float
     included: list[IncludedCost]
     excluded: list[ExcludedCost]
@@ -138,7 +128,6 @@ def get_recipe_price(
         raise HTTPException(status_code=404, detail="이 레시피에는 재료 수량 정보가 없습니다.")
 
     scaled_items = portion_agent.scale_ingredients(items, base_servings, household_size)
-    ingredient_names = [item["name"] for item in items]
 
     unavailable = HTTPException(
         status_code=503,
@@ -156,7 +145,6 @@ def get_recipe_price(
         all_items, stale, partial = error.items, False, True
     except (requests.RequestException, AttributeError, ValueError, TypeError):
         raise unavailable
-    tier_result = price_agent.estimate_recipe_price_tier(ingredient_names, all_items)
     cost_result = price_agent.estimate_recipe_total_cost(scaled_items, all_items)
 
     days = Counter(i["price_day"] for i in cost_result["included"] if i.get("price_day"))
@@ -169,9 +157,6 @@ def get_recipe_price(
     )
 
     return PriceResponse(
-        tier=tier_result["tier"],
-        matched=tier_result["matched"],
-        unmatched=tier_result["unmatched"],
         total_cost=cost_result["total_cost"],
         included=cost_result["included"],
         excluded=cost_result["excluded"],

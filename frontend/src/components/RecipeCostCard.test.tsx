@@ -19,9 +19,6 @@ function signIn(userId = 116) {
 
 function body(overrides: Record<string, unknown> = {}) {
   return {
-    tier: '가성비',
-    matched: [],
-    unmatched: [],
     total_cost: 3244.6,
     included: [
       { ingredient: '양파', matched_name: '양파', matched_kind: '양파', unit: '1kg', unit_price: 2500, match_basis: 'exact', amount_g: 200, cost: 500, is_estimated: false, price_day: '09/30' },
@@ -198,11 +195,11 @@ describe('재료비 카드', () => {
   })
 
   it.each(['가성비', '기본', '프리미엄', '정보부족'])(
-    '서버가 등급(%s)을 보내도 배지와 설명을 그리지 않고 금액만 보여준다',
+    '예전 서버처럼 등급(%s)이 와도 배지와 설명을 그리지 않고 금액만 보여준다',
     async (tier) => {
       // 등급은 실제 재료비와 거의 무관했다(2026-10-07 측정: 1인분 재료비 중앙값이 가성비
       // 774원·기본 816원·프리미엄 843원, 47원짜리 배물김치가 프리미엄). 금액 옆에 붙으면
-      // 금액과 어긋나는 말을 하게 되므로 내렸다.
+      // 금액과 어긋나는 말을 하게 되므로 내렸다. 서버도 2026-10-20부터 보내지 않는다.
       signIn()
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(body({ tier })))
       renderWithProviders(<RecipeCostCard recipeId={67} />)

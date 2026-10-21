@@ -84,10 +84,8 @@ def test_price_happy_path_returns_cost_breakdown(client, monkeypatch):
     res = client.get(f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": user_id}, headers=headers)
     assert res.status_code == 200
     body = res.json()
-    # 재료가 2개뿐이라 estimate_recipe_price_tier()의 "최소 3개 매칭" 기준에 못 미쳐
-    # tier는 "정보부족"이 정상이다 - 이 테스트는 tier 산정 로직이 아니라 라우터가 응답을
-    # 제대로 조립하는지(모든 필드가 채워지는지)를 확인한다.
-    assert body["tier"] == "정보부족"
+    # 가격 등급은 응답에서 뺐다(2026-10-20). 화면이 쓰지 않는 값이 남아 있으면 다시 그려질 수 있다.
+    assert not {"tier", "matched", "unmatched"} & body.keys()
     # 두부 200g(400원) + 양파 50g(75원). 2026-09-29 전에는 여기가 400원이었다 -
     # recommendation_agent.is_staple()이 부분 문자열로 판정해서 "양파"가 "파"(조미료)로
     # 빠졌고, 이 테스트가 그 버그를 정상 동작으로 고정하고 있었다. 가격 계산은 이제
@@ -304,7 +302,7 @@ def test_section_titles_are_not_listed_as_unpriced_ingredients(client, db_conn, 
     body = client.get(
         f"/recommendation/recipes/{RECIPE_ID}/price", params={"user_id": user_id}, headers=headers,
     ).json()
-    listed = [e["ingredient"] for e in body["excluded"]] + body["unmatched"]
+    listed = [e["ingredient"] for e in body["excluded"]]
     assert "주재료" not in listed
     assert not any("기준" in name for name in listed)
     assert body["total_cost"] == 475.0

@@ -651,46 +651,6 @@
         "title": "LoginResponse",
         "type": "object"
       },
-      "MatchedIngredient": {
-        "properties": {
-          "ingredient": {
-            "title": "Ingredient",
-            "type": "string"
-          },
-          "item_name": {
-            "title": "Item Name",
-            "type": "string"
-          },
-          "price": {
-            "title": "Price",
-            "type": "number"
-          },
-          "ratio": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ratio"
-          },
-          "unit": {
-            "title": "Unit",
-            "type": "string"
-          }
-        },
-        "required": [
-          "ingredient",
-          "item_name",
-          "unit",
-          "price",
-          "ratio"
-        ],
-        "title": "MatchedIngredient",
-        "type": "object"
-      },
       "MissingIngredient": {
         "properties": {
           "ingredient": {
@@ -1492,33 +1452,12 @@
             "title": "Included",
             "type": "array"
           },
-          "matched": {
-            "items": {
-              "$ref": "#/components/schemas/MatchedIngredient"
-            },
-            "title": "Matched",
-            "type": "array"
-          },
-          "tier": {
-            "title": "Tier",
-            "type": "string"
-          },
           "total_cost": {
             "title": "Total Cost",
             "type": "number"
-          },
-          "unmatched": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Unmatched",
-            "type": "array"
           }
         },
         "required": [
-          "tier",
-          "matched",
-          "unmatched",
           "total_cost",
           "included",
           "excluded",

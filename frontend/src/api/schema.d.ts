@@ -1381,19 +1381,6 @@ export interface components {
             /** User Id */
             user_id: number;
         };
-        /** MatchedIngredient */
-        MatchedIngredient: {
-            /** Ingredient */
-            ingredient: string;
-            /** Item Name */
-            item_name: string;
-            /** Price */
-            price: number;
-            /** Ratio */
-            ratio: number | null;
-            /** Unit */
-            unit: string;
-        };
         /** MissingIngredient */
         MissingIngredient: {
             /** Ingredient */
@@ -1645,14 +1632,8 @@ export interface components {
             household_size: number;
             /** Included */
             included: components["schemas"]["IncludedCost"][];
-            /** Matched */
-            matched: components["schemas"]["MatchedIngredient"][];
-            /** Tier */
-            tier: string;
             /** Total Cost */
             total_cost: number;
-            /** Unmatched */
-            unmatched: string[];
         };
         /** ProfileGetResponse */
         ProfileGetResponse: {
