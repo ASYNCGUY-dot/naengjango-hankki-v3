@@ -14,6 +14,16 @@ from tagging_agent import clean_ingredient_name
 
 DB_PATH = "data/app.db"
 
+# 추천에서 반복되는 이름 계산만 기억한다. 공유 모듈의 함수와 사용자별 결과·DB 조회는
+# 캐시하지 않는다. 분류 캐시는 내부 display_name()의 중복 계산도 함께 줄인다.
+_clean_ingredient_name = lru_cache(maxsize=8192)(clean_ingredient_name)
+
+
+@lru_cache(maxsize=8192)
+def _classify_ingredient_name(name: str) -> str:
+    return portion_agent.classify_ingredient_row(name, None)
+
+
 # 자주 쓰는 재료 동의어 매핑 (완벽할 필요 없음, 자주 쓰는 것만 - 지침 8번 원칙)
 SYNONYM_MAP = {
     "계란": "달걀",
@@ -90,6 +100,7 @@ PROTEIN_INGREDIENTS: set[str] = PORK_GROUP | BEEF_GROUP | TUNA_GROUP | {
 }
 
 
+@lru_cache(maxsize=8192)
 def _is_protein(name: str) -> bool:
     """이 재료명이 육류/생선(단백질 재료)로 볼 수 있는지 (부분일치)."""
     return any(p in name for p in PROTEIN_INGREDIENTS)
@@ -632,7 +643,7 @@ def _get_weighted_recipe_ingredients_from_rows(rows: list[tuple]) -> list[tuple[
     """
     weights: dict[str, float] = {}
     for raw_name, amount, unit in rows:
-        name = clean_ingredient_name(raw_name or "")
+        name = _clean_ingredient_name(raw_name or "")
         if not _is_valid_ingredient_name(name) or is_staple(name):
             continue
         name_norm = normalize_ingredient(name)
@@ -846,7 +857,7 @@ def score_by_ingredients(cur, candidates: list[dict], user_ingredients: list[str
         recipe_tag_values = [
             tag_value
             for tag_value in ingredient_tags_by_recipe.get(c["id"], [])
-            if portion_agent.classify_ingredient_row(tag_value, None) == "ingredient"
+            if _classify_ingredient_name(tag_value) == "ingredient"
         ]
 
         recipe_ingredients_norm = [
