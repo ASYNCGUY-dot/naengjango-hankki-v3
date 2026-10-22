@@ -572,6 +572,22 @@ if res.status_code == 200:
 else:
     check("KAMIS 재료비(서울 소매가)", res.status_code == 503, f"{res.status_code} (503이면 KAMIS 일시 무응답)")
 
+# 공개 체험은 로그인 재료비와 별도 경로다. 인증 없이 1인분 응답이 오는지 확인한다.
+# 503은 기능 확인 완료로 세지 않는다. 시세를 받은 상태에서 다시 점검해야 한다.
+public_price = requests.get(
+    f"{API}/recommendation/recipes/{RECIPE_ID}/price/public", timeout=120,
+)
+public_body = public_price.json() if public_price.status_code == 200 else {}
+check(
+    "로그인 없이 1인분 재료비를 본다",
+    public_price.status_code == 200
+    and public_body.get("household_size") == 1
+    and (public_body.get("basis") or {}).get("market") == "서울 소매가"
+    and isinstance(public_body.get("included"), list)
+    and isinstance(public_body.get("excluded"), list),
+    f"{public_price.status_code}, 1인분={public_body.get('household_size') == 1}",
+)
+
 # ---------- 부족한 재료 구매 링크 ----------
 res = requests.get(
     f"{API}/recommendation/recipes/{RECIPE_ID}/shopping-links",
