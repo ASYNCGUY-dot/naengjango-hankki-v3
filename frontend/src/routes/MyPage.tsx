@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ApiError, TimeoutError } from '../api/client'
-import { listFavorites, type FavoriteItem } from '../api/favorites'
 import { getProfile, type Profile } from '../api/profile'
-import RecipeCard from '../components/RecipeCard'
+import FavoritesSection from '../components/FavoritesSection'
 import { useAuth } from '../auth/context'
 import styles from './MyPage.module.css'
 
@@ -25,24 +24,15 @@ export default function MyPage() {
   const navigate = useNavigate()
 
   const [profile, setProfile] = useState<Profile | null>(null)
-  // 저장해둔 레시피. 이게 없던 동안에는 마음에 든 것을 다시 찾을 방법이 검색뿐이었다.
-  const [favorites, setFavorites] = useState<FavoriteItem[] | null>(null)
-  const [favoritesError, setFavoritesError] = useState(false)
   const [retry, setRetry] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     if (userId === null) return
-    setFavorites(null)
-    setFavoritesError(false)
     setProfile(null)
     setError(null)
     const controller = new AbortController()
-    listFavorites(userId, controller.signal)
-      .then((items) => { if (!controller.signal.aborted) setFavorites(items) })
-      .catch(() => { if (!controller.signal.aborted) setFavoritesError(true) })
-
     getProfile(userId, controller.signal)
       .then((value) => { if (!controller.signal.aborted) setProfile(value) })
       .catch((caught: unknown) => {
@@ -118,29 +108,7 @@ export default function MyPage() {
           </>
         ))}
 
-      <section className={styles.saved} aria-labelledby="saved-heading">
-        <div className={styles.savedHead}>
-          <h2 id="saved-heading">즐겨찾기</h2>
-          {favorites !== null && favorites.length > 0 && <span>{favorites.length}개</span>}
-        </div>
-        {favoritesError ? (
-          <div className={styles.error}><p role="alert">즐겨찾기 목록을 불러오지 못했어요.</p><button className={styles.button} type="button" onClick={() => setRetry((value) => value + 1)}>즐겨찾기 다시 불러오기</button></div>
-        ) : favorites === null ? (
-          <p className={styles.savedEmpty} role="status">즐겨찾기를 불러오는 중…</p>
-        ) : favorites.length === 0 ? (
-          <p className={styles.savedEmpty}>
-            레시피 화면에서 <strong>즐겨찾기</strong>를 누르면 여기에 모여요.
-          </p>
-        ) : (
-          <ul className={styles.savedGrid}>
-            {favorites.map((item) => (
-              <li key={item.id}>
-                <RecipeCard recipe={item} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <FavoritesSection preview />
 
       {/* 냉장고는 하단 탭에서 빼고 여기로 넣었다(2026-08-20). 매일 여는 화면이 아니라
           가끔 정리하는 화면이라, 네 칸 중 하나를 계속 차지할 자리가 아니라고 봤다. */}

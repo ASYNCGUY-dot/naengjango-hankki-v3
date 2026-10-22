@@ -5,7 +5,7 @@ import { useAuth } from '../auth/context'
 const TITLES: Record<string, string> = {
   '/': '홈', '/login': '로그인', '/signup': '회원가입', '/pantry': '내 냉장고',
   '/recommend': '맞춤추천', '/brags': '집밥 자랑', '/brags/new': '집밥 올리기',
-  '/my': '마이', '/onboarding': '식단 정보 수정', '/my/recipes': '내 레시피',
+  '/my': '마이', '/my/favorites': '즐겨찾기', '/onboarding': '식단 정보 수정', '/my/recipes': '내 레시피',
   '/my/ingredients': '재료 정보 등록', '/my/partner-key': '재료 구매 수수료',
   '/feedback': '하고 싶은 말', '/admin': '승인 대기 목록',
   '/forgot-password': '비밀번호 초기화', '/reset-password': '새 비밀번호 설정',
