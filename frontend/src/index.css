@@ -12,7 +12,8 @@
 }
 
 html {
-  color-scheme: light dark;
+  /* 기기 다크 모드와 관계없이 화이트·그린 디자인을 유지한다. */
+  color-scheme: light;
   scroll-padding-block: var(--space-4) calc(var(--nav-occupied-height, var(--feed-nav-height)) + var(--space-4));
 }
 
