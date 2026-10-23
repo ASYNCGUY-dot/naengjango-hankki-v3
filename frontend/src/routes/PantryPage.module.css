@@ -25,7 +25,7 @@
   padding: 0 var(--feed-page-padding) var(--space-3);
 }
 
-.addForm input:first-of-type {
+.addForm > input:first-of-type {
   grid-column: 1 / -1;
 }
 
@@ -340,7 +340,7 @@
     padding-bottom: var(--space-4);
   }
 
-  .addForm input:first-of-type,
+  .addForm > input:first-of-type,
   .itemHeading {
     grid-column: auto;
   }

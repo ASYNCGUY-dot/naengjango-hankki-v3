@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../auth/context'
 import { useSlowRequestHint } from '../hooks/useSlowRequestHint'
 import { useDeferredFocus } from '../hooks/비동기초점'
+import ExpiryDatePicker from '../components/ExpiryDatePicker'
 import styles from './PantryPage.module.css'
 
 function describe(caught: unknown): string {
@@ -252,16 +253,7 @@ export default function PantryPage() {
           onKeyDown={handleSuggestionKey}
           onChange={(e) => { setName(e.target.value); setSuggestionsOpen(true) }}
         />
-        <label className="sr-only" htmlFor="pantry-expiry">
-          유통기한
-        </label>
-        <input
-          id="pantry-expiry"
-          className={styles.dateInput}
-          type="date"
-          value={expiry}
-          onChange={(e) => setExpiry(e.target.value)}
-        />
+        <ExpiryDatePicker id="pantry-expiry" value={expiry} onChange={setExpiry} />
         <button className={styles.addButton} type="submit" disabled={isAdding || !name.trim()}>
           {isAdding ? '추가 중…' : '추가'}
         </button>
