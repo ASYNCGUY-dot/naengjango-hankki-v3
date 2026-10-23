@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ApiError, TimeoutError } from '../api/client'
-import { listPantry } from '../api/pantry'
+import { listPantry, suggestIngredients, type IngredientSuggestion } from '../api/pantry'
 import {
   describeMatch,
   describeMissing,
@@ -55,6 +55,10 @@ export default function RecommendPage() {
   // 화면에 보이는 결과를 만들어낸 목록. 이것과 위가 다르면 결과가 낡은 것이다.
   const [appliedIngredients, setAppliedIngredients] = useState<string[]>([])
   const [draft, setDraft] = useState('')
+  const [suggestions, setSuggestions] = useState<IngredientSuggestion[]>([])
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [activeSuggestion, setActiveSuggestion] = useState(-1)
+  const [suggestionStatus, setSuggestionStatus] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const ingredientInput = useRef<HTMLInputElement>(null)
@@ -120,9 +124,40 @@ export default function RecommendPage() {
     return () => controller.abort()
   }, [userId, load])
 
-  function addIngredient(event: FormEvent) {
-    event.preventDefault()
-    const name = draft.trim()
+  // 냉장고 화면과 같은 API로 실제 레시피에 쓰이는 재료 이름을 제안한다.
+  useEffect(() => {
+    const keyword = draft.trim()
+    setSuggestions([])
+    setActiveSuggestion(-1)
+    if (!keyword || !isAuthenticated) {
+      setSuggestionStatus('')
+      return
+    }
+    const controller = new AbortController()
+    setSuggestionStatus('재료 이름을 찾는 중이에요.')
+    const timer = setTimeout(() => {
+      suggestIngredients(keyword, controller.signal)
+        .then((rows) => {
+          if (controller.signal.aborted) return
+          setSuggestions(rows)
+          setSuggestionStatus(rows.length > 0
+            ? `추천 이름 ${rows.length}개. 클릭하거나 위아래 방향키와 Enter로 추가하세요.`
+            : '추천 이름이 없어요. 입력한 이름으로 추가할 수 있어요.')
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setSuggestionStatus('추천 이름을 불러오지 못했어요. 입력한 이름으로 추가할 수 있어요.')
+          }
+        })
+    }, 250)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [draft, isAuthenticated])
+
+  function chooseIngredient(value: string) {
+    const name = value.trim()
     if (!name) return
     // 같은 재료를 두 번 넣으면 서버가 겹침 개수를 부풀려 센다.
     if (!ingredients.includes(name)) {
@@ -133,6 +168,34 @@ export default function RecommendPage() {
     }
     setDraft('')
     ingredientInput.current?.focus()
+    setSuggestionsOpen(false)
+    setActiveSuggestion(-1)
+  }
+
+  function addIngredient(event: FormEvent) {
+    event.preventDefault()
+    chooseIngredient(draft)
+  }
+
+  function handleSuggestionKey(event: KeyboardEvent<HTMLInputElement>) {
+    // 한글 조합을 확정하는 Enter가 재료 추가까지 실행하지 않게 한다.
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
+      if (event.key === 'Enter') event.preventDefault()
+      return
+    }
+    if (event.key === 'Escape') {
+      setSuggestionsOpen(false)
+      setActiveSuggestion(-1)
+    } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && suggestions.length > 0) {
+      event.preventDefault()
+      setSuggestionsOpen(true)
+      setActiveSuggestion((current) => event.key === 'ArrowDown'
+        ? (current + 1) % suggestions.length
+        : (current <= 0 ? suggestions.length - 1 : current - 1))
+    } else if (event.key === 'Enter' && suggestionsOpen && activeSuggestion >= 0) {
+      event.preventDefault()
+      chooseIngredient(suggestions[activeSuggestion].name)
+    }
   }
 
   function removeIngredient(name: string) {
@@ -227,14 +290,52 @@ export default function RecommendPage() {
             id="add-ingredient"
             ref={ingredientInput}
             type="text"
+            role="combobox"
+            autoComplete="off"
+            aria-autocomplete="list"
+            aria-expanded={suggestionsOpen && suggestions.length > 0}
+            aria-controls="recommend-suggestions"
+            aria-activedescendant={suggestionsOpen && activeSuggestion >= 0 ? `recommend-suggestion-${activeSuggestion}` : undefined}
+            aria-describedby="recommend-suggestion-hint"
             placeholder="재료를 입력하세요"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              setSuggestions([])
+              setActiveSuggestion(-1)
+              setSuggestionsOpen(true)
+            }}
+            onFocus={() => setSuggestionsOpen(true)}
+            onBlur={() => {
+              setSuggestionsOpen(false)
+              setActiveSuggestion(-1)
+            }}
+            onKeyDown={handleSuggestionKey}
           />
           <button type="submit" disabled={draft.trim() === ''}>
             추가
           </button>
         </form>
+        <ul id="recommend-suggestions" className={styles.suggestions} role="listbox" aria-label="재료 추천" hidden={!suggestionsOpen || suggestions.length === 0}>
+          {suggestions.map((suggestion, index) => (
+            <li key={suggestion.name} role="presentation">
+              <button
+                type="button"
+                role="option"
+                id={`recommend-suggestion-${index}`}
+                tabIndex={-1}
+                aria-selected={activeSuggestion === index}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => chooseIngredient(suggestion.name)}
+              >
+                <span>{suggestion.name}</span>
+                <span className={styles.suggestionCount}>레시피 {suggestion.recipe_count}개</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p id="recommend-suggestion-hint" className="sr-only">추천 이름을 선택해 추가하거나 직접 입력한 재료를 추가할 수 있어요.</p>
+        <p className={styles.suggestionStatus} role="status">{suggestionsOpen ? suggestionStatus : ''}</p>
         <p className="sr-only" role="status">{editingStatus}</p>
 
         {/* 결과가 낡았을 때만 보여준다. 항상 있으면 눌러야 하는지 아닌지가 안 보인다. */}
