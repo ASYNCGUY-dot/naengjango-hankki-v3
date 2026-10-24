@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import MyPage from './MyPage'
 import { tokenStore } from '../api/client'
 import { renderWithProviders } from '../test/renderWithProviders'
+import { dailyNutrition } from '../test/mealFixtures'
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -22,6 +23,7 @@ function signIn(userId = 116) {
 function mockApi(handlers: { profile?: () => unknown; favorites?: () => unknown[] } = {}) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
+    if (url.endsWith('/meals/today')) return json(dailyNutrition())
     if (url.includes('/favorites/')) {
       if ((init as RequestInit | undefined)?.method === 'POST') return json({ favorited: true })
       return json(handlers.favorites?.() ?? [])
@@ -91,6 +93,7 @@ describe('마이 화면', () => {
     const user = userEvent.setup()
     signIn()
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (String(input).endsWith('/meals/today')) return json(dailyNutrition())
       if (String(input).includes('/favorites/')) return json([])
       return (init as RequestInit | undefined)?.method === 'POST'
         ? json({ detail: '서버 오류' }, 500)
@@ -218,6 +221,7 @@ describe('즐겨찾기', () => {
     signIn()
     const user = userEvent.setup()
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input).endsWith('/meals/today')) return json(dailyNutrition())
       if (String(input).includes('/favorites/')) return json({ detail: '오류' }, 500)
       return json(profile())
     })
@@ -227,7 +231,8 @@ describe('즐겨찾기', () => {
     expect(screen.getByRole('button', { name: '로그아웃' })).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent('즐겨찾기 목록을 불러오지 못했어요')
     expect(screen.queryByText(/여기에 모여요/)).not.toBeInTheDocument()
-    fetchMock.mockImplementation(async (input) => json(String(input).includes('/favorites/') ? [] : profile()))
+    fetchMock.mockImplementation(async (input) => json(String(input).endsWith('/meals/today')
+      ? dailyNutrition() : String(input).includes('/favorites/') ? [] : profile()))
     await user.click(screen.getByRole('button', { name: '즐겨찾기 다시 불러오기' }))
     expect(await screen.findByText(/여기에 모여요/)).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

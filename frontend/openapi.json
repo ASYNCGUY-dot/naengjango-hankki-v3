@@ -236,6 +236,54 @@
         "title": "Coverage",
         "type": "object"
       },
+      "DailyNutritionResponse": {
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "incomplete_nutrients": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Incomplete Nutrients",
+            "type": "array"
+          },
+          "meals": {
+            "items": {
+              "$ref": "#/components/schemas/MealEntry"
+            },
+            "title": "Meals",
+            "type": "array"
+          },
+          "next_reset_at": {
+            "title": "Next Reset At",
+            "type": "string"
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/NutritionFitResponse"
+          },
+          "server_now": {
+            "title": "Server Now",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "timezone",
+          "server_now",
+          "next_reset_at",
+          "nutrition",
+          "meals",
+          "incomplete_nutrients"
+        ],
+        "title": "DailyNutritionResponse",
+        "type": "object"
+      },
       "ExcludedCost": {
         "properties": {
           "ingredient": {
@@ -649,6 +697,90 @@
           "token"
         ],
         "title": "LoginResponse",
+        "type": "object"
+      },
+      "MealCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "recipe_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Recipe Id",
+            "type": "integer"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "servings": {
+            "maximum": 10.0,
+            "minimum": 0.1,
+            "title": "Servings",
+            "type": "number"
+          }
+        },
+        "required": [
+          "servings",
+          "recipe_id",
+          "request_id"
+        ],
+        "title": "MealCreateRequest",
+        "type": "object"
+      },
+      "MealEntry": {
+        "properties": {
+          "consumed_at": {
+            "title": "Consumed At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "recipe_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipe Id"
+          },
+          "recipe_name": {
+            "title": "Recipe Name",
+            "type": "string"
+          },
+          "servings": {
+            "title": "Servings",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "recipe_id",
+          "recipe_name",
+          "servings",
+          "consumed_at"
+        ],
+        "title": "MealEntry",
+        "type": "object"
+      },
+      "MealUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "servings": {
+            "maximum": 10.0,
+            "minimum": 0.1,
+            "title": "Servings",
+            "type": "number"
+          }
+        },
+        "required": [
+          "servings"
+        ],
+        "title": "MealUpdateRequest",
         "type": "object"
       },
       "MissingIngredient": {
@@ -4711,6 +4843,231 @@
         "summary": "Toggle Ingredient Favorite",
         "tags": [
           "ingredients"
+        ]
+      }
+    },
+    "/meals": {
+      "post": {
+        "operationId": "create_meal_meals_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MealCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealEntry"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Meal",
+        "tags": [
+          "meals"
+        ]
+      }
+    },
+    "/meals/today": {
+      "get": {
+        "operationId": "get_today_meals_today_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyNutritionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Today",
+        "tags": [
+          "meals"
+        ]
+      }
+    },
+    "/meals/{meal_id}": {
+      "delete": {
+        "operationId": "delete_meal_meals__meal_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "meal_id",
+            "required": true,
+            "schema": {
+              "title": "Meal Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Meal",
+        "tags": [
+          "meals"
+        ]
+      },
+      "put": {
+        "operationId": "update_meal_meals__meal_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "meal_id",
+            "required": true,
+            "schema": {
+              "title": "Meal Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MealUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealEntry"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Meal",
+        "tags": [
+          "meals"
         ]
       }
     },

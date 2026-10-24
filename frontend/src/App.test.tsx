@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 import { renderWithProviders } from './test/renderWithProviders'
+import { dailyNutrition } from './test/mealFixtures'
 
 function renderAt(route: string) {
   return renderWithProviders(<App />, { route })
@@ -18,7 +19,9 @@ function signIn(userId = 116) {
 /** 화면마다 부르는 곳이 달라서, 빈 배열로 답해두고 라우팅만 본다. */
 function mockEmptyApi() {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(
-    async () => new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    async input => new Response(JSON.stringify(String(input).endsWith('/meals/today') ? dailyNutrition() : []), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }),
   )
 }
 
