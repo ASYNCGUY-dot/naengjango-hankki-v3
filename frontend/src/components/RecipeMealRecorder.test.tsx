@@ -3,11 +3,15 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '../api/client'
 import { createMeal } from '../api/meals'
 import { renderWithProviders } from '../test/renderWithProviders'
 import RecipeMealRecorder from './RecipeMealRecorder'
 
-vi.mock('../api/meals', () => ({ createMeal: vi.fn() }))
+vi.mock('../api/meals', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../api/meals')>(),
+  createMeal: vi.fn(),
+}))
 
 const meal = { id: 1, recipe_id: 67, recipe_name: '두부덮밥', servings: 1, consumed_at: '2026-10-24T03:00:00Z' }
 
@@ -65,6 +69,32 @@ describe('레시피에서 먹었어요', () => {
     await user.click(screen.getByRole('button', { name: '다시 기록 확인' }))
     expect(vi.mocked(createMeal).mock.calls[1][0]).toEqual(first)
     expect(await screen.findByRole('status')).toHaveTextContent('기록했어요')
+  })
+
+  it('식사 기록 기능이 없으면 영문 오류 대신 이용 불가를 안내한다', async () => {
+    signIn()
+    vi.mocked(createMeal).mockRejectedValueOnce(new ApiError(404, 'Not Found'))
+    const user = userEvent.setup()
+    renderWithProviders(<RecipeMealRecorder recipeId={67} />)
+    await user.click(screen.getByRole('button', { name: '먹었어요' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('현재 식사 기록 기능을 이용할 수 없어요. 잠시 후 다시 확인해 주세요.')
+    expect(alert).not.toHaveTextContent('Not Found')
+    expect(screen.getByRole('button', { name: '먹었어요' })).toBeEnabled()
+    expect(screen.getByLabelText('먹은 양')).toBeEnabled()
+    expect(screen.queryByText(/기록했어요/)).not.toBeInTheDocument()
+  })
+
+  it('기록할 수 없는 레시피의 404는 서버가 알려준 이유를 유지한다', async () => {
+    signIn()
+    vi.mocked(createMeal).mockRejectedValueOnce(new ApiError(404, '기록할 수 없는 레시피입니다.'))
+    const user = userEvent.setup()
+    renderWithProviders(<RecipeMealRecorder recipeId={67} />)
+    await user.click(screen.getByRole('button', { name: '먹었어요' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('기록할 수 없는 레시피입니다.')
+    expect(screen.getByLabelText('먹은 양')).toBeEnabled()
   })
 
   it('같은 메뉴를 다시 먹었을 때만 새 요청으로 한 끼를 추가한다', async () => {

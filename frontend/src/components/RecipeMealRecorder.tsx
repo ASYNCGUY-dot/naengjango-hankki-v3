@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ApiError } from '../api/client'
-import { createMeal, type MealEntry } from '../api/meals'
+import { createMeal, getMealErrorMessage, type MealEntry } from '../api/meals'
 import { useAuth } from '../auth/context'
 import styles from './RecipeMealRecorder.module.css'
 
@@ -49,7 +49,7 @@ function Recorder({ recipeId }: { recipeId: number }) {
     } catch (caught) {
       if (!live.current) return
       if (caught instanceof ApiError && caught.status < 500) {
-        setError(caught.message)
+        setError(getMealErrorMessage(caught, caught.message))
         setUncertain(false)
         attempt.current = null
       } else {

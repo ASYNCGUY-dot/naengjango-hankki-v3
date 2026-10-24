@@ -100,6 +100,9 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
         <h2 id="cost-heading">재료비는 얼마나 들까요</h2>
         <span className={styles.provider}>KAMIS</span>
       </div>
+      <p className={styles.description}>
+        두부·고추장 같은 가공식품과 양이 안 적힌 재료는 KAMIS 시세로 계산할 수 없어요.
+      </p>
       {children}
     </section>
   )
@@ -248,8 +251,6 @@ export default function RecipeCostCard({ recipeId }: { recipeId: number }) {
           {excluded.length > 0 && (
             <p className={styles.excluded}>
               빠진 재료 {excluded.length}개: {excluded.map((e) => e.ingredient).join(' · ')}
-              <br />
-              두부·고추장 같은 가공식품과 양이 안 적힌 재료는 KAMIS 시세로 계산할 수 없어요.
             </p>
           )}
           {substitutes.length > 0 && (

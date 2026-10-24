@@ -1,10 +1,12 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ThemeRecipesPage from './테마목록'
 import { getThemeRecipes, listThemes, PAGE_SIZE, type RecipeTheme } from '../api/recipes'
+import { AuthProvider } from '../auth/AuthContext'
+import { FavoritesProvider } from '../favorites/FavoritesProvider'
 
 let entryNumber = 0
 
@@ -43,9 +45,11 @@ function show(route = '/themes/seasonal?month=10') {
     { path: '/recipe/:id', element: <h1>레시피 상세</h1> },
     { path: '/', element: <h1>홈</h1> },
   ], { initialEntries: [{ pathname: route.split('?')[0], search: route.includes('?') ? `?${route.split('?')[1]}` : '', key: `theme-test-${++entryNumber}` }] })
-  render(<RouterProvider router={router} />)
+  render(<AuthProvider><FavoritesProvider><RouterProvider router={router} /></FavoritesProvider></AuthProvider>)
   return router
 }
+
+beforeEach(() => localStorage.clear())
 
 afterEach(() => {
   vi.restoreAllMocks()

@@ -9,12 +9,13 @@ import './index.css'
 import './styles/집밥테마.css'
 import App from './App'
 import { AuthProvider } from './auth/AuthContext'
+import { FavoritesProvider } from './favorites/FavoritesProvider'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
+        <FavoritesProvider><App /></FavoritesProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
