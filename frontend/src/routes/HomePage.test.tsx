@@ -60,7 +60,8 @@ function mockApi(handlers: {
     let body: unknown
     // 영상 쪽을 먼저 본다. "/popular-videos/categories"가 아래의 endsWith('/categories')에
     // 먼저 걸리면 분류 칩 자리에 영상 분류가 들어간다.
-    if (url.pathname === '/brags') body = handlers.brags?.() ?? []
+    if (url.pathname.startsWith('/favorites/')) body = []
+    else if (url.pathname === '/brags') body = handlers.brags?.() ?? []
     else if (url.pathname.startsWith('/profile/')) {
       body = handlers.profile?.() ?? { has_profile: true, username: '내계정' }
     } else if (url.pathname.startsWith('/popular-videos/categories')) {

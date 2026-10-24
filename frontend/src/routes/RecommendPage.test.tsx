@@ -47,6 +47,7 @@ type PantryRow = { id: number; name: string; expiry_date: string | null }
 function mockApi(pantry: PantryRow[], recs: RecommendationItem[]) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(input as string)
+    if (url.pathname.startsWith('/favorites/')) return json([])
     if (url.pathname.startsWith('/pantry/')) return json(pantry)
     return json(recs)
   })

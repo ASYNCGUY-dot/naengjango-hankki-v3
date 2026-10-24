@@ -1,4 +1,4 @@
-/* 추천하기와 나란히 놓이므로 폭을 반씩 나눠 갖는다(RecipeDetailPage의 .actions). */
+/* 기본 글자 버튼과 사진 위의 별 버튼이 상태·접근성을 공유한다. */
 .button {
   display: flex;
   flex: 1;
@@ -35,7 +35,30 @@
   font-size: var(--font-size-xs);
   color: var(--color-danger-text);
 }
-.state { flex: 1 1 12rem; min-width: 0; font-size: var(--font-size-sm); color: var(--color-text-secondary); overflow-wrap: anywhere; }
-.state .button { width: 100%; margin-top: var(--space-2); }
+
+/* 사진 밝기와 테마에 관계없이 흰 원 안의 별이 선명하게 보인다. */
+.icon {
+  flex: none;
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 8%);
+  border-radius: 50%;
+  background: #fff;
+  color: #39423b;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+  font-size: var(--font-size-xl);
+}
+
+.icon.on {
+  background: #fff;
+  border-color: rgb(0 0 0 / 8%);
+  color: #336547;
+}
+
+.icon:hover {
+  background: #eef6ee;
+  color: #336547;
+}
 .button:disabled { cursor: progress; opacity: 0.7; }
 .button[aria-disabled='true'] { cursor: progress; }

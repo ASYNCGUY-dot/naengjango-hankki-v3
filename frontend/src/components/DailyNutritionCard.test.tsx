@@ -3,12 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '../api/client'
 import { getTodayNutrition, updateMeal, deleteMeal, MEALS_CHANGED_EVENT, type DailyNutrition, type MealEntry } from '../api/meals'
 import { AuthContext, type AuthState } from '../auth/context'
 import { renderWithProviders } from '../test/renderWithProviders'
 import DailyNutritionCard from './DailyNutritionCard'
 
-vi.mock('../api/meals', () => ({
+vi.mock('../api/meals', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../api/meals')>(),
   getTodayNutrition: vi.fn(),
   updateMeal: vi.fn(),
   deleteMeal: vi.fn(),
@@ -125,6 +127,31 @@ describe('오늘의 영양', () => {
     expect(retry).toHaveFocus()
     expect(retry).toHaveAttribute('aria-disabled', 'false')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('식사 기록 기능을 제공하지 않으면 이용 불가를 안내하고 이후 다시 조회할 수 있다', async () => {
+    signIn()
+    vi.mocked(getTodayNutrition).mockRejectedValueOnce(new ApiError(404, 'Not Found'))
+    const user = userEvent.setup()
+    renderWithProviders(<DailyNutritionCard />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('현재 식사 기록 기능을 이용할 수 없어요. 잠시 후 다시 확인해 주세요.')
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '오늘의 영양 다시 불러오기' }))
+    expect(await screen.findByRole('progressbar')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    [404, '사용자 정보를 찾을 수 없습니다.'],
+    [500, 'Not Found'],
+  ])('실제 조회 오류(%i, %s)는 기능 미지원으로 안내하지 않는다', async (status, detail) => {
+    signIn()
+    vi.mocked(getTodayNutrition).mockRejectedValueOnce(new ApiError(status, detail))
+    renderWithProviders(<DailyNutritionCard />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('오늘의 영양을 불러오지 못했어요. 다시 시도해 주세요.')
+    expect(screen.getByRole('button', { name: '오늘의 영양 다시 불러오기' })).toBeInTheDocument()
   })
 
   it('서버에 저장된 임의 분량을 보존하고 수정 성공 후 합계를 다시 조회한다', async () => {
