@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, TimeoutError } from '../api/client'
 import { getProfile, type Profile } from '../api/profile'
 import FavoritesSection from '../components/FavoritesSection'
+import DailyNutritionCard from '../components/DailyNutritionCard'
 import { useAuth } from '../auth/context'
 import styles from './MyPage.module.css'
 
@@ -107,6 +108,8 @@ export default function MyPage() {
             </Link>
           </>
         ))}
+
+      <DailyNutritionCard />
 
       <FavoritesSection preview />
 

@@ -32,6 +32,7 @@ load_dotenv(ROOT / ".env")
 
 # 지우는 순서가 곧 외래키 의존 순서다. migration/005와 같게 유지할 것.
 CHILD_TABLES = [
+    ("meal_logs", "user_id", "식사 기록"),
     ("ingredients", "user_id", "냉장고 재료"),
     ("reviews", "user_id", "후기"),
     ("favorites", "user_id", "즐겨찾기"),

@@ -491,6 +491,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/meals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Meal */
+        post: operations["create_meal_meals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/meals/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Today */
+        get: operations["get_today_meals_today_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/meals/{meal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Meal */
+        put: operations["update_meal_meals__meal_id__put"];
+        post?: never;
+        /** Delete Meal */
+        delete: operations["delete_meal_meals__meal_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/my-recipes": {
         parameters: {
             query?: never;
@@ -1278,6 +1330,22 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** DailyNutritionResponse */
+        DailyNutritionResponse: {
+            /** Date */
+            date: string;
+            /** Incomplete Nutrients */
+            incomplete_nutrients: string[];
+            /** Meals */
+            meals: components["schemas"]["MealEntry"][];
+            /** Next Reset At */
+            next_reset_at: string;
+            nutrition: components["schemas"]["NutritionFitResponse"];
+            /** Server Now */
+            server_now: string;
+            /** Timezone */
+            timezone: string;
+        };
         /** ExcludedCost */
         ExcludedCost: {
             /** Ingredient */
@@ -1411,6 +1479,36 @@ export interface components {
             token: string;
             /** User Id */
             user_id: number;
+        };
+        /** MealCreateRequest */
+        MealCreateRequest: {
+            /** Recipe Id */
+            recipe_id: number;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            /** Servings */
+            servings: number;
+        };
+        /** MealEntry */
+        MealEntry: {
+            /** Consumed At */
+            consumed_at: string;
+            /** Id */
+            id: number;
+            /** Recipe Id */
+            recipe_id: number | null;
+            /** Recipe Name */
+            recipe_name: string;
+            /** Servings */
+            servings: number;
+        };
+        /** MealUpdateRequest */
+        MealUpdateRequest: {
+            /** Servings */
+            servings: number;
         };
         /** MissingIngredient */
         MissingIngredient: {
@@ -3131,6 +3229,140 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ToggleResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_meal_meals_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MealCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealEntry"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_today_meals_today_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyNutritionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_meal_meals__meal_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                meal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MealUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealEntry"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_meal_meals__meal_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                meal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
