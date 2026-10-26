@@ -1,8 +1,9 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import RecommendPage from './RecommendPage'
+import type { IngredientSuggestion } from '../api/pantry'
 import { describeMatch, matchLevel, type RecommendationItem } from '../api/recommend'
 import { renderWithProviders } from '../test/renderWithProviders'
 
@@ -43,11 +44,20 @@ function item(overrides: Partial<RecommendationItem> = {}): RecommendationItem {
 
 type PantryRow = { id: number; name: string; expiry_date: string | null }
 
-/** 냉장고 조회와 추천 조회를 경로로 갈라 답한다. */
-function mockApi(pantry: PantryRow[], recs: RecommendationItem[]) {
+/** 재료 자동완성, 냉장고 조회와 추천 조회를 경로로 갈라 답한다. */
+function mockApi(
+  pantry: PantryRow[],
+  recs: RecommendationItem[],
+  suggestions: IngredientSuggestion[] | ((keyword: string) => Response | Promise<Response>) = [],
+) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(input as string)
     if (url.pathname.startsWith('/favorites/')) return json([])
+    if (url.pathname === '/pantry/suggest') {
+      return typeof suggestions === 'function'
+        ? suggestions(url.searchParams.get('keyword') ?? '')
+        : json(suggestions)
+    }
     if (url.pathname.startsWith('/pantry/')) return json(pantry)
     return json(recs)
   })
@@ -260,6 +270,124 @@ describe('기준 재료 편집', () => {
     await user.click(screen.getByRole('button', { name: '추가' }))
 
     expect(screen.getAllByRole('button', { name: '고등어 빼기' })).toHaveLength(1)
+  })
+
+  it('입력한 재료의 제안을 클릭하면 기준 재료에만 추가한다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi(pantry, [item()], [
+      { name: '김', recipe_count: 4 },
+      { name: '김치', recipe_count: 12 },
+    ])
+    renderWithProviders(<RecommendPage />)
+    await screen.findByText('고등어무조림')
+
+    const input = screen.getByLabelText('재료 추가')
+    await user.type(input, '김')
+    const list = await screen.findByRole('listbox', { name: '재료 추천' })
+    expect(within(list).getByText('김')).toBeInTheDocument()
+    await user.click(within(list).getByRole('option', { name: /^김치/ }))
+
+    expect(screen.getByRole('button', { name: '김치 빼기' })).toBeInTheDocument()
+    expect(input).toHaveValue('')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(recCalls(fetchMock)).toHaveLength(1)
+    expect(fetchMock.mock.calls.some(([url, init]) =>
+      new URL(url as string).pathname.startsWith('/pantry/') &&
+      (init?.method ?? 'GET') !== 'GET',
+    )).toBe(false)
+  })
+
+  it('Escape로 제안을 닫고 방향키와 Enter로 원하는 재료를 고른다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockApi(pantry, [item()], [
+      { name: '김', recipe_count: 4 },
+      { name: '김치', recipe_count: 12 },
+    ])
+    renderWithProviders(<RecommendPage />)
+    await screen.findByText('고등어무조림')
+
+    const input = screen.getByLabelText('재료 추가')
+    await user.type(input, '김')
+    await screen.findByRole('listbox', { name: '재료 추천' })
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(input).toHaveValue('김')
+    expect(screen.queryByRole('button', { name: '김 빼기' })).not.toBeInTheDocument()
+
+    await user.clear(input)
+    await user.type(input, '김')
+    await screen.findByRole('listbox', { name: '재료 추천' })
+    await user.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+
+    expect(screen.getByRole('button', { name: '김치 빼기' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '김 빼기' })).not.toBeInTheDocument()
+    expect(input).toHaveValue('')
+  })
+
+  it('한글 조합 중 Enter는 재료를 선택하지 않는다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockApi(pantry, [item()], [{ name: '김치', recipe_count: 12 }])
+    renderWithProviders(<RecommendPage />)
+    await screen.findByText('고등어무조림')
+
+    const input = screen.getByLabelText('재료 추가')
+    await user.type(input, '김')
+    await screen.findByRole('option', { name: /^김치/ })
+    await user.keyboard('{ArrowDown}')
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true, keyCode: 229 })
+
+    expect(screen.queryByRole('button', { name: '김치 빼기' })).not.toBeInTheDocument()
+    expect(input).toHaveValue('김')
+    expect(screen.getByRole('listbox', { name: '재료 추천' })).toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('button', { name: '김치 빼기' })).toBeInTheDocument()
+  })
+
+  it('자동완성 조회가 실패해도 직접 입력한 재료를 추가할 수 있다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const suggest = vi.fn(() => json({ detail: '잠시 사용할 수 없어요.' }, 500))
+    mockApi(pantry, [item()], suggest)
+    renderWithProviders(<RecommendPage />)
+    await screen.findByText('고등어무조림')
+
+    const input = screen.getByLabelText('재료 추가')
+    await user.type(input, '직접입력재료')
+    await waitFor(() => expect(suggest).toHaveBeenCalledWith('직접입력재료'))
+    await user.click(screen.getByRole('button', { name: '추가' }))
+
+    expect(screen.getByRole('button', { name: '직접입력재료 빼기' })).toBeInTheDocument()
+    expect(input).toHaveValue('')
+    expect(screen.getByText('고등어무조림')).toBeInTheDocument()
+  })
+
+  it('검색어를 바꾼 뒤 늦게 온 이전 제안을 표시하지 않는다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    let resolvePrevious!: (response: Response) => void
+    const previous = new Promise<Response>((resolve) => { resolvePrevious = resolve })
+    const suggest = vi.fn((keyword: string) => keyword === '김'
+      ? previous
+      : json([{ name: '김치', recipe_count: 12 }]))
+    mockApi(pantry, [item()], suggest)
+    renderWithProviders(<RecommendPage />)
+    await screen.findByText('고등어무조림')
+
+    await user.type(screen.getByLabelText('재료 추가'), '김')
+    await waitFor(() => expect(suggest).toHaveBeenCalledWith('김'))
+    await user.type(screen.getByLabelText('재료 추가'), '치')
+    await screen.findByRole('option', { name: /^김치/ })
+    await act(async () => {
+      resolvePrevious(json([{ name: '김', recipe_count: 4 }]))
+      await previous
+    })
+
+    const list = screen.getByRole('listbox', { name: '재료 추천' })
+    expect(within(list).getByText('김치')).toBeInTheDocument()
+    expect(within(list).queryByText('김')).not.toBeInTheDocument()
   })
 
   it('되돌리기는 고친 뒤에만 나타나고, 누르면 냉장고 재료로 돌아간다', async () => {
