@@ -70,6 +70,25 @@ CREATE TABLE recipes (
     steps_json TEXT
 , submitted_by INTEGER, status TEXT DEFAULT 'approved');
 
+-- migration/013_meal_logs.sql과 같은 제약. 시각은 UTC ISO 형식으로 보관한다.
+CREATE TABLE meal_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    recipe_id INTEGER REFERENCES recipes(id) ON DELETE SET NULL,
+    recipe_name TEXT NOT NULL,
+    servings REAL NOT NULL CHECK (servings >= 0.1 AND servings <= 10),
+    consumed_at TEXT NOT NULL,
+    nutrition_snapshot_json TEXT NOT NULL,
+    request_id TEXT NOT NULL,
+    request_recipe_id INTEGER NOT NULL,
+    request_servings REAL NOT NULL CHECK (request_servings >= 0.1 AND request_servings <= 10),
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    UNIQUE (user_id, request_id)
+);
+CREATE INDEX idx_meal_logs_user_consumed_at ON meal_logs (user_id, consumed_at)
+    WHERE deleted_at IS NULL;
+
 CREATE TABLE recipe_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     recipe_id INTEGER,

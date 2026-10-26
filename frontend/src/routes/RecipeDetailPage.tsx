@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, TimeoutError, toHttps } from '../api/client'
 import FavoriteButton from '../components/FavoriteButton'
 import MissingIngredientsCard from '../components/MissingIngredientsCard'
-import NutritionFitCard from '../components/NutritionFitCard'
+import RecipeMealRecorder from '../components/RecipeMealRecorder'
 import RecipeCostCard from '../components/RecipeCostCard'
 import RecommendButton from '../components/RecommendButton'
 import ReviewSection from '../components/ReviewSection'
@@ -214,9 +214,7 @@ export default function RecipeDetailPage() {
         <NutrientTile label="나트륨" value={nutrients.sodium_mg} unit="mg" />
       </ul>
 
-      {/* 온보딩에서 받은 성별·연령·병력·영양제가 실제로 쓰이는 자리다. 영양 정보 타일
-          바로 아래에 둔다 - 같은 주제를 두 번에 나눠 보여주는 셈이라 붙어 있어야 한다. */}
-      <NutritionFitCard recipeId={recipe.id} />
+      <RecipeMealRecorder recipeId={recipe.id} />
 
       {/* 재료 목록 바로 위에 둔다. "무엇이 필요한가" 다음에 오는 질문이 "그중 뭐가
           없는가"이므로 목록을 보기 전에 답을 주는 편이 낫다. */}

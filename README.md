@@ -132,7 +132,7 @@ SSR은 오히려 해롭다.** 서버가 렌더링하려면 API를 기다려야 �
 api/          FastAPI 라우터 (21개) — 얇은 HTTP 래퍼
 src/agents/   도메인 로직 — 추천·인증·영양·안전 등
 frontend/     React 앱
-migration/    Postgres 스키마 (001~012, 순서대로 적용)
+migration/    Postgres 스키마 (001~013, 순서대로 적용)
 scripts/      운영 도구 (배포 점검·백업·초기화 링크·계정 삭제)
 tests/        pytest
 docs/         작업 기록
@@ -213,6 +213,13 @@ cd frontend && npm ci && npm run dev
 > 먼저 풀리는데 uvicorn은 IPv4에만 바인딩돼, 매 요청에 2초가 얹힌다(실측 2038ms vs 4ms).
 
 ### 배포 점검
+
+식사 기록 기능을 처음 배포할 때는 기존 012까지 적용된 DB에
+`migration/013_meal_logs.sql`을 먼저 적용하고, 백엔드와 프론트를 함께 배포한다.
+`먹었어요`는 선택한 인분을 서버에 저장하고, 마이의 `오늘의 영양`에서 해당 사용자의
+한국 시간 00:00~다음 날 00:00 기록을 합산한다. 자정 삭제 작업이나 별도 예약 작업은 필요 없다.
+이전 날짜 기록과 당시 1인분 영양값은 보관하며, 가구원 수는 개인 섭취량에 곱하지 않는다.
+기록 취소는 당일 합계에서 제외하고 요청 재전송을 판별할 정보를 남긴다. 계정 삭제 시 함께 삭제된다.
 
 ```bash
 ./.venv/Scripts/python.exe scripts/smoke_test_deploy.py

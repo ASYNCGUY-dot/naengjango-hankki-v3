@@ -11,10 +11,10 @@ import styles from './PolicyPage.module.css'
  *
  * 내용은 실제 코드와 DB를 보고 썼다. 지어내지 않는 것이 이 문서의 유일한 가치다 -
  * 특히 "탈퇴하면 지웁니다" 같은, 없는 기능을 약속하는 문장을 넣지 않았다.
- * 수집 항목이 바뀌면 CONSENT_VERSION(api/routers/auth.py)과 이 문서를 함께 고친다.
+ * 수집 항목이 바뀌면 CONSENT_VERSION(src/agents/auth_agent.py)과 이 문서를 함께 고친다.
  */
 
-const UPDATED = '2026년 9월 15일'
+const UPDATED = '2026년 10월 24일'
 
 export function PrivacyPage() {
   return (
@@ -54,6 +54,11 @@ export function PrivacyPage() {
             <td>서비스를 쓰는 동안</td>
             <td>냉장고에 넣은 재료, 즐겨찾기, 좋아요, 후기</td>
             <td>입력하신 내용을 다시 보여주기 위해</td>
+          </tr>
+          <tr>
+            <td>‘먹었어요’로 식사를 기록할 때 (선택)</td>
+            <td>먹은 메뉴, 인분, 기록 시각, 해당 메뉴의 영양 정보</td>
+            <td>하루 섭취량을 합산하고 기록한 양을 수정·취소할 수 있게 하기 위해</td>
           </tr>
           <tr>
             <td>자동으로 쌓이는 것</td>

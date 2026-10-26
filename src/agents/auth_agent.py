@@ -33,7 +33,7 @@ ALL_CONSENTS = REQUIRED_CONSENTS + OPTIONAL_CONSENTS
 HEALTH_CONSENT = "health_data"
 
 # 약관 문서를 고치면 이 값을 올린다. 그러면 "어느 버전에 동의했는가"가 기록으로 남는다.
-CONSENT_VERSION = "2026-08-13"
+CONSENT_VERSION = "2026-10-24"
 
 # 초기화 링크의 유효시간. 길면 메일함이 털렸을 때 위험이 오래 남고, 너무 짧으면
 # 메일 확인이 늦는 사람이 못 쓴다.

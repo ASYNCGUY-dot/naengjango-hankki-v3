@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import type { FavoriteItem } from '../api/favorites'
 import { renderWithProviders } from '../test/renderWithProviders'
+import { dailyNutrition } from '../test/mealFixtures'
 
 const saved: FavoriteItem[] = Array.from({ length: 5 }, (_, i) => ({
   id: 67 + i,
@@ -25,6 +26,7 @@ function api(items = saved, options: { failLoad?: boolean; failRemove?: boolean;
   let failLoad = options.failLoad ?? false
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = new URL(String(input))
+    if (url.pathname === '/meals/today') return json(dailyNutrition())
     if (url.pathname.startsWith('/favorites/')) {
       if (init?.method === 'POST') {
         toggleCount += 1

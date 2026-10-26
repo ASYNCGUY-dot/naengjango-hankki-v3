@@ -28,6 +28,7 @@ from api.routers import (  # noqa: E402
     ingredient_catalog,
     ingredient_submission,
     like,
+    meals,
     nutrition,
     pantry,
     partner_keys,
@@ -117,6 +118,7 @@ app.include_router(ingredient_catalog.router)
 app.include_router(user_recipe.router)
 app.include_router(price.router)
 app.include_router(nutrition.router)
+app.include_router(meals.router)
 app.include_router(seasonal.router)
 app.include_router(shopping.router)
 # like.router는 위(recommendation.router 앞)에서 이미 등록했다. 여기에도 있던 중복 등록을

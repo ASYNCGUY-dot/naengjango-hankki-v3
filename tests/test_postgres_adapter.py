@@ -443,3 +443,100 @@ def test_the_constraint_only_covers_recipe_views(pg_conn):
         setup.execute("DELETE FROM usage_events WHERE user_id = %s", (user_id,))
         setup.execute("DELETE FROM users WHERE id = %s", (user_id,))
         setup.close()
+
+
+def test_meal_migration_and_routes_work_with_postgres_transactions(pg_cur):
+    """실제 PostgreSQL의 RETURNING, 중복 요청, 스냅샷 FK를 한 트랜잭션에서 검증한다."""
+    from uuid import uuid4
+
+    from api.routers import meals
+
+    pg_cur.execute(
+        "INSERT INTO users (username, password_hash) VALUES (?, 'test') RETURNING id",
+        ("meal_postgres",),
+    )
+    user_id = pg_cur.fetchone()[0]
+    pg_cur.execute(
+        "INSERT INTO recipes (menu_name, nutrients_json, status) VALUES (?, ?, 'approved') RETURNING id",
+        ("기록용 레시피", '{"protein_g": 12, "sodium_mg": 100}'),
+    )
+    recipe_id = pg_cur.fetchone()[0]
+    body = meals.MealCreateRequest(recipe_id=recipe_id, servings=1.5, request_id=uuid4())
+    first = meals.create_meal(body, pg_cur, user_id)
+    repeated = meals.create_meal(body, pg_cur, user_id)
+    assert first == repeated
+    assert meals.get_today(pg_cur, user_id).nutrition.sodium_row.provided == 150
+
+    updated = meals.update_meal(first.id, meals.MealUpdateRequest(servings=0.5), pg_cur, user_id)
+    assert updated.servings == 0.5
+    assert meals.create_meal(body, pg_cur, user_id).servings == 0.5
+
+    # 레시피를 지워도 식사 이름·영양값·원 요청은 남는다.
+    pg_cur.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,))
+    day = meals.get_today(pg_cur, user_id)
+    assert day.meals[0].recipe_id is None
+    assert day.meals[0].recipe_name == "기록용 레시피"
+    assert day.nutrition.sodium_row.provided == 50
+    assert meals.create_meal(body, pg_cur, user_id).recipe_id is None
+    assert meals.delete_meal(first.id, pg_cur, user_id).status_code == 204
+    assert meals.get_today(pg_cur, user_id).meals == []
+
+    # 계정 삭제 시 개인정보인 기록도 CASCADE로 삭제한다.
+    pg_cur.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    pg_cur.execute("SELECT COUNT(*) FROM meal_logs WHERE user_id = ?", (user_id,))
+    assert pg_cur.fetchone()[0] == 0
+
+
+def test_concurrent_meal_retries_leave_one_row_without_aborting_transaction(pg_conn):
+    """INSERT의 경합 경로까지 실행하여 SELECT 사전 확인만으로 통과하지 못하게 한다."""
+    import threading
+    from uuid import uuid4
+
+    from api.routers import meals
+
+    setup = pg_conn.cursor()
+    setup.execute("INSERT INTO users (username, password_hash) VALUES ('meal_race', 'test') RETURNING id")
+    user_id = setup.fetchone()[0]
+    setup.execute("INSERT INTO recipes (menu_name, status) VALUES ('동시 식사', 'approved') RETURNING id")
+    recipe_id = setup.fetchone()[0]
+    body = meals.MealCreateRequest(recipe_id=recipe_id, servings=1, request_id=uuid4())
+    a = psycopg2.connect(TEST_POSTGRES_URL)
+    b = psycopg2.connect(TEST_POSTGRES_URL)
+    worker = None
+    finished = threading.Event()
+    results = []
+    errors = []
+    try:
+        cur_a = a.cursor(cursor_factory=SqliteStyleCursor)
+        cur_b = b.cursor(cursor_factory=SqliteStyleCursor)
+        first = meals.create_meal(body, cur_a, user_id)
+
+        def second_request():
+            try:
+                results.append(meals.create_meal(body, cur_b, user_id))
+                b.commit()
+            except Exception as exc:
+                errors.append(exc)
+                b.rollback()
+            finally:
+                finished.set()
+
+        worker = threading.Thread(target=second_request)
+        worker.start()
+        assert not finished.wait(0.5), "중복 요청 INSERT가 아직 커밋하지 않은 행을 기다려야 한다"
+        a.commit()
+        worker.join(timeout=10)
+        assert finished.is_set()
+        assert errors == []
+        assert results[0].id == first.id
+        setup.execute("SELECT COUNT(*) FROM meal_logs WHERE user_id = %s", (user_id,))
+        assert setup.fetchone()[0] == 1
+    finally:
+        a.rollback()
+        if worker is not None:
+            worker.join(timeout=10)
+        a.close()
+        b.close()
+        setup.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        setup.execute("DELETE FROM recipes WHERE id = %s", (recipe_id,))
+        setup.close()
