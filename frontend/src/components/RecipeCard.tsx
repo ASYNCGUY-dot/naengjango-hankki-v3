@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { toHttps } from '../api/client'
+import FavoriteButton from './FavoriteButton'
 import styles from './RecipeCard.module.css'
 import Icon from './아이콘'
 
@@ -22,7 +23,7 @@ export type CardRecipe = {
 export type CardBadge = { text: string; tone: 'good' | 'weak' | 'poor' }
 
 /**
- * 레시피 카드. 카드 전체가 상세로 가는 링크다.
+ * 사진과 설명은 상세 링크, 사진 오른쪽 아래 별은 독립된 즐겨찾기 버튼이다.
  *
  * 1:1 정사각인 이유: 레시피 사진이 전부 320x320이다. 와이드로 늘리면 2배 화면에서
  * 흐려지고, 2열 격자의 정사각이면 화면 픽셀과 거의 1:1로 맞는다.
@@ -43,24 +44,29 @@ export default function RecipeCard({
   const [failedImage, setFailedImage] = useState<string | null>(null)
 
   return (
-    <Link className={styles.card} to={`/recipe/${recipe.id}`}>
-      <div className={styles.media}>
-        {imageUrl === null || failedImage === imageUrl ? (
-          <div className={styles.placeholder} aria-hidden="true">
-            <Icon name="bowl" size={32} />
-          </div>
-        ) : (
-          <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedImage(imageUrl)} />
-        )}
+    <div className={styles.card}>
+      <Link className={styles.link} to={`/recipe/${recipe.id}`}>
+        <div className={styles.media}>
+          {imageUrl === null || failedImage === imageUrl ? (
+            <div className={styles.placeholder} aria-hidden="true">
+              <Icon name="bowl" size={32} />
+            </div>
+          ) : (
+            <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedImage(imageUrl)} />
+          )}
+        </div>
+        <div className={styles.body}>
+          {badge && <span className={`${styles.badge} ${styles[badge.tone]}`}>{badge.text}</span>}
+          <p className={styles.title}>{recipe.menu_name}</p>
+          <p className={styles.meta}>{describeMeta(recipe)}</p>
+          {/* "재료 3개 활용"만으로는 "그래서 오늘 만들 수 있나"에 답하지 못한다. */}
+          {note && <p className={styles.note}>{note}</p>}
+        </div>
+      </Link>
+      <div className={styles.favorite}>
+        <FavoriteButton recipeId={recipe.id} recipeName={recipe.menu_name} variant="icon" />
       </div>
-      <div className={styles.body}>
-        {badge && <span className={`${styles.badge} ${styles[badge.tone]}`}>{badge.text}</span>}
-        <p className={styles.title}>{recipe.menu_name}</p>
-        <p className={styles.meta}>{describeMeta(recipe)}</p>
-        {/* "재료 3개 활용"만으로는 "그래서 오늘 만들 수 있나"에 답하지 못한다. */}
-        {note && <p className={styles.note}>{note}</p>}
-      </div>
-    </Link>
+    </div>
   )
 }
 

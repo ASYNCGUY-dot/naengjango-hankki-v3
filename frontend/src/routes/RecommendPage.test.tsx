@@ -52,6 +52,7 @@ function mockApi(
 ) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(input as string)
+    if (url.pathname.startsWith('/favorites/')) return json([])
     if (url.pathname === '/pantry/suggest') {
       return typeof suggestions === 'function'
         ? suggestions(url.searchParams.get('keyword') ?? '')

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  deleteMeal, getTodayNutrition, MEALS_CHANGED_EVENT, updateMeal,
+  deleteMeal, getMealErrorMessage, getTodayNutrition, MEALS_CHANGED_EVENT, updateMeal,
   type DailyNutrition, type MealEntry,
 } from '../api/meals'
 import { useAuth } from '../auth/context'
@@ -102,12 +102,12 @@ function DailyNutritionContent() {
         // 조회가 실패하더라도 날짜가 지난 합계를 오늘 값으로 남기지 않는다.
         void refreshRef.current({ clear: true, discardOnFailure: true })
       }, Math.min(nextDeadline - Date.now(), 2_147_483_647))
-    } catch {
+    } catch (caught) {
       if (!mounted.current || controller.signal.aborted || current !== generation.current) return
       if (options.discardOnFailure || (deadline.current !== null && Date.now() >= deadline.current)) {
         setDaily(null)
       }
-      setError('오늘의 영양을 불러오지 못했어요. 다시 시도해 주세요.')
+      setError(getMealErrorMessage(caught, '오늘의 영양을 불러오지 못했어요. 다시 시도해 주세요.'))
     } finally {
       if (mounted.current && !controller.signal.aborted && current === generation.current) {
         setLoading(false)

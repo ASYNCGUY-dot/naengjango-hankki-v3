@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, TimeoutError, toHttps } from '../api/client'
-import FavoriteButton from '../components/FavoriteButton'
 import MissingIngredientsCard from '../components/MissingIngredientsCard'
+import NutritionFitCard from '../components/NutritionFitCard'
 import RecipeMealRecorder from '../components/RecipeMealRecorder'
 import RecipeCostCard from '../components/RecipeCostCard'
 import RecommendButton from '../components/RecommendButton'
@@ -177,13 +177,9 @@ export default function RecipeDetailPage() {
       {/* 공모전에서 시세 활용을 바로 확인할 수 있도록 메뉴 소개에 재료비를 붙인다. */}
       <RecipeCostCard recipeId={recipe.id} />
 
-      {/* 메뉴 소개와 재료비를 확인한 뒤 추천하거나 즐겨찾기에 담을 수 있다.
-          둘을 나란히 놓는 이유는 서로 다른 행동이기 때문이다 - 추천은 남에게 보이는
-          공개 지표이고, 즐겨찾기는 내가 다시 보려고 담는 것이다. 하나만 두면 사용자는
-          자기가 무엇을 한 건지 모른다. */}
+      {/* 즐겨찾기는 목록 사진의 별로 저장하고, 상세에서는 공개 추천을 남긴다. */}
       <div className={styles.reactions}>
         <RecommendButton recipeId={recipe.id} />
-        <FavoriteButton recipeId={recipe.id} />
       </div>
       <nav className={styles.jumpLinks} aria-label="레시피 바로가기">
         {[['cost', '재료비'], ['ingredients', '재료'], ['steps', '조리 순서'], ['nutrition', '영양'], ['reviews', '후기']].map(([id, label]) => (
@@ -214,6 +210,7 @@ export default function RecipeDetailPage() {
         <NutrientTile label="나트륨" value={nutrients.sodium_mg} unit="mg" />
       </ul>
 
+      <NutritionFitCard recipeId={recipe.id} />
       <RecipeMealRecorder recipeId={recipe.id} />
 
       {/* 재료 목록 바로 위에 둔다. "무엇이 필요한가" 다음에 오는 질문이 "그중 뭐가

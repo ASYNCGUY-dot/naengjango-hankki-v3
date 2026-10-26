@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 
 import { AuthProvider } from '../auth/AuthContext'
+import { FavoritesProvider } from '../favorites/FavoritesProvider'
 
 /**
  * 실제 앱(main.tsx)과 같은 순서로 감싼다. 테스트가 프로바이더를 빼먹으면 useAuth가
@@ -11,7 +12,7 @@ import { AuthProvider } from '../auth/AuthContext'
 export function renderWithProviders(ui: ReactNode, { route = '/' } = {}): RenderResult {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <AuthProvider>{ui}</AuthProvider>
+      <AuthProvider><FavoritesProvider>{ui}</FavoritesProvider></AuthProvider>
     </MemoryRouter>,
   )
 }
