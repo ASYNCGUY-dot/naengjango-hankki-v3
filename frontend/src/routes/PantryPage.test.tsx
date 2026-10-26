@@ -6,6 +6,23 @@ import PantryPage from './PantryPage'
 import { describeExpiry } from '../api/pantry'
 import { renderWithProviders } from '../test/renderWithProviders'
 
+// jsdom은 dialog를 그리지만 네이티브 열기/닫기는 구현하지 않는다.
+if (!HTMLDialogElement.prototype.showModal) {
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+    configurable: true,
+    value(this: HTMLDialogElement) { this.open = true },
+  })
+}
+if (!HTMLDialogElement.prototype.close) {
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.open = false
+      this.dispatchEvent(new Event('close'))
+    },
+  })
+}
+
 type Item = { id: number; name: string; expiry_date: string | null }
 
 function json(body: unknown, status = 200) {
@@ -121,6 +138,31 @@ describe('냉장고 화면', () => {
     const sent = JSON.parse((post![1] as RequestInit).body as string)
     expect(sent).toEqual({ name: '두부', expiry_date: null })
     expect(screen.getByLabelText('재료 이름')).toHaveFocus()
+  })
+
+  it('소비기한 휠에서 고른 날짜를 재료와 함께 저장하고 입력을 비운다', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const fetchMock = mockApi(() => [])
+    renderWithProviders(<PantryPage />)
+    const date = screen.getByRole('button', { name: '소비기한' })
+
+    await user.click(date)
+    expect(screen.getByRole('dialog', { name: '소비기한 선택' })).toBeInTheDocument()
+    const year = screen.getByRole('spinbutton', { name: '연도' }).getAttribute('aria-valuenow')
+    await user.click(screen.getByRole('spinbutton', { name: '월' }))
+    await user.keyboard('{Home}{ArrowUp>9/}')
+    await user.click(screen.getByRole('spinbutton', { name: '일' }))
+    await user.keyboard('{Home}{ArrowUp>29/}')
+    await user.click(screen.getByRole('button', { name: '선택 완료' }))
+    const selectedDate = `${year}-10-30`
+    expect(date).toHaveTextContent(selectedDate)
+    await user.type(screen.getByLabelText('재료 이름'), '두부')
+    await user.click(screen.getByRole('button', { name: '추가' }))
+
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')
+    expect(JSON.parse(post![1]!.body as string)).toEqual({ name: '두부', expiry_date: selectedDate })
+    await waitFor(() => expect(date).toHaveTextContent('소비기한'))
   })
 
   it('추가 대기 중 다른 재료의 날짜로 이동하면 재조회 중에도 그 초점을 유지한다', async () => {
